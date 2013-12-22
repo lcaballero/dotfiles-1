@@ -37,7 +37,7 @@ function duf {
 }
 
 
-# DIRSTACK                                                                                       {{{1
+# DIRSTACK                                                                                                             {{{1
 # chdir is aliased to cd so that cd's update the stack and create a new prompt.  DO NOT alias -k cd!!!
 # A 'history' of cd's is remembered.
 # 'cd ='  lists the contents of the stack.
@@ -108,12 +108,12 @@ function duf {
 #alias cd=dirstack
 
 
-# Silent push and popd. Use dirs -v for vertical dirstack #                                      {{{1
+# Silent push and popd. Use dirs -v for vertical dirstack #                                                            {{{1
 function pushd { command pushd $@ > /dev/null ; }
 function popd  { command popd  $@ > /dev/null ; }
 
 
-# Emulate Zsh's behavior of pushd lifting the directory to tos instead of cycling the stack      {{{1
+# Emulate Zsh's behavior of pushd lifting the directory to tos instead of cycling the stack                            {{{1
 function zsh_cd {
   if (( $#==0 )); then
     if [[ $REPO_PATH == "" ]]; then
@@ -172,7 +172,7 @@ function zsh_cd {
 alias cd=zsh_cd
 
 
-# Function to convert tr0 to pun                                                                 {{{1
+# Function to convert tr0 to pun                                                                                       {{{1
 #function tr2pun(){
 #    for i in $*; do
 #        echo
@@ -184,7 +184,7 @@ alias cd=zsh_cd
 #}
 
 
-# Function to convert latex file to pdf                                                          {{{1
+# Function to convert latex file to pdf                                                                                {{{1
 #function tex2pdf(){
 #    for i in $*; do
 #        file=`basename $i .tex`
@@ -198,7 +198,7 @@ alias cd=zsh_cd
 #}
 
 
-# Function to print column no. n of space-separated input                                        {{{1
+# Function to print column no. n of space-separated input                                                              {{{1
 # SYNTAX:
 #   echo " 1  2  3" | col 1
 #     should print 2
@@ -211,7 +211,7 @@ function colm {
 }
 
 
-# Function to submit tr0 to pun conversion to short queue in lsf                                 {{{1
+# Function to submit tr0 to pun conversion to short queue in lsf                                                       {{{1
 #function lsftr2pun(){
 #    for i in $*; do
 #        /usr/local/lsf/bin/bsub -P P0:IO_10015123 -q short -o /dev/null -R ws40 -J tr2pun converter -t punch -i `basename $i 0` -o `basename $i .tr0`
@@ -220,11 +220,11 @@ function colm {
 #}
 
 
-# Function to create new dir(s) and enter it (last directory if multiple arguments are given)    {{{1
+# Function to create new dir(s) and enter it (last directory if multiple arguments are given)                          {{{1
 function mcd(){ mkdir -p $1 && cd $1; }
 
 
-# Function to compile and simulate verilog using Icarus Verilog                                  {{{1
+# Function to compile and simulate verilog using Icarus Verilog                                                        {{{1
 #function vsim(){
 #  out=`basename $*[1] .v`.out
 #    iverilog -o $out $*
@@ -235,7 +235,7 @@ function mcd(){ mkdir -p $1 && cd $1; }
 #}
 
 
-# Function to compile c source files and generate output files of the same name                  {{{1
+# Function to compile c source files and generate output files of the same name                                        {{{1
 #function gcp(){
 #    for i in $*; do
 #        out=`basename $i .c`
@@ -248,7 +248,7 @@ function mcd(){ mkdir -p $1 && cd $1; }
 #}
 
 
-# Function to kill all jobs that match a pattern                                                 {{{1
+# Function to kill all jobs that match a pattern                                                                       {{{1
 #function bkillall(){
 #    for i in `bjg $1 | cut -d" " -f1`; do
 #        bkill $i
@@ -258,7 +258,7 @@ function mcd(){ mkdir -p $1 && cd $1; }
 #}
 
 
-# Function to move multiple files to directory which is specified as the last argument           {{{1
+# Function to move multiple files to directory which is specified as the last argument                                 {{{1
 # Same functionality can be achieved by
 #   mv {file1, file2 ...} dest_dir
 # Curly braces may be omitted in BASH
@@ -276,7 +276,7 @@ function mcd(){ mkdir -p $1 && cd $1; }
 #}
 
 
-# Function to find and print all Sub-spice tags in the deck                                      {{{1
+# Function to find and print all Sub-spice tags in the deck                                                            {{{1
 #function findtags(){
 #  for i in $*; do
 #    print "$i : "
@@ -287,7 +287,7 @@ function mcd(){ mkdir -p $1 && cd $1; }
 #}
 
 
-# Function to convert HSPICE mt* files to TISPICE prt format                                     {{{1
+# Function to convert HSPICE mt* files to TISPICE prt format                                                           {{{1
 #function mt2prt(){
 #  for i in $*; do
 #    print "Converting $i..."
@@ -298,7 +298,7 @@ function mcd(){ mkdir -p $1 && cd $1; }
 #}
 
 
-# Function to summarise the number of jobs running in LSF queue                                  {{{1
+# Function to summarise the number of jobs running in LSF queue                                                        {{{1
 #function cjobs(){
 #  /usr/local/lsf/bin/bjobs >| /tmp/$$
 #  lsfjobs[running]=`grep -c RUN /tmp/$$`
@@ -308,7 +308,7 @@ function mcd(){ mkdir -p $1 && cd $1; }
 #  return
 #}
 
-# Handling temporary file backups                                                                {{{1
+# Handling temporary file backups                                                                                      {{{1
 function bak(){
   for i in $*; do
     cp $i{,.bak}
@@ -329,13 +329,13 @@ function unbak(){
 }
 
 
-# Function to untar, and unzip an archive                                                        {{{1
+# Function to untar, and unzip an archive                                                                              {{{1
 #function targz(){
 #    gunzip -c $1 | tar xvf -
 #}
 
 
-# For csh compatibility                                                                          {{{1
+# For csh compatibility                                                                                                {{{1
 function setenv(){
   var=$1
   shift
@@ -345,7 +345,7 @@ function setenv(){
 }
 
 
-# Misc                                                                                           {{{1
+# Misc                                                                                                                 {{{1
 #function hspx(){
 #    for i in $*; do
 #        cell=`basename $i .hsp`
@@ -408,3 +408,56 @@ uc(){ echo $* |/usr/bin/tr "[a-z]" "[A-Z]"; }
   #fi
 #}
 #alias brcmd='br `sed -n "2 s/^\s*//p" sim.out`'
+
+
+unset -f get_vcs_type
+function get_vcs_type {                                                                                           # {{{1
+  # Description: Check if specified directory is under a Version-controlled system
+  # Arguments: 1 - Variable to return VCS type
+  #            2 - Directory to check. If skipped, defaults to PWD
+
+  local cwd=$PWD
+  if (( $#>1 )); then
+    cd $2
+  fi
+
+  if git rev-parse --git-dir > /dev/null 2>&1; then
+    # Check if PWD is under Git
+    eval "$1='git'"
+
+  elif hg status > /dev/null 2>&1; then
+    # Check if PWD is under Mercurial
+    eval "$1='hg'"
+
+  else
+    # No VCS. Return empty string
+    eval "$1=''"
+  fi
+
+  cd $cwd
+}
+
+
+unset -f get_vcs_branch
+function get_vcs_branch {                                                                                         # {{{1
+  # Description: If PWD is under a VCS, return the branch. If not, return an empty string
+  # Arguments: 1 - The variable into which the branch name must be written
+
+  # Get VCS type
+  vcs_type=""
+  get_vcs_type vcs_type
+
+  if [[ $vcs_type == "git" ]]; then
+    #echo "Detected git versioning scheme"
+    local ref=$(git symbolic-ref HEAD 2> /dev/null) || return
+    eval "$1=${ref#refs/heads/}"
+
+  elif [[ $vcs_type == "hg" ]]; then
+    #echo "Detected mercurial versioning scheme"
+    eval "$1=$(hg branch 2> /dev/null)"
+
+  else
+    eval "$1=''"
+  fi
+}
+
