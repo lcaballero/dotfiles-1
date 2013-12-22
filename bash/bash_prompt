@@ -258,7 +258,7 @@ function preprompt_sjlmod {
   if [[ $pr_vcs_type == "git" ]]; then
     local pr_user_symbol=" ±"
 
-    if $(echo "$(git log origin/$PR_GIT_BR..HEAD 2> /dev/null)" | grep '^commit' &> /dev/null); then
+    if $(echo "$(git log origin/$pr_vcs_branch..HEAD 2> /dev/null)" | grep '^commit' &> /dev/null); then
       local prc_vcs_branch=${prc_orange}
     elif [[ -n $(git status -s --ignore-submodules=dirty  2> /dev/null) ]]; then
       local prc_vcs_branch=${prc_cherry}
@@ -332,7 +332,7 @@ function preprompt_sjlmod {
   fi
 
   PS1="\n${prc_norm}${prc_bg}${pr_ulcorner} ${prc_cherry}${pr_user}${prc_white}${pr_user_host_sep}${prc_orange}${pr_host}"
-  PS1+="${pr_pwd_sep}${pr_pwd}${prc_white}${pr_vcs_sep}${prc_cherry}${pr_vcs_branch} "
+  PS1+="${pr_pwd_sep}${pr_pwd}${prc_white}${pr_vcs_sep}${prc_vcs_branch}${pr_vcs_branch} "
   PS1+="${prc_bg}${pr_fill}${prc_orange}${pr_time}"
   PS1+="\n${prc_bg}${pr_llcorner}${pr_cmd_exit}${prc_user_symbol}${pr_user_symbol}${prc_norm} "
 
