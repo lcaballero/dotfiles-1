@@ -1,0 +1,410 @@
+#!/bin/bash -f
+# Description: Functions for BASH
+
+#typeset -A lsfjobs
+
+
+# Functions pertaining to AMD Projects
+unset -f build_model
+function build_model(){
+  \cp $asks/amdmsg_config.yaml .
+  build -model $1
+}
+
+unset -f build_clean_build
+function build_clean_build(){
+  build -clean -model $1 && build_model $1
+}
+
+unset -f mkwa_as
+function mkwa_as(){
+  if (( $#==0 )); then
+    echo p4_mkwa -codeline aspen
+    p4_mkwa -codeline aspen
+  else
+    [[ $1 == "-configuration_id" ]] && shift;
+    config_id=${1/#aspen\/aspen_trunk/}
+    config_id=${config_id/#@/}
+    echo p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
+    p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
+  fi
+}
+
+# Human-readable du sorted by size
+unset -f duf
+function duf {
+  command du -k "$@" | sort -n | while read size fname; do for unit in K M G T P E Z Y; do if [ $size -lt 1024 ]; then printf " %4d%sB\t  %s\n" ${size} ${unit} ${fname}; break; fi; size=$((size/1024)); done; done
+}
+
+
+# DIRSTACK                                                                                       {{{1
+# chdir is aliased to cd so that cd's update the stack and create a new prompt.  DO NOT alias -k cd!!!
+# A 'history' of cd's is remembered.
+# 'cd ='  lists the contents of the stack.
+# 'cd +n' exchanges the current directory with the directory
+#         stored in 'n'. 'cd +0' is a NOP.
+# 'cd -'  is the same as 'cd +1'
+# 'cd +'  pops the current directory off the stack and cd's to
+#         the next directory on the stack (equivalent to popd).
+#unset -f dirstack
+#function dirstack(){
+#if (( $#==0 )); then
+#  dir=${HOME}
+#else
+#  dir=${1}
+#fi
+
+#case $dir in
+#  +[0-9]*)
+#    if (($1<$NUMDIR)); then
+#      if command cd ${DIR[${1}]}; then
+#        DIR[$1]=${DIR[0]}
+#        DIR[0]=${PWD}
+#      fi
+#    fi;;
+
+#  -)
+#    if (($NUMDIR>0)); then
+#      if command cd ${DIR[${1}]}; then
+#        DIR[1]=${DIR[0]}
+#        DIR[0]=${PWD}
+#        #preprompt_sjlmod
+#      fi
+#    fi;;
+
+#  +)
+#    typeset -i i=0
+#    if (($NUMDIR==1)); then
+#      return
+#    fi
+#    while ((i < ($NUMDIR - 1))); do
+#      DIR[i]=${DIR[i+1]}
+#      let i=i+1;
+#    done
+#    ((NUMDIR=($NUMDIR-1)))
+#    DIR[$NUMDIR]=
+#    command cd ${DIR[0]}
+#    ;;
+
+#  =)
+#    typeset -i i=0
+#    while ((i <= ($NUMDIR - 1))); do
+#      echo " $i  ${DIR[i]/#$HOME/~}"
+#      let i=i+1;
+#    done;;
+
+#  *)
+#    if command cd $1; then
+#      typeset -i i=$NUMDIR
+#      while ((i > 0)); do
+#        DIR[i]=${DIR[i-1]}
+#        ((i=i-1))
+#      done
+#      DIR[0]=${PWD}
+#      ((NUMDIR=($NUMDIR+1)))
+#    fi;;
+#esac
+#}
+#alias cd=dirstack
+
+
+# Silent push and popd. Use dirs -v for vertical dirstack #                                      {{{1
+function pushd { command pushd $@ > /dev/null ; }
+function popd  { command popd  $@ > /dev/null ; }
+
+
+# Emulate Zsh's behavior of pushd lifting the directory to tos instead of cycling the stack      {{{1
+function zsh_cd {
+  if (( $#==0 )); then
+    if [[ $REPO_PATH == "" ]]; then
+      #echo "Forcing target dir to $HOME"
+      dir=${HOME/%\//}
+    else
+      #echo "Forcing target dir to $REPO_PATH"
+      dir=$REPO_PATH
+    fi
+  else
+    dir=${1/%\//}
+  fi
+
+  dirstack=(`command dirs`)
+  case $dir in
+    +[0-9]*)
+      #echo "Jumping to a dir on the stack"
+      # $[#dirstack[@]] gives the number of elements in dirstack
+      #if (($dir<$[#dirstack[@]])); then
+      command popd $1 > /dev/null
+      command pushd ${dirstack[$1]/#~/$HOME} > /dev/null
+      ;;
+
+    -)
+      #echo "Jumping to the prev dir"
+      command popd +1 > /dev/null
+      command pushd ${dirstack[1]/#~/$HOME} > /dev/null
+      ;;
+
+    +)
+      #echo "Popping current dir from the stack"
+      command popd > /dev/null
+      ;;
+
+    =)
+      command dirs -v
+      ;;
+
+    *)
+      #echo "Pushing $dir onto the stack"
+      command pushd $dir > /dev/null
+      # Remove any duplicate entries
+      # $[#dirstack[@]] gives the number of elements in dirstack
+      local i=0
+      while (( $i < ${#dirstack[@]} )); do
+        #echo $i / ${#dirstack[@]} : ${dir/#~/$HOME} ${dirstack[$i]/#~/$HOME}
+        if [ "$PWD" == "${dirstack[$i]/#~/$HOME}" ]; then
+          command popd +$((($i+1))) > /dev/null
+          break
+        fi
+        let i=$i+1
+      done
+      ;;
+  esac
+}
+alias cd=zsh_cd
+
+
+# Function to convert tr0 to pun                                                                 {{{1
+#function tr2pun(){
+#    for i in $*; do
+#        echo
+#        echo "Converting $i..."
+#        echo
+#        ~a0393831/bin/converter -t punch -i `basename $i 0` -o `basename $i .tr0`
+#    done
+#    return
+#}
+
+
+# Function to convert latex file to pdf                                                          {{{1
+#function tex2pdf(){
+#    for i in $*; do
+#        file=`basename $i .tex`
+#        file=`basename $file .latex`
+#
+#        latex $i
+#        dvipdf $file.dvi
+#        \rm -rf $file.dvi $file.aux $file.log
+#    done
+#    return
+#}
+
+
+# Function to print column no. n of space-separated input                                        {{{1
+# SYNTAX:
+#   echo " 1  2  3" | col 1
+#     should print 2
+#   echo " 1  2  3" | col -1
+#     should print 3
+function colm {
+  while read stdin; do
+    echo $stdin | perl -alne 'print $F['$1']';
+  done
+}
+
+
+# Function to submit tr0 to pun conversion to short queue in lsf                                 {{{1
+#function lsftr2pun(){
+#    for i in $*; do
+#        /usr/local/lsf/bin/bsub -P P0:IO_10015123 -q short -o /dev/null -R ws40 -J tr2pun converter -t punch -i `basename $i 0` -o `basename $i .tr0`
+#    done
+#    return
+#}
+
+
+# Function to create new dir(s) and enter it (last directory if multiple arguments are given)    {{{1
+function mcd(){ mkdir -p $1 && cd $1; }
+
+
+# Function to compile and simulate verilog using Icarus Verilog                                  {{{1
+#function vsim(){
+#  out=`basename $*[1] .v`.out
+#    iverilog -o $out $*
+#    vvp $out
+#}
+#function vrun(){
+#    vsim $1 ../../HDL/run_s/${1//_tb/}
+#}
+
+
+# Function to compile c source files and generate output files of the same name                  {{{1
+#function gcp(){
+#    for i in $*; do
+#        out=`basename $i .c`
+#        gcc $i -o $out.out
+#
+#        if [[ $? -eq 0 ]]; then
+#            ./$out.out
+#        fi
+#    done
+#}
+
+
+# Function to kill all jobs that match a pattern                                                 {{{1
+#function bkillall(){
+#    for i in `bjg $1 | cut -d" " -f1`; do
+#        bkill $i
+#    done
+#
+#    return
+#}
+
+
+# Function to move multiple files to directory which is specified as the last argument           {{{1
+# Same functionality can be achieved by
+#   mv {file1, file2 ...} dest_dir
+# Curly braces may be omitted in BASH
+#function mvall(){
+#    if [[ -d $*[$#] ]]; then
+#        integer last
+#        (( last = $# - 1 ))
+#        print "Moving all to $*[$#]"
+#        for i in {1..$last}; do
+#            mv $*[$i] $*[$#]
+#        done
+#    else
+#        print "ERROR: Incorrect syntax. Last argument must be a directory"
+#    fi
+#}
+
+
+# Function to find and print all Sub-spice tags in the deck                                      {{{1
+#function findtags(){
+#  for i in $*; do
+#    print "$i : "
+#    perl -lne 'print "  $&" if/<\w+>/' $i | sort -u
+#  done
+#
+#  return
+#}
+
+
+# Function to convert HSPICE mt* files to TISPICE prt format                                     {{{1
+#function mt2prt(){
+#  for i in $*; do
+#    print "Converting $i..."
+#        perl -lne 'if(/^ \w+/){@a=(@a,split(/\s+/))};if(/^\s+-?\d/){@v=(@v,split(/\s+/))};END{for(0..$#a){!($a[$_])||print "$a[$_]=$v[$_]"}}' $i > $i.prt
+#    done
+#
+#  return
+#}
+
+
+# Function to summarise the number of jobs running in LSF queue                                  {{{1
+#function cjobs(){
+#  /usr/local/lsf/bin/bjobs >| /tmp/$$
+#  lsfjobs[running]=`grep -c RUN /tmp/$$`
+#  lsfjobs[pending]=`grep -c PEND /tmp/$$`
+#  lsfjobs[total]=`grep -vc JOBID /tmp/$$`
+#
+#  return
+#}
+
+# Handling temporary file backups                                                                {{{1
+function bak(){
+  for i in $*; do
+    cp $i{,.bak}
+  done
+  return
+}
+function bakm(){
+  for i in $*; do
+    mv $i{,.bak}
+  done
+  return
+}
+function unbak(){
+  for i in $*; do
+    mv $i `basename $i .bak`
+  done
+  return
+}
+
+
+# Function to untar, and unzip an archive                                                        {{{1
+#function targz(){
+#    gunzip -c $1 | tar xvf -
+#}
+
+
+# For csh compatibility                                                                          {{{1
+function setenv(){
+  var=$1
+  shift
+  eval $var="'$@'"
+  echo "$var='$@'"
+  unset var
+}
+
+
+# Misc                                                                                           {{{1
+#function hspx(){
+#    for i in $*; do
+#        cell=`basename $i .hsp`
+#        #sed -i -e "/^\.TEMP/,/^$/d" -e "/Cell name: $cell$/ N; /View name: schematic$/ r $cell.pin" -e "$ a .ends $cell" $i
+#        sed -i -e "/^\.TEMP/,/^$/d" $i
+#    done
+#    return
+#}
+
+#function send(){
+#  for i in $*; do
+#    cp $i ~/tmp/`basename $i`
+#  done
+#  return
+#}
+
+lc(){ echo $* |/usr/bin/tr "[A-Z]" "[a-z]"; }
+uc(){ echo $* |/usr/bin/tr "[a-z]" "[A-Z]"; }
+
+
+# Implemented in PERL
+#function br(){
+  ## Description: Parse the input command to identify the model and then build it and execute the input command
+
+  #if [[ $# -eq 1 ]]; then
+    #echo `sed -n "2 s/^\s*//p" sim.out`
+    #return
+  #fi
+  #if [[ $1 == b* ]]; then
+    #shift
+    #if [[ $1 == "-model" ]]; then
+      #shift
+    #fi
+    #shift
+  #fi
+  #if [[ $1 == "run_job" ]]; then
+    #shift;
+  #fi
+
+  #flag_capture=0
+  #flag_lsf=0
+  #for i in $*; do
+    #if [[ $i == "-lsf" ]]; then
+      #flag_lsf=1
+    #elif [[ $i == "-model" ]]; then
+      #flag_capture=1
+    #elif [[ $flag_capture -eq 1 ]]; then
+      ##echo "Model found: $i"
+      #model=$i
+      #flag_capture=0
+    #fi
+  #done
+
+  #echo "Building model: $model ..."
+  #if [[ flag_lsf -eq 1 ]]; then
+    #build -model $model && run_job $*
+  #else
+    #echo "LSF switch not found. Adding one..."
+    #build -model $model && run_job $* -lsf
+  #fi
+#}
+#alias brcmd='br `sed -n "2 s/^\s*//p" sim.out`'

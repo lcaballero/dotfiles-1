@@ -1,0 +1,181 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# Kartik Shenoy (kartik.shenoy@amd.com)
+
+
+#===================================================================================================
+# Shell Configuration
+#======================
+
+HISTCONTROL=ignoredups:ignorespace
+#HISTFILE=
+HISTFILESIZE=5000
+# Ignore trivial one- and two-char commands
+HISTIGNORE=?:??
+HISTSIZE=5000
+# Append commands to histfile immediately and keep a copy forever
+#PROMPT_COMMAND='history -a; history -r; tail -1 ~/.bash_history >> ~/.bash_history_all'
+
+shopt -s cdspell
+shopt -s cdable_vars
+shopt -s checkhash
+# Check the window size after each command and, if necessary, update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+shopt -s mailwarn
+shopt -s sourcepath
+shopt -s cmdhist
+# Append to the history file, don't overwrite it
+shopt -s histappend histreedit histverify
+
+set +o nounset          # otherwise some completions will fail
+set -o noclobber
+#set -o vi
+
+complete -A hostname   rsh rcp telnet rlogin r ftp ping disk
+complete -A export     printenv
+complete -A variable   export local readonly unset
+complete -A enabled    builtin
+complete -A alias      alias unalias
+complete -A function   function
+complete -A user       su mail finger
+
+complete -A helptopic  help     # currently same as builtins
+complete -A shopt      shopt
+complete -A stopped -P '%' bg
+complete -A job -P '%' fg jobs disown
+
+complete -A directory  mkdir rmdir
+complete -A directory  -o default cd
+
+# Compression
+complete -f -o default -X '*.+(zip|ZIP)'  zip
+complete -f -o default -X '!*.+(zip|ZIP)' unzip
+complete -f -o default -X '*.+(z|Z)'      compress
+complete -f -o default -X '!*.+(z|Z)'     uncompress
+complete -f -o default -X '*.+(gz|GZ)'    gzip
+complete -f -o default -X '!*.+(gz|GZ)'   gunzip
+complete -f -o default -X '*.+(bz2|BZ2)'  bzip2
+complete -f -o default -X '!*.+(bz2|BZ2)' bunzip2
+
+# Postscript,pdf,dvi.....
+complete -f -o default -X '!*.ps'  gs ghostview ps2pdf ps2ascii
+complete -f -o default -X '!*.dvi' dvips dvipdf xdvi dviselect dvitype
+complete -f -o default -X '!*.pdf' acroread pdf2ps
+complete -f -o default -X '!*.+(pdf|ps)' gv
+complete -f -o default -X '!*.texi*' makeinfo texi2dvi texi2html texi2pdf
+complete -f -o default -X '!*.tex' tex latex slitex
+complete -f -o default -X '!*.lyx' lyx
+complete -f -o default -X '!*.+(htm*|HTM*)' lynx html2ps
+complete -f -o default -X '!*.pl'  perl perl5
+complete -f -o default -X '!*.gv'   dot
+complete -f -o default -X '!*.gif'  kview
+
+# AMD Specific
+complete -f -o default -X '!*.xml' ljd
+complete -f -o default -X '!*.vv' vv
+
+# Multimedia
+#complete -f -o default -X '!*.+(jp*g|gif|xpm|png|bmp)' xv gimp
+#complete -f -o default -X '!*.+(mp3|MP3)' mpg123 mpg321
+#complete -f -o default -X '!*.+(ogg|OGG)' ogg123
+
+# Default LS_COLORS
+#export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:su=37;41:sg=30;43:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.flac=01;35:*.mp3=01;35:*.mpc=01;35:*.ogg=01;35:*.wav=01;35:'
+# Change the default directory color from dark blue to burnt orange
+#export LS_COLORS='no=00:fi=00:di=00;33:ln=01;36:pi=40;33:so=01;35:bd=40;33;01:cd=40;33;01:or=01;05;37;41:mi=01;05;37;41:ex=01;32:*.cmd=01;32:*.exe=01;32:*.com=01;32:*.btm=01;32:*.bat=01;32:*.sh=01;32:*.csh=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.bz=01;31:*.tz=01;31:*.rpm=01;31:*.cpio=01;31:*.jpg=01;35:*.gif=01;35:*.bmp=01;35:*.xbm=01;35:*.xpm=01;35:*.png=01;35:*.tif=01;35:'
+
+
+#===================================================================================================
+# External Customisations
+#==========================
+if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
+    . /etc/bash_completion
+fi
+
+#if [ -x /usr/bin/dircolors ]; then
+#    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+#fi
+
+# If not running interactively, don't do anything
+[ -z "$PS1" ] && return
+
+if [ -f ~/Dropbox/Softwares/Linux/bash/bash_func ]; then
+  #echo "  Sourcing bash_func ..."
+  . ~/Dropbox/Softwares/Linux/bash/bash_func
+  #echo "  ... done"
+fi
+
+if [ -f ~/Dropbox/Softwares/Linux/aliases ]; then
+  #echo "  Sourcing aliases ..."
+  . ~/Dropbox/Softwares/Linux/aliases
+  #echo "  ... done"
+fi
+
+if [ -f ~/Dropbox/Softwares/Linux/bash/bash_prompt ]; then
+  #echo "  Sourcing bash_prompt ..."
+  . ~/Dropbox/Softwares/Linux/bash/bash_prompt
+  preprompt_sjlmod
+  #echo "  ... done"
+fi
+
+
+#===================================================================================================
+# Misc Settings
+#================
+
+# Make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "$debian_chroot" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# If this is an xterm set the title to user@host:dir
+#case "$TERM" in
+#xterm*|rxvt*)
+    #PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    #;;
+#*)
+    #;;
+#esac
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+
+
+#===================================================================================================
+# Environment Variables
+#========================
+
+# Set terminal to mimic titeInhibit = true
+export TERM=xterm-256color
+#export LESS="-icuf -P?f%f:stdin. [%T] (?pB%pB\%:byte %bB.)"
+#export EDITOR=`v | sed -e 's/^alias v=//'`
+export EDITOR='vim -u NONE'
+export P4EDITOR=$EDITOR
+export PAGER=/usr/bin/less
+export MANPATH=.:/usr/local/man:/usr/man:/tool/pandora/man:/proj/lsf/6.2/source/man
+export LD_LIBRARY_PATH=~/usr/lib:$LD_LIBRARY_PATH
+export PATH=~/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
+export TZ=US/Mountain
+# Show timestamps in history
+export HISTTIMEFORMAT="%F %T "
+export LANG=en_US.UTF-8
+#export ACK_OPTIONS='--color-filename=COLOR --color-match=COLOR --color-lineno=COLOR --type-add verilog:ext:.sv,.svh,.v'
+export ACK_OPTIONS='--type-set verilog=.sv,.svh,.v'
+#export MYCPU_TERM=/usr/bin/gnome-terminal
+
+
+#===================================================================================================
+# TMUX
+#========================
+if [ -f ~/Dropbox/Softwares/Linux/tmux/tmux_completion_bash.sh ]; then
+  #echo "  Sourcing tmux_completion ..."
+  . ~/Dropbox/Softwares/Linux/tmux/tmux_completion_bash.sh
+  #echo "  ... done"
+fi
+#if [ -f ~/Dropbox/Softwares/Linux/tmux/tmux_scripts_bash.sh ]; then
+  #. ~/Dropbox/Softwares/Linux/tmux/tmux_scripts_bash.sh
+#fi

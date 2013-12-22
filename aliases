@@ -1,0 +1,323 @@
+#!/bin/bash -a
+#=========
+# Aliases
+#=========
+# Identify the current shell
+MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' ))
+
+#=================================
+# Global aliases ( Zsh specific )
+#
+if [[ $MYSHELL =~ "zsh" ]]; then
+  #alias -g ...='../..'
+  #alias -g ....='../../..'
+  #alias -g .....='../../../..'
+  #alias -g CA="2>&1 | cat -A"
+  alias -g WCL='| wc -l'
+  #alias -g D="DISPLAY=:0.0"
+  alias -g DN=/dev/null
+  #alias -g ED="export DISPLAY=:0.0"
+  #alias -g EG='|& egrep'
+  #alias -g EH='|& head'
+  #alias -g EL='|& less'
+  #alias -g ELS='|& less -S'
+  #alias -g ETL='|& tail -20'
+  #alias -g ET='|& tail'
+  #alias -g F=' | fmt -'
+  alias -g G='| grep'
+  alias -g H='| head'
+  #alias -g HL='|& head -20'
+  #alias -g Sk="*~(*.bz2|*.gz|*.tgz|*.zip|*.z)"
+  #alias -g LL="2>&1 | less"
+  alias -g L="| less"
+  #alias -g LS='| less -S'
+  #alias -g MM='| most'
+  #alias -g M='| more'
+  #alias -g NE="2> /dev/null"
+  #alias -g NS='| sort -n'
+  #alias -g NUL="> /dev/null 2>&1"
+  #alias -g PIPE='|'
+  #alias -g R=' > /c/aaa/tee.txt '
+  alias -g RD='| rm -rf'
+  #alias -g RNS='| sort -nr'
+  alias -g S='| sort'
+  #alias -g TL='| tail -20'
+  alias -g T='| tail'
+  alias -g SU='| sort -u'
+  #alias -g VM=/var/log/messages
+  #alias -g X0G='| xargs -0 egrep'
+  #alias -g X0='| xargs -0'
+  #alias -g XG='| xargs egrep'
+  alias -g X='| xargs'
+fi
+
+
+#=============
+# ls aliases
+#
+alias ls='ls -FLH --color=always'
+alias l=ls
+alias ll='ls -lh'
+alias la='ls -a'
+alias lla='ll -a'
+alias all=lla
+alias lal=lla
+alias ltr='ll -tr'
+if [[ $MYSHELL =~ "zsh" ]]; then
+  alias ld='ls -d *(-/DN)'
+  alias \\ld='\ls -d *(-/DN)'
+fi
+if [[ $MYSHELL =~ "bash" ]]; then
+  alias ld='\ls -F | grep "/"'
+fi
+
+
+#====================
+# Directory aliases
+#
+alias mkdir='mkdir -p'
+alias md=mkdir
+alias cd..='..'
+alias dirs='dirs -v'
+if [[ $MYSHELL =~ "bash" ]]; then
+  alias ..='cd ..'
+  alias ...='cd ../..'
+fi
+
+
+#==============
+# tar aliases
+#
+#alias tar='tar -v'
+#alias tcz='tar -xzf'
+#alias txz='tar -xzf'
+#alias txj='tar -xjf'
+#alias untar='tar -xf'
+#alias untgz='tar -zxf'
+#alias untbz='tar -jxf'
+
+
+#===============
+# Shell aliases
+#
+alias c=clear
+alias cl="c;l"
+
+alias d='diff'
+alias ds='diff -y'
+alias dt='meld'
+alias td='tkdiff'
+
+#alias echo '\echo -e'
+#alias lock='/usr/local/bin/xlock'
+alias be='bindkey -me'
+alias bv='bindkey -v'
+alias mv='mv -vi'
+alias cp='cp -vi'
+alias rm='rm -vi'
+if [[ $MYSHELL =~ "zsh" ]]; then
+  alias -g rd='rm -rvf'
+else
+  alias rd='rm -rvf'
+fi
+alias ln='ln -svi'
+alias df='df -h'
+alias du='du -kh'
+alias du1='du -kh --max-depth=1'
+alias space=du1
+alias spc=space
+
+alias f=find
+alias fn='find -name'
+alias f.='find -maxdepth 1'
+alias f.n='find -maxdepth 1 -name'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+alias g='grep -snP --color=always'
+alias grepi='grep -i'
+alias gi='g -i'
+alias gv='g -v'
+alias gerr='gi ERR -C5'
+alias pgrep='/bin/ps -aef | grep -i'
+alias a='ack'
+alias ai='ack -i'
+
+alias C=cat
+alias L=less
+alias H=head
+alias T='tail -n 50'
+if [[ $MYSHELL =~ "zsh" ]]; then
+  alias hi='history 1'         # Displays all history entries ( Zsh specific )
+  alias hh='history -50'       # Displays the last 100 history entries ( Zsh specific )
+else
+  alias hi=history
+  alias hh='hi|T'
+fi
+alias hig='hi | grep -i'
+alias hgrep=hig
+alias xargs='xargs -t'
+#alias lock='/usr/local/bin/xlock'
+alias x=exit
+alias k9='kill -9'
+
+#================
+# Mini-functions
+#
+#alias sim='echo /proj/gateway4/products/`pwd | cut -d'/' -f4`/expts/a0393831/simulations'
+#alias pwdsn 'set PWDSN = \`pwd | sed 's#\(products\)#.snapshot/nightly.0/\1#'\` && \`pwd | sed 's#\(products\)#.snapshot/nightly.0/\1#'\`'
+
+
+#=================
+# Editor aliases
+#
+alias v='gvim'
+alias vco='v command*'
+alias vd='v -d'
+alias vr='v run*'
+alias vvr='v ~/.vim/vimrc'
+alias vvm='v ~/.vim/mappings.vim'
+alias vvf='v ~/.vim/functions.vim'
+alias vd='v -d'
+alias vu='v -u NONE -U NONE --noplugin -N'
+alias rvv='\rm -rf ~/.vim/views/*'
+
+
+#===============
+# File Aliases
+#
+alias readme='v ~/Dropbox/Softwares/Linux/readmes/README.toc'
+#alias ref_tispice='acroread ~/documents/manuals/spice_ref.pdf &'
+#alias ref_hspice='acroread /apps/synopsys/hspice/2010.03/hspice/docs_help/home.pdf &'
+#alias ref_hsp=ref_hspice
+#alias ref_codac='acroread ~/documents/manuals/codac_users_manual.pdf &'
+#alias ref_codacfd='acroread ~/documents/manuals/codac_function_dict.pdf &'
+#alias ref_perl='acroread ~/documents/ebooks/Learning\ Perl.pdf &'
+
+
+#===============
+# Shell config
+#
+if [[ $MYSHELL =~ "bash" ]]; then
+  alias edrc='v ~/.bashrc'
+  alias edf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
+  alias src='. ~/.bashrc && echo Sourced ~/.bashrc'
+fi
+if [[ $MYSHELL =~ "zsh" ]]; then
+  alias edrc='v ~/.zshrc'
+  alias edf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
+  alias src='. ~/.zshrc && echo Sourced ~/.zshrc'
+fi
+alias s=src
+alias eda='v ~/Dropbox/Softwares/Linux/aliases'
+alias sra='. ~/Dropbox/Softwares/Linux/aliases'
+
+
+#=======
+# Misc
+#
+alias archdate='date +%Y-%m-%d'
+alias so=source
+alias sco='. command'
+alias psmall="perl -lne 'BEGIN{"'$s=<>};$s=$_ if $_<$s;END{print "$s"}'"'"
+alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
+
+
+#============
+# Locations
+#
+zsh="$HOME/Dropbox/Softwares/Linux/zsh"
+bash="$HOME/Dropbox/Softwares/Linux/bash"
+# Locations as named directories
+if [[ $MYSHELL =~ "zsh" ]]; then
+  hash -d dev="$HOME/Documents/dev/scratchy"
+  hash -d zsh="$HOME/Dropbox/Softwares/Linux/zsh"
+  hash -d bash="$HOME/Dropbox/Softwares/Linux/bash"
+fi
+
+
+#==============
+# apt Aliases
+#
+alias apt-ins='sudo apt-fast install'
+alias apt-upd='sudo apt-fast update'
+alias apt-rem='sudo apt-fast remove'
+alias apt-aurem='sudo apt-get autoremove'
+
+
+#===============
+# Perforce Aliases
+#
+alias pf='p4w'
+alias pfu='pf update_env'
+alias pfa='pf add'
+alias pfd='pf diff'
+alias pfe='pf edit'
+alias pfh='pf help'
+alias pfo='pf opened'
+alias pfop="pfo | perl -pe 's/^.*?trunk\/|#.*$//g'"
+alias pfre='pf revert'
+alias pfs='pf submit'
+alias pfr='pf resolve'
+
+
+#==============
+# Git Aliases
+#
+alias ga='git add'
+alias gA='git add -A .'
+alias gb='git branch'
+alias gchk='git checkout'
+alias gcl='git clone'
+alias gcld='git clone --depth=1'
+alias gcom='git commit'
+alias gd='git diff --word-diff'
+alias gdt='git difftool'
+alias gh='git help'
+alias gpu='git push'
+alias gp='git pull'
+alias grst='git reset --hard HEAD'
+alias gs='git status -sb'
+alias gS='git status'
+
+
+#========
+# Tools
+#
+alias ack='ack-grep'
+alias ackc='ack-grep --type=cpp'
+alias ackch='ack-grep --type=hh'
+alias tags='ctags -R -f .tags --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q .'
+alias vs='vncserver'
+alias vk='vncserver -kill'
+
+
+#=======
+# Misc
+#
+alias perr="perl -ne 'print if /^\s*error:/../:error/'"
+
+
+#============
+# Compiling
+#
+if [[ $MYSHELL =~ "zsh" ]]; then
+  alias -g m='make'
+  alias -g mc='make clean'
+  alias -g mcm='make clean; make'
+  alias -g ma='make all'
+  alias -g mi='make install'
+else
+  alias m='make'
+  alias mc='make clean'
+  alias mcm='make clean; make'
+  alias ma='make all'
+  alias mi='make install'
+fi
+
+
+#========================
+# Local machine aliases
+#
+if [ -f ~/.aliases ]; then
+  . ~/.aliases
+fi

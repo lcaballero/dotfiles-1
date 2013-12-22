@@ -1,0 +1,170 @@
+set -o vi			# Set vi as command editor
+
+##################################################################
+# Variables 
+##################################################################
+export TERM=linux		# set terminal to mimic titeInhibit = true
+export PS1="\h> "		# set prompt to be hostname
+#export EXINIT='set ic ai'	# ignore case and autoindent for vi (this isn't working at AMD 10-27-11)
+
+# Get less configured correctly
+export LESS="-icuf -P?f%f:stdin. [%T] (?pB%pB\%:byte %bB.)"
+export P4CONFIG=P4CONFIG	# Perforce stuff
+
+export MYCPU_TERM=/usr/bin/konsole
+export LSB_DEFAULTPROJECT=bd-impl
+
+PATH=$PATH:/bin
+PATH=$PATH:/usr/bin
+PATH=$PATH:$HOME/bin
+PATH=$PATH:.
+PATH=$PATH:/tool/pandora/bin
+PATH=$PATH:/tool/amd/rex/bin
+export PATH
+
+export MANPATH=.:/usr/local/man:/usr/man:/tool/pandora/man:/proj/lsf/6.2/source/man
+
+# My misc spice sims (in SVDC)  11-9-11
+export mysims=/proj/xva_meth1/users/lahsu/misc_sims_28u
+
+####################
+# History Stuff
+####################
+export HISTFILESIZE=100000
+export HISTSIZE=5000
+HISTIGNORE=?:??					# Ignore trivial one- and two-char commands
+HISTCONTROL=ignoredups				# Ignore duplicates
+
+# Append commands to histfile immediately and keep a copy forever
+PROMPT_COMMAND='history -a; history -r; tail -1 ~/.bash_history >> ~/.bash_history_forever'
+
+# OBSOLETE:
+# The following PROMPT_COMMAND doesn't work due to all the single and double quotes...
+# PROMPT_COMMAND='history -a; history -r; echo "$(history 1)" |awk '{$1 = ""; print $0;}' |sed 's/^ //' >> ~/.bash_history_forever'
+# append_hist ()
+# {
+#   history -a; history -r;
+# }
+# awkit ()
+# {
+#   echo $(history 1) |awk '{$1 = ""; print $0;}' |sed 's/^ //' 
+# }
+# PROMPT_COMMAND='append_hist; awkit >> ~/.bash_history_forever'	# this works but replaces * with expanded arguments
+####################
+# End History Stuff
+####################
+
+##################################################################
+# Aliases
+##################################################################
+alias l='ls -tl'
+alias ll='ls -l'
+alias ls='ls -F'
+alias vr='vim -R'
+alias ac='acroread'
+
+alias lsfb='lsf_bsub -R "select[(type==RHEL4_64 || type==RHEL5_64) && (csbatch||gb16||gb32||gb128)] rusage[mem=8000]" -q normal -P xv-ckt '
+
+##################################################################
+# Functions
+##################################################################
+tab ()
+{
+  # Rename konsole tab
+  dcop $KONSOLE_DCOP_SESSION renameSession "$*"
+}
+
+wless ()
+{
+  # less <which program>
+  less $(which $*)
+}
+
+setprompt ()
+{
+  # Set konsole title bar to blahblahblah:  echo ESC]0; blahblahblah BEL
+  #   ESC = \e = \033
+  #   BEL = \a = \007
+  echo -ne "\e]0;${PWD}\007"
+
+  # PS1=$PS1"\[\e]30;\w\a\]"  - this works but sets the tab title too, which I don't like
+}
+
+unset -f chdir
+#chdir is aliased to cd so that cd's update 
+#the stack and create a new prompt.  DO NOT alias -k cd!!!
+#A 'history' of cd's is remembered.
+#'cd ='  lists the contents of the stack.
+#'cd +'  pops the current directory off the stack and cd's to
+#        the next directory on the stack (equivalent to popd).
+#'cd +n' exchanges the current directory with the directory
+#        stored in 'n'. 'cd +0' is a NOP.
+#'cd -'  is the same as 'cd +1'
+function chdir 
+{ 
+  if (( ${#*}==0 ))
+  then
+    set -- "${HOME}"
+  fi
+  case $1 in
+  +[0-9]*) if (($1<$NUMDIR))
+           then
+             if cd ${DIR[$1]}
+             then
+               DIR[$1]=${DIR[0]}
+               DIR[0]=${PWD}
+               setprompt
+             fi
+	   fi;;
+  -)       if (($NUMDIR>0))
+           then
+             if cd ${DIR[1]}
+             then
+               DIR[1]=${DIR[0]}
+               DIR[0]=${PWD}
+               setprompt
+             fi
+	   fi;;
+  +)       typeset -i i=0
+	  if (($NUMDIR==1))
+	  then
+	    return
+	  fi
+	  while ((i < ($NUMDIR - 1)))
+	  do
+	    DIR[i]=${DIR[i+1]}
+	    let i=i+1;
+	  done
+	  ((NUMDIR=($NUMDIR-1)))
+	  DIR[$NUMDIR]=
+	  cd ${DIR[0]}
+	  setprompt;;
+  =)      typeset -i i=0  
+	  while ((i <= ($NUMDIR - 1)))
+	  do
+            echo "$i) ${DIR[i]}"
+            let i=i+1;
+  	  done;;
+  *)      if cd $1
+	  then
+	    typeset -i i=$NUMDIR
+	    while ((i > 0))
+	    do
+              DIR[i]=${DIR[i-1]}
+              ((i=i-1))
+            done
+            DIR[0]=$PWD
+	    ((NUMDIR=($NUMDIR+1)))
+	    setprompt
+	  fi;;
+  esac
+}
+alias cd=chdir
+
+##################################################################
+# Final Misc
+##################################################################
+
+umask 002
+setprompt
+

@@ -1,0 +1,5 @@
+*.bak
+bash/bash_history
+bash/bash_logout
+zsh/zsh_history
+zsh/oh-my-zsh/
