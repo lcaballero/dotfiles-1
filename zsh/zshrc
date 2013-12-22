@@ -103,8 +103,9 @@ unsetopt CSH_JUNKIE_QUOTES
 #
 HISTSIZE=5000
 SAVEHIST=5000
-HISTFILE=~/.zsh_history
-#HISTFILE=~/Dropbox/Softwares/Linux/zsh/zsh_history
+if [[ -f ~/Dropbox/Softwares/Linux/shell/zsh/zsh_history ]]; then
+  HISTFILE=~/Dropbox/Softwares/Linux/shell/zsh/zsh_history
+fi
 
 setopt   HIST_VERIFY
 setopt   APPEND_HISTORY
@@ -151,7 +152,7 @@ setopt EXTENDED_GLOB
 #===============================================================================
 # 256 colors for console
 #
-if [ -e /usr/share/terminfo/x/xterm-256color ]; then
+if [[ -e /usr/share/terminfo/x/xterm-256color ]]; then
   export TERM='xterm-256color'
 else
   export TERM='xterm-color'
@@ -162,18 +163,26 @@ fi
 # Source files
 #
 # Aliases
-[[ -f ~/Dropbox/Softwares/Linux/aliases ]] && . ~/Dropbox/Softwares/Linux/aliases
+if [[ -f ~/Dropbox/Softwares/Linux/shell/aliases ]]; then
+  . ~/Dropbox/Softwares/Linux/shell/aliases
+fi
 
 # Functions
-[[ -f ~/Dropbox/Softwares/Linux/zsh/zsh_func ]] && . ~/Dropbox/Softwares/Linux/zsh/zsh_func
+if [[ -f ~/Dropbox/Softwares/Linux/shell/zsh/zsh_func ]]; then 
+  . ~/Dropbox/Softwares/Linux/shell/zsh/zsh_func
+fi
 
 # Prompts
-[[ -f ~/Dropbox/Softwares/Linux/zsh/zsh_prompt ]] && . ~/Dropbox/Softwares/Linux/zsh/zsh_prompt
-setprompt_philmod
-#setprompt_misc
+if [[ -f ~/Dropbox/Softwares/Linux/shell/zsh/zsh_prompt ]]; then 
+  . ~/Dropbox/Softwares/Linux/shell/zsh/zsh_prompt
+  setprompt_philmod
+  #setprompt_misc
+fi
 
 # Environment Variables
-[[ -f ~/Dropbox/Softwares/Linux/zsh/zsh_env ]] && . ~/Dropbox/Softwares/Linux/zsh/zsh_env
+if [[ -f ~/Dropbox/Softwares/Linux/shell/zsh/zsh_env ]]; then
+  . ~/Dropbox/Softwares/Linux/shell/zsh/zsh_env
+fi
 
 # Automatically remove duplicates from these arrays
 typeset -U path cdpath fpath manpath
