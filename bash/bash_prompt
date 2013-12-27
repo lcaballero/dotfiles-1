@@ -270,7 +270,7 @@ function preprompt_sjlmod {
     local pr_user_symbol=" ☿"
   else
     #local pr_user_symbol=" ○"
-    local pr_user_symbol=" ➤ "
+    local pr_user_symbol=" ➤"
     local pr_vcs_sep=""
   fi
 

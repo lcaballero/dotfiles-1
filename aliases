@@ -170,7 +170,8 @@ alias k9='kill -9'
 #=================
 # Editor aliases
 #
-alias v='gvim'
+function v { gvim $* 2> /dev/null; }
+#alias v='gvim'
 alias vco='v command*'
 alias vd='v -d'
 alias vr='v run*'
@@ -199,17 +200,17 @@ alias readme='v ~/Dropbox/Softwares/Linux/readmes/README.toc'
 #
 if [[ $MYSHELL =~ "bash" ]]; then
   alias edrc='v ~/.bashrc'
-  alias edf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
+  alias edf='v ~/Dropbox/Softwares/Linux/shell/bash/bash_func'
   alias src='. ~/.bashrc && echo Sourced ~/.bashrc'
 fi
 if [[ $MYSHELL =~ "zsh" ]]; then
   alias edrc='v ~/.zshrc'
-  alias edf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
+  alias edf='v ~/Dropbox/Softwares/Linux/shell/zsh/zsh_func'
   alias src='. ~/.zshrc && echo Sourced ~/.zshrc'
 fi
 alias s=src
-alias eda='v ~/Dropbox/Softwares/Linux/aliases'
-alias sra='. ~/Dropbox/Softwares/Linux/aliases'
+alias eda='v ~/Dropbox/Softwares/Linux/shell/aliases'
+alias sra='. ~/Dropbox/Softwares/Linux/shell/aliases'
 
 
 #=======
@@ -225,13 +226,13 @@ alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
 #============
 # Locations
 #
-zsh="$HOME/Dropbox/Softwares/Linux/zsh"
-bash="$HOME/Dropbox/Softwares/Linux/bash"
+zsh="$HOME/Dropbox/Softwares/Linux/shell/zsh"
+bash="$HOME/Dropbox/Softwares/Linux/shell/bash"
 # Locations as named directories
 if [[ $MYSHELL =~ "zsh" ]]; then
   hash -d dev="$HOME/Documents/dev/scratchy"
-  hash -d zsh="$HOME/Dropbox/Softwares/Linux/zsh"
-  hash -d bash="$HOME/Dropbox/Softwares/Linux/bash"
+  hash -d zsh="$HOME/Dropbox/Softwares/Linux/shell/zsh"
+  hash -d bash="$HOME/Dropbox/Softwares/Linux/shell/bash"
 fi
 
 

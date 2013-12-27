@@ -8,9 +8,9 @@
 #======================
 
 HISTCONTROL=ignoredups:ignorespace
-if [ -f ~/Dropbox/Softwares/Linux/shell/bash/bash_history ]; then
-  HISTFILE=~/Dropbox/Softwares/Linux/shell/bash/bash_history
-fi
+#if [ -f ~/Dropbox/Softwares/Linux/shell/bash/bash_history ]; then
+#  HISTFILE=~/Dropbox/Softwares/Linux/shell/bash/bash_history
+#fi
 HISTFILESIZE=5000
 # Ignore trivial one- and two-char commands
 HISTIGNORE=?:??
