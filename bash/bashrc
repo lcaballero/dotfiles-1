@@ -158,9 +158,9 @@ export TERM=xterm-256color
 export EDITOR='vim -u NONE'
 export P4EDITOR=$EDITOR
 export PAGER=/usr/bin/less
-export MANPATH=.:/usr/local/man:/usr/man:/tool/pandora/man:/proj/lsf/6.2/source/man
-export LD_LIBRARY_PATH=~/usr/lib:$LD_LIBRARY_PATH
-export PATH=~/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
+export MANPATH=.~/local/man:/usr/local/man:/usr/man:/tool/pandora/man:/proj/lsf/6.2/source/man
+export LD_LIBRARY_PATH=~/local/lib:$LD_LIBRARY_PATH
+export PATH=~/bin:~/local/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
 export TZ=US/Mountain
 # Show timestamps in history
 export HISTTIMEFORMAT="%F %T "
@@ -174,9 +174,7 @@ export ACK_OPTIONS='--type-set verilog=.sv,.svh,.v'
 # TMUX
 #========================
 if [ -f ~/Dropbox/Softwares/Linux/tmux/tmux_completion_bash.sh ]; then
-  #echo "  Sourcing tmux_completion ..."
   . ~/Dropbox/Softwares/Linux/tmux/tmux_completion_bash.sh
-  #echo "  ... done"
 fi
 #if [ -f ~/Dropbox/Softwares/Linux/tmux/tmux_scripts_bash.sh ]; then
   #. ~/Dropbox/Softwares/Linux/tmux/tmux_scripts_bash.sh

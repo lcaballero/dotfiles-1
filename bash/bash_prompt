@@ -270,7 +270,8 @@ function preprompt_sjlmod {
     local pr_user_symbol=" ☿"
   else
     #local pr_user_symbol=" ○"
-    local pr_user_symbol=" ➤"
+    #local pr_user_symbol=" ➤"
+    local pr_user_symbol=" $"
     local pr_vcs_sep=""
   fi
 
@@ -339,6 +340,6 @@ function preprompt_sjlmod {
   PS2="${prc_user_symbol}${pr_user_symbol}${prc_norm} "
 
   # Evaluate dynamic variables ( Not required for prompt )
-  declare -F dyn_vars && dyn_vars
+  declare -F dyn_vars && dyn_vars > /dev/null
 }
 PROMPT_COMMAND=preprompt_sjlmod
