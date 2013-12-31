@@ -1,0 +1,189 @@
+#!/usr/bin/perl
+#==================================================================================================#
+#                                                                                                  #
+#  SYNTAX      : ibisSelModels.pl [-i] <input file> [-m] <csv file> [-o] <output file>             #
+#                                                                                                  #
+#  CHANGELOG   : 2011-04-21: Created by Kartik Shenoy (a0393831)                                   #
+#                                                                                                  #
+#  DESCRIPTION : Script to create new ibis model file for the specified model names                #
+#                                                                                                  #
+#  REQUIRED    : ibis model file as input, csv file containing list of model names                 #
+#                                                                                                  #
+#  OPTIONAL    : CSV file can have optional 2nd argument on each line. If specified, this will be  #
+#                used instead of original contents in model definition                             #
+#                                                                                                  #
+#==================================================================================================#
+
+## Modules
+use Getopt::Long;
+use Data::Dumper;
+
+## Pragmas
+use strict;
+use warnings;
+#use diagnostics;
+
+
+## Command-line parameter handling
+GetOptions(
+	"ifile|i=s"  => \my $ifile,
+	"ofile|o=s"  => \my $ofile,
+    "models|m=s" => \my $mfile,
+);
+
+## File Handling
+$ifile||=$ARGV[0] unless defined $ifile;
+defined($ifile) or die("  ERROR: Input file not specified\n  Usage: $0 [-i] <ifile> [-m] <csv file> [-o] <ofile>\n");
+die("  ERROR: $ifile not found.\n") unless(-e $ifile);
+open(my $fin,"<",$ifile) or die("  ERROR: Unable to open $ifile for reading\n");
+
+$mfile||=$ARGV[1] unless defined $mfile;
+defined($mfile) or die("  ERROR: Models file not specified\n  Usage: $0 [-i] <ifile> [-m] <csv file> [-o] <ofile>\n");
+die("  ERROR: $mfile not found\n") unless(-e $mfile);
+open(my $fmod,"<",$mfile) or die("  ERROR: Unable to open $mfile for reading\n");
+
+$ofile||=$ARGV[2] unless defined $ofile;
+defined($ofile) or die("  ERROR: Output file not specified\n  Usage: $0 [-i] <ifile> [-m] <csv file> [-o] <ofile>\n");
+open(my $fout,">",$ofile) or die("  ERROR: Unable to open $ofile for writing\n");
+
+
+while(<$fin>){
+    chomp; s/[\n\t\f\s]$//;
+    print $fout "$_\n";
+
+    if(/Model Selector/){
+        print $fout "|\n";
+        last;
+    }else{
+        next;
+    }
+}
+
+my $href=parsecsv($mfile);
+
+my $line;
+my @lines;
+my $flag;
+my $mname;
+while($line=<$fin>){
+    next if $line=~/^\s*$/;
+    chomp $line; $line=~s/[\n\t\f\s]$//;
+
+    last if($line=~/Model Cell/);
+
+    if($line=~/^([!\w]+)\s/ or $line=~/^\[/){
+        $mname=$1 if defined $1;
+
+        while($#lines >= 0){
+            $_=shift(@lines);
+            print $fout "$_\n";
+        }
+
+        if($line=~/^\[/){
+            push(@lines,$line);
+
+        }elsif(exists(${$href}{$mname})){
+            $flag=1;
+            if(defined ${$href}{$mname} and ${$href}{$mname} !~ /^\s*$/){
+                push(@lines,$mname."  ".${$href}{$mname});
+            }else{
+                push(@lines,$line);
+            }
+
+        }else{
+            $flag=0;
+        }
+        
+    }elsif($flag){
+        push(@lines,$line);
+    }else{
+        $flag=0;
+    }
+}
+while($#lines >= 0){
+    $_=shift(@lines);
+    print $fout "$_\n";
+}
+$flag=0;
+
+$lines[0]= '|*******************************************************************************';
+if($line=~/Model\s*Cell\s*([!\w]+)/){
+    print "  INFO : Found model info for $mname in input ibis model file\n";
+
+    $mname=$1;
+    while($#lines >= 0){
+        $_=shift(@lines);
+        print $fout "$_\n";
+    }
+
+    if(exists(${$href}{$mname})){
+        $flag=1;
+        push(@lines,$line);
+    }else{
+        $flag=0;
+    }
+}
+while($line=<$fin>){
+    next if $line=~/^\s*$/;
+    chomp $line; $line=~s/[\n\t\f\s]$//;
+
+    if($line=~/Model\s*Cell\s*([!\w]+)/){
+
+        $mname=$1;
+        if($#lines >= 0){
+            while($#lines >= 0){
+                $_=shift(@lines);
+                print $fout "$_\n";
+            }
+        }
+
+        if(exists(${$href}{$mname})){
+            print "  INFO: Found model info for $mname in input ibis model file\n";
+            $flag=1;
+            push(@lines,$line);
+        }else{
+            $flag=0;
+        }
+        
+    }elsif($flag){
+        push(@lines,$line);
+    }else{
+        $flag=0;
+    }
+}
+while($#lines >= 0){
+    $_=shift(@lines);
+    print $fout "$_\n";
+}
+
+print $fout "\n[END]\n";
+
+
+close $fin;
+close $mfile;
+close $fout;
+exit 0;
+
+
+## Subroutines
+
+sub parsecsv{
+
+    my %hash;
+    my $CSV;
+
+    die "  ERROR: Failed to read $_[0]: $!\n" unless(open $CSV, '<', $_[0] );
+
+    while(<$CSV>){
+        next if /^\s*$/;
+        chomp; s/[\n\t\f\s]$//;
+
+        s/"//g;
+        my @words=split(/,/);
+
+        $hash{$words[0]} = ( defined $words[1] ? $words[1] : undef );
+    }
+    close $CSV;
+
+    return \%hash;
+}

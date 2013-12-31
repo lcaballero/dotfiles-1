@@ -1,0 +1,1207 @@
+#!/usr/bin/perl
+#===============================================================================
+#
+#   Description: GUI to generate Codac script to measure Jitter
+#
+#   Created: Kartik Shenoy (a0393831)
+#
+#   Changelog:
+#     2011-05-06: Created
+#
+#     2011-05-20:
+#       - Added support to save, load config files
+#       - Set thresholds 
+#       - Specify start and stop times
+#
+#     2011-07-06
+#       - Edited the manner in which supply normalisation handles 
+#         numerical inputs for VSS for Dynamic Normalisation
+#       
+#
+#===============================================================================
+
+use strict;
+use warnings;
+#use diagnostics;
+#use Data::Dumper;
+
+use Tk;
+require Tk::NoteBook;
+
+
+
+#===============================================================================
+# Variables
+#
+# sig_type      : 0 => Single-ended , 1 => Differential
+# trig_type     : 0 => Ideal        , 1 => Reference
+# ref_type      : 0 => Single-ended , 1 => Differential
+# sig_norm_type : 0 => Single-ended , 1 => Differential
+# ref_norm_type : 0 => Single-ended , 1 => Differential
+#
+my $sig_type;
+my $trig_type;
+my $ref_type;
+my $sig_norm;
+my $sig_norm_type;
+my $ref_norm;
+my $ref_norm_type;
+
+my $nb_jit_sig_val_ent_txt;
+my $nb_jit_sig_valn_ent_txt;
+my $nb_jit_trig_val_lbl_txt;
+my $nb_jit_trig_val_ent_txt;
+my $nb_jit_trig_valn_ent_txt;
+my $nb_jit_signorm_pwr_lbl_txt;
+my $nb_jit_signorm_pwr_ent_txt;
+my $nb_jit_signorm_gnd_lbl_txt;
+my $nb_jit_signorm_gnd_ent_txt;
+my $nb_jit_refnorm_pwr_lbl_txt;
+my $nb_jit_refnorm_pwr_ent_txt;
+my $nb_jit_refnorm_gnd_lbl_txt;
+my $nb_jit_refnorm_gnd_ent_txt;
+
+my $nb_adv_siglvl_lo_ent_txt;
+my $nb_adv_siglvl_mid_ent_txt;
+my $nb_adv_siglvl_hi_ent_txt;
+my $nb_adv_siglvl_modified_flag;
+my $nb_adv_reflvl_lo_ent_txt;
+my $nb_adv_reflvl_mid_ent_txt;
+my $nb_adv_reflvl_hi_ent_txt;
+my $nb_adv_reflvl_modified_flag;
+my $nb_adv_sigrange_start_ent_txt;
+my $nb_adv_sigrange_stop_ent_txt;
+my $nb_adv_refrange_start_ent_txt;
+my $nb_adv_refrange_stop_ent_txt;
+&widget_init;
+
+
+
+#===============================================================================
+# Components
+#
+my $mw=MainWindow->new;
+$mw->geometry("+500+300");
+
+# Menu Bar Buttons
+my $mbar=$mw->Menu();
+$mw->configure(-menu => $mbar, -title=>'Codac Script Generator - Jitter');
+    my $file=$mbar->cascade(-label=>"~File", -tearoff => 0);
+    #my $help=$mbar->cascade(-label =>"~Help", -tearoff => 0);
+# File Menu
+    $file->command(-label =>'~New     ', -command=>sub{&menu_file('n')}, -accelerator=>'Ctrl+N');
+    $file->command(-label =>'~Open    ', -command=>sub{&menu_file('o')}, -accelerator=>'Ctrl+O');
+    $file->command(-label =>'~Save    ', -command=>sub{&menu_file('s')}, -accelerator=>'Ctrl+S');
+    $file->separator();
+    $file->command(-label =>'~Quit    ', -command=>sub{exit}, -accelerator=>'Ctrl+Q');
+# Help Menu
+    #$help->command(-label => 'Version');
+    #$help->separator;
+    #$help->command(-label => 'About');
+
+# Menu Bar Accelerators
+    $mw->bind('<Control-n>'=>sub{&menu_file('n')});
+    $mw->bind('<Control-o>'=>sub{&menu_file('o')});
+    $mw->bind('<Control-s>'=>sub{&menu_file('s')});
+    $mw->bind('<Control-q>'=>sub{exit});
+
+
+# Tabs
+my $nb=$mw->NoteBook();
+
+# Main Tab
+    my $nb_jit=$nb->add('jitter', -label=>'Jitter');
+
+        my $nb_jit_sig_frm=$nb_jit->Labelframe(-text=>'Signal');
+            my $nb_jit_sig_se_rdb=$nb_jit_sig_frm->Radiobutton(-text=>'Single-ended', -variable=>\$sig_type, -value=>'0', -command=>sub{&widget_resolve;&set_thresholds});
+            my $nb_jit_sig_diff_rdb=$nb_jit_sig_frm->Radiobutton(-text=>'Differential', -variable=>\$sig_type, -value=>'1', -command=>sub{&widget_resolve;&set_thresholds});
+
+            my $nb_jit_sig_val_lbl=$nb_jit_sig_frm->Label(-text=>'Sig Name');
+            my $nb_jit_sig_val_ent=$nb_jit_sig_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_sig_val_ent_txt);
+
+            my $nb_jit_sig_valn_lbl=$nb_jit_sig_frm->Label(-text=>'Sig Name (n) ');
+            my $nb_jit_sig_valn_ent=$nb_jit_sig_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_sig_valn_ent_txt);
+
+
+        my $nb_jit_trig_frm=$nb_jit->Labelframe(-text=>'Trigger');
+            my $nb_jit_trig_ideal_rdb=$nb_jit_trig_frm->Radiobutton(-text=>'Ideal', -variable=>\$trig_type, -value=>'0', -command=>\&widget_resolve);
+            my $nb_jit_trig_ref_rdb=$nb_jit_trig_frm->Radiobutton(-text=>'Reference', -variable=>\$trig_type, -value=>'1', -command=>\&widget_resolve);
+
+            my $nb_jit_trig_ref_se_rdb=$nb_jit_trig_frm->Radiobutton(-text=>'Single-ended', -variable=>\$ref_type, -value=>'0', -command=>sub{&widget_resolve;&set_thresholds});
+            my $nb_jit_trig_ref_diff_rdb=$nb_jit_trig_frm->Radiobutton(-text=>'Differential', -variable=>\$ref_type, -value=>'1', -command=>sub{&widget_resolve;&set_thresholds});
+
+            my $nb_jit_trig_val_lbl=$nb_jit_trig_frm->Label(-textvariable=>\$nb_jit_trig_val_lbl_txt);
+            my $nb_jit_trig_val_ent=$nb_jit_trig_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_trig_val_ent_txt);
+
+            my $nb_jit_trig_valn_lbl=$nb_jit_trig_frm->Label(-text=>'Ref Name (n) ');
+            my $nb_jit_trig_valn_ent=$nb_jit_trig_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_trig_valn_ent_txt);
+
+
+        my $nb_jit_signorm_frm=$nb_jit->Labelframe(-text=>'Signal Normalisation');
+            my $nb_jit_signorm_chk=$nb_jit_signorm_frm->Checkbutton(-text=>'Normalise Signal', -variable=>\$sig_norm, -command=>\&widget_resolve);
+
+            my $nb_jit_signorm_stat_rdb=$nb_jit_signorm_frm->Radiobutton(-text=>'Static', -variable=>\$sig_norm_type, -value=>'0', -command=>\&widget_resolve);
+            my $nb_jit_signorm_dyn_rdb=$nb_jit_signorm_frm->Radiobutton(-text=>'Dynamic', -variable=>\$sig_norm_type, -value=>'1', -command=>\&widget_resolve);
+
+            my $nb_jit_signorm_pwr_lbl=$nb_jit_signorm_frm->Label(-textvariable=>\$nb_jit_signorm_pwr_lbl_txt, -anchor=>'w');
+            my $nb_jit_signorm_pwr_ent=$nb_jit_signorm_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_signorm_pwr_ent_txt);
+
+            my $nb_jit_signorm_gnd_lbl=$nb_jit_signorm_frm->Label(-textvariable=>\$nb_jit_signorm_gnd_lbl_txt, -anchor=>'w');
+            my $nb_jit_signorm_gnd_ent=$nb_jit_signorm_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_signorm_gnd_ent_txt);
+
+        my $nb_jit_refnorm_frm=$nb_jit->Labelframe(-text=>'Reference Normalisation');
+            my $nb_jit_refnorm_chk=$nb_jit_refnorm_frm->Checkbutton(-text=>'Normalise Reference', -variable=>\$ref_norm, -command=>\&widget_resolve);
+
+            my $nb_jit_refnorm_stat_rdb=$nb_jit_refnorm_frm->Radiobutton(-text=>'Static', -variable=>\$ref_norm_type, -value=>'0', -command=>\&widget_resolve);
+            my $nb_jit_refnorm_dyn_rdb=$nb_jit_refnorm_frm->Radiobutton(-text=>'Dynamic', -variable=>\$ref_norm_type, -value=>'1', -command=>\&widget_resolve);
+
+            my $nb_jit_refnorm_pwr_lbl=$nb_jit_refnorm_frm->Label(-textvariable=>\$nb_jit_refnorm_pwr_lbl_txt);
+            my $nb_jit_refnorm_pwr_ent=$nb_jit_refnorm_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_refnorm_pwr_ent_txt);
+
+            my $nb_jit_refnorm_gnd_lbl=$nb_jit_refnorm_frm->Label(-textvariable=>\$nb_jit_refnorm_gnd_lbl_txt);
+            my $nb_jit_refnorm_gnd_ent=$nb_jit_refnorm_frm->Entry(-width=>'15', -textvariable=>\$nb_jit_refnorm_gnd_ent_txt);
+
+
+# Advanced Tab
+    my $nb_adv=$nb->add('adv', -label=>'Advanced');
+#    my $nb_adv_lvl_prev_txt;
+
+        my $nb_adv_siglvl_frm=$nb_adv->Labelframe(-text=>'Signal Levels');
+            my $nb_adv_siglvl_lo_lbl  = $nb_adv_siglvl_frm->Label(-text=>'Low');
+            my $nb_adv_siglvl_lo_ent  = $nb_adv_siglvl_frm->Entry(-textvariable=>\$nb_adv_siglvl_lo_ent_txt);
+#            $nb_adv_siglvl_lo_ent->bind('<FocusIn>'=>sub{$nb_adv_lvl_prev_txt=$nb_adv_siglvl_lo_ent_txt;});
+#            $nb_adv_siglvl_lo_ent->bind('<FocusOut>'=>sub{$nb_adv_siglvl_modified_flag=1 if($nb_adv_siglvl_lo_ent_txt!=$nb_adv_lvl_prev_txt)});
+
+            my $nb_adv_siglvl_mid_lbl = $nb_adv_siglvl_frm->Label(-text=>'Mid');
+            my $nb_adv_siglvl_mid_ent = $nb_adv_siglvl_frm->Entry(-textvariable=>\$nb_adv_siglvl_mid_ent_txt);
+#            $nb_adv_siglvl_mid_ent->bind('<FocusIn>'=>sub{$nb_adv_lvl_prev_txt=$nb_adv_siglvl_mid_ent_txt;});
+#            $nb_adv_siglvl_mid_ent->bind('<FocusOut>'=>sub{$nb_adv_siglvl_modified_flag=1 if($nb_adv_siglvl_mid_ent_txt!=$nb_adv_lvl_prev_txt)});
+
+            my $nb_adv_siglvl_hi_lbl  = $nb_adv_siglvl_frm->Label(-text=>'High');
+            my $nb_adv_siglvl_hi_ent  = $nb_adv_siglvl_frm->Entry(-textvariable=>\$nb_adv_siglvl_hi_ent_txt);
+#            $nb_adv_siglvl_hi_ent->bind('<FocusIn>'=>sub{$nb_adv_lvl_prev_txt=$nb_adv_siglvl_hi_ent_txt;});
+#            $nb_adv_siglvl_hi_ent->bind('<FocusOut>'=>sub{$nb_adv_siglvl_modified_flag=1 if($nb_adv_siglvl_hi_ent_txt!=$nb_adv_lvl_prev_txt)});
+
+        my $nb_adv_reflvl_frm=$nb_adv->Labelframe(-text=>'Reference Levels');
+            my $nb_adv_reflvl_lo_lbl  = $nb_adv_reflvl_frm->Label(-text=>'Low');
+            my $nb_adv_reflvl_lo_ent  = $nb_adv_reflvl_frm->Entry(-textvariable=>\$nb_adv_reflvl_lo_ent_txt);
+#            $nb_adv_reflvl_lo_ent->bind('<FocusIn>'=>sub{$nb_adv_lvl_prev_txt=$nb_adv_reflvl_lo_ent_txt;});
+#            $nb_adv_reflvl_lo_ent->bind('<FocusOut>'=>sub{$nb_adv_reflvl_modified_flag=1 if($nb_adv_reflvl_lo_ent_txt!=$nb_adv_lvl_prev_txt)});
+
+            my $nb_adv_reflvl_mid_lbl = $nb_adv_reflvl_frm->Label(-text=>'Mid');
+            my $nb_adv_reflvl_mid_ent = $nb_adv_reflvl_frm->Entry(-textvariable=>\$nb_adv_reflvl_mid_ent_txt);
+#            $nb_adv_reflvl_mid_ent->bind('<FocusIn>'=>sub{$nb_adv_lvl_prev_txt=$nb_adv_reflvl_mid_ent_txt;});
+#            $nb_adv_reflvl_mid_ent->bind('<FocusOut>'=>sub{$nb_adv_reflvl_modified_flag=1 if($nb_adv_reflvl_mid_ent_txt!=$nb_adv_lvl_prev_txt)});
+
+            my $nb_adv_reflvl_hi_lbl  = $nb_adv_reflvl_frm->Label(-text=>'High');
+            my $nb_adv_reflvl_hi_ent  = $nb_adv_reflvl_frm->Entry(-textvariable=>\$nb_adv_reflvl_hi_ent_txt);
+#            $nb_adv_reflvl_hi_ent->bind('<FocusIn>'=>sub{$nb_adv_lvl_prev_txt=$nb_adv_reflvl_hi_ent_txt;});
+#            $nb_adv_reflvl_hi_ent->bind('<FocusOut>'=>sub{$nb_adv_reflvl_modified_flag=1 if($nb_adv_reflvl_hi_ent_txt!=$nb_adv_lvl_prev_txt)});
+
+        my $nb_adv_sigrange_frm=$nb_adv->Labelframe(-text=>'Signal Range');
+            my $nb_adv_sigrange_start_lbl = $nb_adv_sigrange_frm->Label(-text=>'Start');
+            my $nb_adv_sigrange_start_ent = $nb_adv_sigrange_frm->Entry(-textvariable=>\$nb_adv_sigrange_start_ent_txt);
+            my $nb_adv_sigrange_stop_lbl  = $nb_adv_sigrange_frm->Label(-text=>'Stop');
+            my $nb_adv_sigrange_stop_ent  = $nb_adv_sigrange_frm->Entry(-textvariable=>\$nb_adv_sigrange_stop_ent_txt);
+
+        my $nb_adv_refrange_frm=$nb_adv->Labelframe(-text=>'Reference Range');
+            my $nb_adv_refrange_start_lbl = $nb_adv_refrange_frm->Label(-text=>'Start');
+            my $nb_adv_refrange_start_ent = $nb_adv_refrange_frm->Entry(-textvariable=>\$nb_adv_refrange_start_ent_txt);
+            my $nb_adv_refrange_stop_lbl  = $nb_adv_refrange_frm->Label(-text=>'Stop');
+            my $nb_adv_refrange_stop_ent  = $nb_adv_refrange_frm->Entry(-textvariable=>\$nb_adv_refrange_stop_ent_txt);
+
+
+
+
+
+#===============================================================================
+# Geometry Management
+#
+
+$mw->gridRowconfigure(1, -weight=>1);
+$mw->gridColumnconfigure(1, -weight=>1);
+$nb->grid(-padx=>2, -pady=>3);
+{
+    # Main Tab
+    $nb_adv->gridRowconfigure(2, -weight=>1);
+    $nb_adv->gridColumnconfigure(2, -weight=>1);
+        $nb_jit_sig_frm->grid(-row=>0, -column=>0, -sticky=>'news', -padx=>2);
+        $nb_jit_sig_frm->gridRowconfigure(0, -weight=>1);
+        {
+            $nb_jit_sig_se_rdb->grid(-row=>1, -column=>0, -sticky=>'w');
+            $nb_jit_sig_diff_rdb->grid(-row=>1, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_sig_val_lbl->grid(-row=>2, -column=>0, -sticky=>'w');
+            $nb_jit_sig_val_ent->grid(-row=>2, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_sig_valn_lbl->grid(-row=>3, -column=>0, -sticky=>'w', -pady=>5);
+            $nb_jit_sig_valn_ent->grid(-row=>3, -column=>1, -sticky=>'w', -padx=>5, -pady=>5);
+        }
+        $nb_jit_trig_frm->grid(-row=>0, -column=>1, -sticky=>'news', -padx=>2);
+        {
+            $nb_jit_trig_ideal_rdb->grid(-row=>0, -column=>0, -sticky=>'w');
+            $nb_jit_trig_ref_rdb->grid(-row=>0, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_trig_ref_se_rdb->grid(-row=>1, -column=>0, -sticky=>'w');
+            $nb_jit_trig_ref_diff_rdb->grid(-row=>1, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_trig_val_lbl->grid(-row=>2, -column=>0, -sticky=>'w');
+            $nb_jit_trig_val_ent->grid(-row=>2, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_trig_valn_lbl->grid(-row=>3, -column=>0, -sticky=>'w', -pady=>5);
+            $nb_jit_trig_valn_ent->grid(-row=>3, -column=>1, -sticky=>'w', -padx=>5, -pady=>5);
+        }
+        $nb_jit_signorm_frm->grid(-row=>1, -column=>0, -sticky=>'news', -padx=>2);
+        $nb_jit_signorm_frm->gridColumnconfigure(0, -weight=>1);
+        {
+            $nb_jit_signorm_chk->grid(-row=>0, -column=>0, -sticky=>'w', -columnspan=>2);
+
+            $nb_jit_signorm_stat_rdb->grid(-row=>1, -column=>0, -sticky=>'w');
+            $nb_jit_signorm_dyn_rdb->grid(-row=>1, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_signorm_pwr_lbl->grid(-row=>2, -column=>0, -sticky=>'w');
+            $nb_jit_signorm_pwr_ent->grid(-row=>2, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_signorm_gnd_lbl->grid(-row=>3, -column=>0, -sticky=>'w', -pady=>5);
+            $nb_jit_signorm_gnd_ent->grid(-row=>3, -column=>1, -sticky=>'w', -padx=>5, -pady=>5);
+        }
+        $nb_jit_refnorm_frm->grid(-row=>1, -column=>1, -sticky=>'news', -padx=>2);
+        $nb_jit_refnorm_frm->gridColumnconfigure(0, -weight=>1);
+        {
+            $nb_jit_refnorm_chk->grid(-row=>0, -column=>0, -sticky=>'w', -columnspan=>2);
+
+            $nb_jit_refnorm_stat_rdb->grid(-row=>1, -column=>0, -sticky=>'w');
+            $nb_jit_refnorm_dyn_rdb->grid(-row=>1, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_refnorm_pwr_lbl->grid(-row=>2, -column=>0, -sticky=>'w');
+            $nb_jit_refnorm_pwr_ent->grid(-row=>2, -column=>1, -sticky=>'w', -padx=>5);
+
+            $nb_jit_refnorm_gnd_lbl->grid(-row=>3, -column=>0, -sticky=>'w', -pady=>5);
+            $nb_jit_refnorm_gnd_ent->grid(-row=>3, -column=>1, -sticky=>'w', -padx=>5, -pady=>5);
+        }
+
+
+    # Advanced Tab
+    $nb_adv->gridRowconfigure(2, -weight=>1);
+    $nb_adv->gridColumnconfigure(2, -weight=>1);
+        $nb_adv_siglvl_frm->grid(-row=>0, -column=>0, -sticky=>'ew', -padx=>2);
+        $nb_adv_siglvl_frm->gridColumnconfigure(0, -weight=>1);
+        {
+            $nb_adv_siglvl_lo_lbl->grid(-row=>0, -column=>'0', -sticky=>'w', -pady=>5);
+            $nb_adv_siglvl_lo_ent->grid(-row=>0, -column=>'1', -sticky=>'w', -padx=>5);
+
+            $nb_adv_siglvl_mid_lbl->grid(-row=>1, -column=>'0', -sticky=>'w', -pady=>0);
+            $nb_adv_siglvl_mid_ent->grid(-row=>1, -column=>'1', -sticky=>'w', -padx=>5);
+            
+            $nb_adv_siglvl_hi_lbl->grid(-row=>2, -column=>'0', -sticky=>'w', -pady=>5);
+            $nb_adv_siglvl_hi_ent->grid(-row=>2, -column=>'1', -sticky=>'w', -padx=>5);
+        }
+
+        $nb_adv_reflvl_frm->grid(-row=>0, -column=>1, -sticky=>'ew', -padx=>2);
+        $nb_adv_reflvl_frm->gridColumnconfigure(0, -weight=>1);
+        {
+            $nb_adv_reflvl_lo_lbl->grid(-row=>0, -column=>'0', -sticky=>'w', -pady=>5);
+            $nb_adv_reflvl_lo_ent->grid(-row=>0, -column=>'1', -sticky=>'w', -padx=>5);
+
+            $nb_adv_reflvl_mid_lbl->grid(-row=>1, -column=>'0', -sticky=>'w', -pady=>0);
+            $nb_adv_reflvl_mid_ent->grid(-row=>1, -column=>'1', -sticky=>'w', -padx=>5);
+            
+            $nb_adv_reflvl_hi_lbl->grid(-row=>2, -column=>'0', -sticky=>'w', -pady=>5);
+            $nb_adv_reflvl_hi_ent->grid(-row=>2, -column=>'1', -sticky=>'w', -padx=>5);
+        }
+
+        $nb_adv_sigrange_frm->grid(-row=>1, -column=>0, -sticky=>'ew', -padx=>2);
+        {
+            $nb_adv_sigrange_start_lbl->grid(-row=>0, -column=>0, -sticky=>'w'); 
+            $nb_adv_sigrange_start_ent->grid(-row=>0, -column=>1, -sticky=>'w', -padx=>5); 
+
+            $nb_adv_sigrange_stop_lbl->grid(-row=>1, -column=>0, -sticky=>'w', -pady=>5); 
+            $nb_adv_sigrange_stop_ent->grid(-row=>1, -column=>1, -sticky=>'w', -padx=>5); 
+        }
+
+        $nb_adv_refrange_frm->grid(-row=>1, -column=>1, -sticky=>'ew', -padx=>2);
+        {
+            $nb_adv_refrange_start_lbl->grid(-row=>0, -column=>0, -sticky=>'w'); 
+            $nb_adv_refrange_start_ent->grid(-row=>0, -column=>1, -sticky=>'w', -padx=>5); 
+
+            $nb_adv_refrange_stop_lbl->grid(-row=>1, -column=>0, -sticky=>'w', -pady=>5); 
+            $nb_adv_refrange_stop_ent->grid(-row=>1, -column=>1, -sticky=>'w', -padx=>5); 
+        }
+}
+
+
+&widget_resolve;
+&mw_redraw;
+
+
+MainLoop;
+
+
+
+
+
+#===============================================================================
+# Sub-routines
+#
+sub widget_init {
+    $sig_type=0;
+    $trig_type=0;
+    $ref_type=0;
+    $sig_norm=0;
+    $sig_norm_type=0;
+    $ref_norm=0;
+    $ref_norm_type=0;
+
+    $nb_jit_sig_val_ent_txt="";
+    $nb_jit_sig_valn_ent_txt=0;
+    $nb_jit_trig_val_ent_txt="";
+    $nb_jit_trig_valn_ent_txt=0;
+    $nb_jit_signorm_pwr_ent_txt="";
+    $nb_jit_signorm_gnd_ent_txt=0;
+    $nb_jit_refnorm_pwr_ent_txt="";
+    $nb_jit_refnorm_gnd_ent_txt=0;
+
+    $nb_adv_siglvl_lo_ent_txt=0.25;
+    $nb_adv_siglvl_mid_ent_txt=0.5;
+    $nb_adv_siglvl_hi_ent_txt=0.75;
+    $nb_adv_siglvl_modified_flag=0;
+
+    $nb_adv_reflvl_lo_ent_txt=0.25;
+    $nb_adv_reflvl_mid_ent_txt=0.5;
+    $nb_adv_reflvl_hi_ent_txt=0.75;
+    $nb_adv_reflvl_modified_flag=0;
+
+    $nb_adv_sigrange_start_ent_txt=0;
+    $nb_adv_sigrange_stop_ent_txt="END";
+    $nb_adv_refrange_start_ent_txt=0;
+    $nb_adv_refrange_stop_ent_txt="END";
+
+#    print "  NOTE: Initialised...\n";
+}
+
+
+sub widget_resolve {
+
+    if($sig_type){
+        map($_->configure(-state=>'normal'),($nb_jit_sig_valn_lbl,$nb_jit_sig_valn_ent));
+    }else{
+        map($_->configure(-state=>'disabled'),($nb_jit_sig_valn_lbl,$nb_jit_sig_valn_ent));
+    }
+
+    if($sig_norm){
+        map($_->configure(-state=>'normal'),($nb_jit_signorm_stat_rdb,$nb_jit_signorm_dyn_rdb,$nb_jit_signorm_pwr_lbl,$nb_jit_signorm_pwr_ent,$nb_jit_signorm_gnd_lbl,$nb_jit_signorm_gnd_ent));
+    }else{
+        map($_->configure(-state=>'disabled'),($nb_jit_signorm_stat_rdb,$nb_jit_signorm_dyn_rdb,$nb_jit_signorm_pwr_lbl,$nb_jit_signorm_pwr_ent,$nb_jit_signorm_gnd_lbl,$nb_jit_signorm_gnd_ent));
+    }
+
+    if($trig_type){
+        
+        map($_->configure(-state=>'normal'),($nb_jit_trig_ref_se_rdb,$nb_jit_trig_ref_diff_rdb));
+        if($ref_type){
+            map($_->configure(-state=>'normal'),($nb_jit_trig_valn_lbl,$nb_jit_trig_valn_ent));
+        }else{
+            map($_->configure(-state=>'disabled'),($nb_jit_trig_valn_lbl,$nb_jit_trig_valn_ent));
+        }
+
+        $nb_jit_refnorm_chk->configure(-state=>'normal');
+        if($ref_norm){
+            map($_->configure(-state=>'normal'),($nb_jit_refnorm_stat_rdb,$nb_jit_refnorm_dyn_rdb,$nb_jit_refnorm_pwr_lbl,$nb_jit_refnorm_pwr_ent,$nb_jit_refnorm_gnd_lbl,$nb_jit_refnorm_gnd_ent));
+        }else{
+            map($_->configure(-state=>'disabled'),($nb_jit_refnorm_stat_rdb,$nb_jit_refnorm_dyn_rdb,$nb_jit_refnorm_pwr_lbl,$nb_jit_refnorm_pwr_ent,$nb_jit_refnorm_gnd_lbl,$nb_jit_refnorm_gnd_ent));
+        }
+
+        map($_->configure(-state=>'normal'),($nb_adv_reflvl_lo_lbl,$nb_adv_reflvl_lo_ent,$nb_adv_reflvl_mid_lbl,$nb_adv_reflvl_mid_ent,$nb_adv_reflvl_hi_lbl,$nb_adv_reflvl_hi_ent));
+        map($_->configure(-state=>'normal'),($nb_adv_refrange_start_lbl,$nb_adv_refrange_start_ent,$nb_adv_refrange_stop_lbl,$nb_adv_refrange_stop_ent));
+
+    }else{
+        map($_->configure(-state=>'disabled'),($nb_jit_trig_ref_se_rdb,$nb_jit_trig_ref_diff_rdb,$nb_jit_trig_valn_lbl,$nb_jit_trig_valn_ent));
+
+        $nb_jit_refnorm_chk->configure(-state=>'disabled');
+        map($_->configure(-state=>'disabled'),($nb_jit_refnorm_stat_rdb,$nb_jit_refnorm_dyn_rdb,$nb_jit_refnorm_pwr_lbl,$nb_jit_refnorm_pwr_ent,$nb_jit_refnorm_gnd_lbl,$nb_jit_refnorm_gnd_ent));
+        
+        map($_->configure(-state=>'disabled'),($nb_adv_reflvl_lo_lbl,$nb_adv_reflvl_lo_ent,$nb_adv_reflvl_mid_lbl,$nb_adv_reflvl_mid_ent,$nb_adv_reflvl_hi_lbl,$nb_adv_reflvl_hi_ent));
+        map($_->configure(-state=>'disabled'),($nb_adv_refrange_start_lbl,$nb_adv_refrange_start_ent,$nb_adv_refrange_stop_lbl,$nb_adv_refrange_stop_ent));
+    }
+
+    $nb_jit_trig_val_lbl_txt = ($trig_type == 0 ? 'Frequency' : 'Ref Name');
+
+    $nb_jit_signorm_pwr_lbl_txt = ($sig_norm_type == 0 ? 'Power (val)'  : 'Power (sig)');
+    $nb_jit_signorm_gnd_lbl_txt = ($sig_norm_type == 0 ? 'Ground (val)' : 'Ground (sig)');
+
+    $nb_jit_refnorm_pwr_lbl_txt = ($ref_norm_type == 0 ? 'Power (val)'  : 'Power (sig)');
+    $nb_jit_refnorm_gnd_lbl_txt = ($ref_norm_type == 0 ? 'Ground (val)' : 'Ground (sig)');
+
+}
+
+
+sub set_thresholds {
+
+#    unless($nb_adv_siglvl_modified_flag){
+        $nb_adv_siglvl_lo_ent_txt  = ( $sig_type ? -0.1 : 0.25 );
+        $nb_adv_siglvl_mid_ent_txt = ( $sig_type ?  0   : 0.5  );
+        $nb_adv_siglvl_hi_ent_txt  = ( $sig_type ?  0.1 : 0.75 );
+#    }
+
+#    unless($nb_adv_reflvl_modified_flag){
+        $nb_adv_reflvl_lo_ent_txt  = ( $ref_type ? -0.1 : 0.25 );
+        $nb_adv_reflvl_mid_ent_txt = ( $ref_type ?  0   : 0.5  );
+        $nb_adv_reflvl_hi_ent_txt  = ( $ref_type ?  0.1 : 0.75 );
+#    }
+}
+
+
+sub mw_redraw {
+    $mw->idletasks;
+
+    my $w=$mw->reqwidth;
+    my $h=$mw->reqheight;
+    #print "MW: MinWidth=$w, MinHeight=$h\n";
+
+    $mw->geometry("${w}x${h}");
+    $mw->minsize($w,$h);
+
+    $mw->resizable(0,0);
+}
+
+
+sub menu_file {
+    my $opt=shift;
+
+    my $filetypes = [
+        ['Codac files', '.k'],
+        ['All Files',  '*'  ],
+    ];
+
+    if($opt eq 'n'){
+        &widget_init();
+        &widget_resolve();
+
+    }elsif($opt eq 'o'){
+        my $fname = $mw->getOpenFile(-filetypes=>$filetypes, -defaultextension=>'.k');
+        &script_parse($fname) if(defined $fname and $fname !~ /^\s*$/);
+
+    }elsif($opt eq 's'){
+        my $script_codac = $mw->getSaveFile(-filetypes=>$filetypes, -initialfile=>'jitter', -defaultextension=>'.k');
+        &input_chk;
+        &script_gen($script_codac) if defined $script_codac;
+    }
+}
+
+
+sub script_parse {
+    my $ifile=shift;
+    my $fin;
+
+    &menu_file('n');
+
+    unless(open($fin,"<",$ifile)){
+        warn("  WARN: Cannot open file $ifile\n");
+        return 1;
+    }else{
+        &widget_init;
+        &widget_resolve;
+    }
+    
+    my $flag_comment=0;
+    while(<$fin>){
+        chomp;
+    
+# Removing Comments
+        s[/\*.*?\*/][]g;
+        if(m[/\*]){
+            $flag_comment=1;
+            s[/\*.*][];
+        }elsif($flag_comment){
+            if(s[.*\*/][]){
+                $flag_comment=0;
+            }else{
+                next;
+            }
+        }
+        next if(/^\s*$/);
+
+# Reading signal name, determining whether Single-ended or Differential and start and end values
+        $nb_jit_sig_val_ent_txt = $1 if(/sig_prenorm\s*=\s*readwave\([^"]*"(\w+)\s*"\s*\)/);
+        if(/sign_prenorm\s*=\s*(?:readwave\(.*")?(\w+?)\s*(?:"\s*\))/){
+            $nb_jit_sig_valn_ent_txt=$1 if defined $1;
+            $sig_type=1;
+        }
+        if(/range\s*\(\s*sig_prenorm\s*,\s*([^,]+)(?:\s*,\s*([^,]+))?\)/){
+            $nb_adv_sigrange_start_ent_txt = $1 if defined $1;
+            $nb_adv_sigrange_stop_ent_txt = $2 if defined $2;
+        }
+
+# Determining trigger type
+        if(/trigger\s*=\s*"(\w+)"/){
+            my $trig=$1;
+            if($trig =~ /ideal/i){
+                $trig_type=0;
+            }elsif($trig =~ /reference/i){
+                $trig_type=1;
+            }else{
+                warn "  WARN: Invalid trigger type specified in the codac file\n";
+            }
+        }
+
+# Reading reference name, determining whether Single-ended or Differential and start and end values
+        $nb_jit_trig_val_ent_txt = $1 if(/ref_freq\s*=\s*(\S+)\s*;/ and !$trig_type);    
+        $nb_jit_trig_val_ent_txt = $1 if(/ref_prenorm\s*=\s*readwave\([^"]*"\s*(\w+)\s*"\s*\)/ and $trig_type);
+        if(/refn_prenorm\s*=\s*readwave\(.*"(\w+)\s*"\s*\)/){
+            $nb_jit_trig_valn_ent_txt=$1;
+            $ref_type=1;
+        }
+        if(/range\s*\(\s*ref_prenorm\s*,\s*([^,]+)(?:\s*,\s*([^,]+))?\)/){
+            $nb_adv_refrange_start_ent_txt = $1 if defined $1;
+            $nb_adv_refrange_stop_ent_txt = $2 if defined $2;
+        }
+
+# Determining type of normalisation and reading in supply values for signal
+        if(/norm_type_sig\s*=\s*"(?i:dynamic)"/){
+            $sig_norm=1;
+            $sig_norm_type=1;
+        }elsif(/norm_type_sig\s*=\s*"(?i:static)"/){
+            $sig_norm=1;
+            $sig_norm_type=0;
+        }
+        if($sig_norm){
+            if($sig_norm_type && /sig_pwr\s*=\s*readwave\([^"]*"\s*(\w+)\s*"\s*\)/ or !$sig_norm_type && /sig_pwr_dc\s*=\s*(\S+)\s*;/){
+                $nb_jit_signorm_pwr_ent_txt=$1;
+            }elsif($sig_norm_type && /sig_gnd\s*=\s*(?:readwave\([^"]*")?\s*(\S+?)\s*(?:"\s*\)\s*)?;/ or !$sig_norm_type && /sig_gnd_dc\s*=\s*(\S+)\s*;/){
+                $nb_jit_signorm_gnd_ent_txt=$1 if defined $1;
+            }
+        }
+
+# Determining type of normalisation and reading in supply values for signal
+        if(/norm_type_ref\s*=\s*"(?i:dynamic)"/){
+            $ref_norm=1;
+            $ref_norm_type=1;
+        }elsif(/norm_type_ref\s*=\s*"(?i:static)"/){
+            $ref_norm=1;
+            $ref_norm_type=0;
+        }
+        if($ref_norm){
+            if($ref_norm_type and /ref_pwr\s*=\s*readwave\([^"]*"\s*(\w+)\s*"\s*\)/ or !$ref_norm_type and /ref_pwr_dc\s*=\s*(\S+)\s*;/){
+                $nb_jit_refnorm_pwr_ent_txt=$1;
+            }elsif($ref_norm_type and /ref_gnd\s*=\s*(?:readwave\([^"]*")?\s*(\S+?)\s*(?:"\s*\)\s*)?;/ or !$ref_norm_type and /ref_gnd_dc\s*=\s*(\S+)\s*;/){
+                $nb_jit_refnorm_gnd_ent_txt=$1 if defined $1;
+            }
+        }
+
+# Reading in threshold values
+        $nb_adv_siglvl_lo_ent_txt  = $1 if(/setsiglow\s*\(([^,]+),sig/  and defined $1); 
+        $nb_adv_siglvl_mid_ent_txt = $1 if(/setsigcent\s*\(([^,]+),sig/ and defined $1); 
+        $nb_adv_siglvl_hi_ent_txt  = $1 if(/setsighigh\s*\(([^,]+),sig/ and defined $1); 
+
+        $nb_adv_reflvl_lo_ent_txt  = $1 if(/setsiglow\s*\(([^,]+),ref/  and defined $1); 
+        $nb_adv_reflvl_mid_ent_txt = $1 if(/setsigcent\s*\(([^,]+),ref/ and defined $1); 
+        $nb_adv_reflvl_hi_ent_txt  = $1 if(/setsighigh\s*\(([^,]+),ref/ and defined $1); 
+
+    }
+
+    &widget_resolve;
+    close $fin;
+}
+
+
+sub input_chk {
+
+    warn "  WARN: Missing Input - Signal Name\n" and return(1) 
+        if($nb_jit_sig_val_ent_txt =~ /^\s*$/);
+    warn "  WARN: Missing Input - Signal Name (n)\n" and return(1) 
+        if($sig_type and $nb_jit_sig_valn_ent_txt =~ /^\s*$/);
+    
+    warn "  WARN: Missing Input - Reference Frequency\n" and return(1)
+        if(!$trig_type and $nb_jit_trig_val_ent_txt =~ /^\s*$/);
+    warn "  WARN: Missing Input - Reference signal\n" and return(1)
+        if($trig_type and !$ref_type and $nb_jit_trig_val_ent_txt =~ /^\s*$/);
+    warn "  WARN: Missing Input - Reference signal (n)\n" and return(1)
+        if($trig_type and $ref_type and $nb_jit_trig_valn_ent_txt =~ /^\s*$/);
+
+    warn "  WARN: Missing Input - Signal Power\n" and return(1)
+        if($sig_norm and $nb_jit_signorm_pwr_ent_txt =~ /^\s*$/);
+    warn "  WARN: Missing Input - Signal Ground\n" and return(1)
+        if($sig_norm and $nb_jit_signorm_gnd_ent_txt =~ /^\s*$/);
+
+    warn "  WARN: Missing Input - Reference Power\n" and return(1)
+        if($trig_type and $ref_norm and $nb_jit_refnorm_pwr_ent_txt =~ /^\s*$/);
+    warn "  WARN: Missing Input - Reference Ground\n" and return(1)
+        if($trig_type and $ref_norm and $nb_jit_refnorm_gnd_ent_txt =~ /^\s*$/);
+
+    warn "  WARN: Signal levels should be monotonic ie. High > Mid > Low\n" and return(1)
+        unless($nb_adv_siglvl_hi_ent_txt > $nb_adv_siglvl_mid_ent_txt and $nb_adv_siglvl_mid_ent_txt > $nb_adv_siglvl_lo_ent_txt);
+
+    if($trig_type){
+        warn "  WARN: Signal levels should be monotonic ie. High > Mid > Low\n" and return(1)
+            unless($nb_adv_siglvl_hi_ent_txt > $nb_adv_siglvl_mid_ent_txt and $nb_adv_siglvl_mid_ent_txt > $nb_adv_siglvl_lo_ent_txt);
+
+        if($ref_type){
+            warn "  WARN: Mid-point of Reference (differential) not equal to 0\n"
+                if($nb_adv_reflvl_mid_ent_txt != 0);
+        }else{
+            warn "  WARN: Single-ended Reference threshold value is negative\n"
+                if($nb_adv_reflvl_hi_ent_txt < 0 or $nb_adv_reflvl_mid_ent_txt < 0 or $nb_adv_reflvl_lo_ent_txt < 0);
+        }
+
+        unless($nb_adv_refrange_stop_ent_txt =~ /end/i){
+            warn "  WARN: Stop value should be greater than start value for reference\n"
+                if($nb_adv_refrange_start_ent_txt >= $nb_adv_refrange_stop_ent_txt);
+        }
+
+    }
+
+    if($sig_type){
+        warn "  WARN: Mid-point of Signal (differential) not equal to 0\n"
+            if($nb_adv_siglvl_mid_ent_txt != 0);
+    }else{
+        warn "  WARN: Single-ended signal threshold value is negative\n"
+            if($nb_adv_siglvl_hi_ent_txt < 0 or $nb_adv_siglvl_mid_ent_txt < 0 or $nb_adv_siglvl_lo_ent_txt < 0);
+    }
+
+    unless($nb_adv_sigrange_stop_ent_txt =~ /end/i){
+        warn "  WARN: Stop value should be greater than start value for signal\n"
+            if($nb_adv_sigrange_start_ent_txt >= $nb_adv_sigrange_stop_ent_txt);
+    }
+
+    return 0;
+}
+
+
+sub script_gen {
+    my $script_codac = shift;
+
+    open(my $fout,">",$script_codac) or warn("WARN: Unable to open $script_codac for writing\n") && return(1);
+
+    print $fout '#!/apps/ame/bin/codac
+/*
+
+    Codac Script to calculate P2P, C2C and Source-synchronous Jitter
+    Auto-generated by perl-codac script generator
+';
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+    $year += 1900; # $year contains no. of years since 1900
+    my @month_abbr = qw( Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec );
+    print $fout "    $month_abbr[$mon] $mday, $year - $hour:$min:$sec\n";
+
+    print $fout '
+    SYNTAX: codac <jitter> <punchfile>
+
+    DESCRIPTION:
+      The name of the signal should be specified in "sig_prenorm","sign_prenorm"
+
+      Setup:-
+        Setup should be specified by setting the variable "setup" to "Normal" or "SrcSyn"
+        Normal mode is to measure jitter of one/same signal at different points in the circuit
+          eg. To measure jitter at pad/y etc for LVCMOS Tx/Rx
+
+      Trigger:-
+        Jitter calculation can be performed with respect to an ideal trigger or a reference signal
+          by setting the variable "trigger" to "Ideal" or "Reference" respectively
+        When ideal trigger is selected, the frequency should be specified in "ref_freq"
+        When trigger=Reference, the name of the reference signal should be set in "ref_prenorm","refn_prenorm"
+
+      Normalisation:-
+        Supports normalisation of signal (and independently of the reference if selected) prior to jitter computation.
+        Normalisation can be selected by setting the variables "norm_type_sig" and "norm_type_ref"
+        Normalisation modes supported are "Static", "Dynamic" and "None"
+        To disable normalisation, set variables "norm_type_*" to "None"
+        To perform static normalisation, the DC values of the supplies (and ground)
+          should be set using the variables "*_pwr_dc" and "*_gnd_dc"
+        To perform dynamic normalisation, the supplies themselves should be punched and
+          the variables "*_pwr" and "*_gnd" should be set appropriately
+
+    CHANGELOG:
+      2011-05-05: Added support for source-synchronous jitter measurements
+
+*/
+
+
+string unitify(float inum){
+    string ostr;
+    float num=abs(inum);
+
+    if(num >= 1){
+        ostr=str(num);
+    }else if(num >= 1e-3){
+        sprintf(ostr,"%.3fm",num*1e3);
+    }else if(num >= 1e-6){
+        sprintf(ostr,"%.3fu",num*1e6);
+    }else if(num >= 1e-9){
+        sprintf(ostr,"%.3fn",num*1e9);
+    }else if(num >= 1e-12){
+        sprintf(ostr,"%.3fp",num*1e12);
+    }else{
+        sprintf(ostr,"%.3ff",num*1e15);
+    }
+
+    if(inum < 0){
+        sprintf(ostr,"-%s",ostr);
+    }
+    return(ostr);
+}
+
+
+main(string ifile){
+
+/* Variable declaration */
+    waveform sig,sig_prenorm,sign_prenorm;
+    waveform ref,ref_prenorm,refn_prenorm;
+    waveform sig_pwr,sig_gnd;
+    waveform ref_pwr,ref_gnd;
+
+    int tran,tran_start,tran_stop;
+    int tran_total_sig,tran_total_ref,tran_sig,tran_sig_next;
+    int num_odd,num_even;
+
+    float ref_freq,ui;
+    float sig_pwr_dc,sig_gnd_dc;
+    float ref_pwr_dc,ref_gnd_dc;
+    float time,time_stop;
+    float delta,delta_odd_prev,delta_even_prev,delta_setup,delta_hold;
+    float jitter_p2p_odd,jitter_p2p_even,jitter_p2p_period,jitter_c2c,jitter_srcsyn;
+
+    string ofile;
+    string trigger,norm_type_sig,norm_type_ref,setup;
+
+    string str_delta_odd_min,str_delta_odd_max;
+    string str_delta_even_min,str_delta_even_max;
+    string str_jitter_c2c_odd_max,str_jitter_c2c_even_max;
+    string str_jitter_p2p_odd,str_jitter_p2p_even,str_jitter_p2p_period;
+    string str_jitter_srcsyn;
+    string str_setup_max,str_setup_min,str_hold_max,str_hold_min;
+
+    file fp;
+
+
+/* Initialisation values. Don\'t change unless required */
+    float delta_odd_min=1e34;
+    float delta_odd_max=-1e34;
+    float delta_even_min=1e34;
+    float delta_even_max=-1e34;
+    float delta_period_min=1e34;
+    float delta_period_max=-1e34;
+    float jitter_c2c_odd_max=-1e34;
+    float jitter_c2c_even_max=-1e34;
+    float setup_min=1e34;
+    float setup_max=-1e34;
+    float hold_min=1e34;
+    float hold_max=-1e34;
+
+
+    sprintf(ofile,"%s.txt",ifile);
+
+
+/* The transition from  which computation must start */
+    tran_start = 1;
+
+
+/* Jitter setup to be used : Normal/SrcSyn */
+/* Normal : Normal jitter setup, input and output are the same signal at different points in the circuit */
+/* SrcSyn : Source-synchronous jitter setup */
+    setup = "Normal";
+
+
+/* Choose Trigger Type : Ideal/Reference */
+/* Ideal     : Jitter calculations will be done wrt. an ideal clock of the specified frequency (ref_freq) */
+/* Reference : Jitter calculations will be done wrt. the specified reference signal */
+';
+
+if($trig_type){
+    print $fout "    trigger  = \"Reference\";\n";
+    print $fout "    ref_freq = 1e8;\n";
+}else{
+    print $fout "    trigger  = \"Ideal\";\n";
+    print $fout "    ref_freq = $nb_jit_trig_val_ent_txt;\n";
+}
+
+print $fout '
+
+/* Normalisation Type : Dynamic/Static/None */
+/* In case of Static normalisation, enter the DC values of the voltage sources, for input and sigput signals, below */
+/* In case of Dynamic normalisation, ensure that the waveforms of the voltage sources, for input and sigput signals, are punched sig */
+';
+if($sig_norm==0){
+    print $fout "    norm_type_sig = \"None\";\n";
+}elsif($sig_norm==1 and $sig_norm_type==0){
+    print $fout "    norm_type_sig = \"Static\";\n";
+}elsif($sig_norm==1 and $sig_norm_type==1){
+    print $fout "    norm_type_sig = \"Dynamic\";\n";
+}
+if($ref_norm==0){
+    print $fout "    norm_type_ref = \"None\";\n";
+}elsif($ref_norm==1 and $ref_norm_type==0){
+    print $fout "    norm_type_ref = \"Static\";\n";
+}elsif($ref_norm==1 and $ref_norm_type==1){
+    print $fout "    norm_type_ref = \"Dynamic\";\n";
+}
+
+print $fout '
+
+/* Reading waveforms */
+    readspicepunch(ifile);
+';
+print $fout "    sig_prenorm = readwave(ifile,\"$nb_jit_sig_val_ent_txt\");\n";
+if($sig_type){
+    print $fout "    sign_prenorm = readwave(ifile,\"$nb_jit_sig_valn_ent_txt\");\n";
+}else{
+    print $fout "    sign_prenorm = 0;\n";
+}
+print $fout '
+    if(trigger=="Reference"){
+';
+if($trig_type){
+    print $fout "        ref_prenorm = readwave(ifile,\"$nb_jit_trig_val_ent_txt\");\n";
+}else{
+    print $fout "        ref_prenorm = readwave(ifile,\"\");\n";
+}
+if($ref_type){
+    print $fout "        refn_prenorm = readwave(ifile,\"$nb_jit_trig_valn_ent_txt\");\n";
+}else{
+    print $fout "        refn_prenorm = 0;\n";
+}
+
+print $fout '    }
+
+
+/* Supplies for signals */
+    if(norm_type_sig=="Dynamic"){
+';
+if($sig_norm and $sig_norm_type){
+    print $fout "        sig_pwr = readwave(ifile,\"$nb_jit_signorm_pwr_ent_txt\");\n";
+    if($nb_jit_signorm_gnd_ent_txt=~/-?\d+(?:\.\d+)?(?:e-?\d+)?/i){
+        print $fout "        sig_gnd = $nb_jit_signorm_gnd_ent_txt;\n";
+    }else{
+        print $fout "        sig_gnd = readwave(ifile,\"$nb_jit_signorm_gnd_ent_txt\");\n";
+    }
+}else{
+    print $fout "        sig_pwr = readwave(ifile,\"\");\n";
+    print $fout "        sig_gnd = 0;\n";
+}
+print $fout '    }else if(norm_type_sig=="Static"){
+';
+if($sig_norm and !$sig_norm_type){
+    print $fout "        sig_pwr_dc = $nb_jit_signorm_pwr_ent_txt;\n";
+    print $fout "        sig_gnd_dc = $nb_jit_signorm_gnd_ent_txt;\n";
+}else{
+    print $fout "        sig_pwr_dc = 0;\n";
+    print $fout "        sig_gnd_dc = 0;\n";
+}
+print $fout '    }
+    if(trigger=="Reference" && norm_type_ref=="Dynamic"){
+';
+if($ref_norm and $ref_norm_type){
+    print $fout "        ref_pwr = readwave(ifile,\"$nb_jit_refnorm_pwr_ent_txt\");\n";
+    if($nb_jit_refnorm_gnd_ent_txt=~/-?\d+(?:\.\d+)?(?:e-?\d+)?/i){
+        print $fout "        ref_gnd = $nb_jit_refnorm_gnd_ent_txt;\n";
+    }else{
+        print $fout "        ref_gnd = readwave(ifile,\"$nb_jit_refnorm_gnd_ent_txt\");\n";
+    }
+}else{
+    print $fout "        ref_pwr = readwave(ifile,\"\");\n";
+    print $fout "        ref_gnd = 0;\n";
+}
+print $fout '    }else if(trigger=="Reference" && norm_type_ref=="Static"){
+';
+if($ref_norm and !$ref_norm_type){
+    print $fout "        ref_pwr_dc = $nb_jit_refnorm_pwr_ent_txt;\n";
+    print $fout "        ref_gnd_dc = $nb_jit_refnorm_gnd_ent_txt;\n";
+}else{
+    print $fout "        ref_pwr_dc = 0;\n";
+    print $fout "        ref_gnd_dc = 0;\n";
+}
+
+print $fout '    }
+
+
+/* Converting differential single to single-ended (P-N) */
+    sig_prenorm -= sign_prenorm;
+';
+if($nb_adv_sigrange_start_ent_txt=~/^\s*0\s*$/){
+    unless($nb_adv_sigrange_stop_ent_txt=~/end/i || $nb_adv_sigrange_stop_ent_txt=~/^\s*$/){
+        print $fout "    range(sig_prenorm,$nb_adv_sigrange_start_ent_txt,$nb_adv_sigrange_stop_ent_txt);\n";
+    }
+}else{
+    if($nb_adv_sigrange_stop_ent_txt=~/end/i || $nb_adv_sigrange_stop_ent_txt=~/^\s*$/){
+        print $fout "    range(sig_prenorm,$nb_adv_sigrange_start_ent_txt);\n";
+    }else{
+        print $fout "    range(sig_prenorm,$nb_adv_sigrange_start_ent_txt,$nb_adv_sigrange_stop_ent_txt);\n";
+    }
+}
+print $fout '    if(trigger=="Reference"){
+        ref_prenorm -= refn_prenorm;
+';
+if($nb_adv_refrange_start_ent_txt=~/^\s*0\s*$/){
+    unless($nb_adv_refrange_stop_ent_txt=~/end/i || $nb_adv_refrange_stop_ent_txt=~/^\s*$/){
+        print $fout "        range(ref_prenorm,$nb_adv_refrange_start_ent_txt,$nb_adv_refrange_stop_ent_txt);\n";
+    }
+}else{
+    if($nb_adv_refrange_stop_ent_txt=~/end/i || $nb_adv_refrange_stop_ent_txt=~/^\s*$/){
+        print $fout "        range(ref_prenorm,$nb_adv_refrange_start_ent_txt);\n";
+    }else{
+        print $fout "        range(ref_prenorm,$nb_adv_refrange_start_ent_txt,$nb_adv_refrange_stop_ent_txt);\n";
+    }
+}
+print $fout '    }
+
+
+/* Normalising the signals here */
+/* Note that in the absence of ground noise, this reduces to (sig=sig_prenorm/sig_pwr) viz an accurate representation */
+/* However, in the presence of ground noise, the below formula is only an approximation */
+    if(norm_type_sig=="Dynamic"){
+        printf("\nApplying Dynamic normalisation to the signal");
+        sig = (sig_prenorm-sig_gnd)/(sig_pwr-sig_gnd);
+    }else if(norm_type_sig=="Static"){
+        printf("\nApplying Static normalisation to the signal");
+        sig = (sig_prenorm-sig_gnd_dc)/(sig_pwr_dc-sig_gnd_dc);
+    }else if(norm_type_sig=="None"){
+        printf("\nNormalisation not done for the signal");
+        sig = sig_prenorm;
+    }else{
+        printf("\nPlease enter proper normalisation type");
+        exit(1);
+    }
+    if(trigger == "Reference"){
+        if(norm_type_ref=="Dynamic"){
+            printf("\nApplying Dynamic normalisation to the reference");
+            ref = (ref_prenorm-ref_gnd)/(ref_pwr-ref_gnd);
+        }else if(norm_type_ref=="Static"){
+            printf("\nApplying Static normalisation to the reference");
+            ref = (ref_prenorm-ref_gnd_dc)/(ref_pwr_dc-ref_gnd_dc);
+        }else if(norm_type_ref=="None"){
+            printf("\nNormalisation not done for the reference");
+            ref = ref_prenorm;
+        }else{
+            printf("\nPlease enter proper normalisation type");
+            exit(1);
+        }
+    }
+
+';
+print $fout "
+    setsighigh($nb_adv_siglvl_hi_ent_txt,sig);
+    setsigcent($nb_adv_siglvl_mid_ent_txt,sig);
+    setsiglow($nb_adv_siglvl_lo_ent_txt,sig);
+
+    if(trigger==\"Reference\"){
+        setsighigh($nb_adv_reflvl_hi_ent_txt,ref);
+        setsigcent($nb_adv_reflvl_mid_ent_txt,ref);
+        setsiglow($nb_adv_reflvl_lo_ent_txt,ref);
+    }\n";
+print $fout '
+
+    if(setup=="SrcSyn"){
+
+        if(trigger=="Reference"){
+            tran_stop = gettransitions(ref);
+        }else{
+            tran_total_sig = gettransitions(sig);
+            time_stop = gettransitiontime(sig,tran_total_sig);
+            tran_stop = time_stop/(0.5/ref_freq) + 1;
+        }
+
+        for(tran=tran_start,tran_sig=tran_start;tran<=tran_stop;tran++){
+
+            tran_sig_next=tran_sig+1;
+            if(trigger=="Reference"){
+                delta_setup = delay(ref,tran,sig,tran_sig);
+                delta_hold  = delay(sig,tran_sig_next,ref,tran);
+            }else{
+/*                time=gettransitiontime(sig,tran);
+                delta = time-(tran)*(0.5/ref_freq);
+              printf("\n\n  %3d    : Time  = %e",tran,time);
+*/          }
+
+            if(delta_setup < ui){
+                setup_min = min(setup_min,delta_setup);
+                setup_max = max(setup_max,delta_setup);
+/*              printf("\n    Setup : Delta = %e : Max = %e : Min = %e",delta_setup,delta_setup_max,delta_setup_min);*/
+            }
+
+            if(delta_hold < ui){
+                hold_min = min(hold_min,delta_hold);
+                hold_max = max(hold_max,delta_hold);
+/*              printf("\n    Hold  : Delta = %e : Max = %e : Min = %e",delta_hold,delta_hold_max,delta_hold_min);*/
+
+                tran_sig++;
+            }
+
+        }
+
+        jitter_srcsyn = setup_max-setup_min;
+
+        str_jitter_srcsyn = unitify(jitter_srcsyn);
+        str_setup_max     = unitify(setup_max);
+        str_setup_min     = unitify(setup_min);
+        str_hold_max      = unitify(hold_max);
+        str_hold_min      = unitify(hold_min);
+
+        printf("\n");
+
+        printf("Punch file      : %s\n",ifile);
+        printf("\n");
+        printf("Source-sync jitter = %s",str_jitter_srcsyn);
+        printf("  Max Setup Time   = %s",str_setup_max);
+        printf("  Min Setup Time   = %s",str_setup_min);
+        printf("  Max Hold Time    = %s",str_hold_max);
+        printf("  Min Hold Time    = %s",str_hold_min);
+
+        printf("\n\n");
+
+        fp=fopen(ofile,"w");
+        fprintf(fp,"Punch file      : %s\n",ifile);
+        fprintf(fp,"\n");
+        fprintf(fp,"Source-sync jitter = %e",jitter_srcsyn);
+        fprintf(fp,"  Max Setup Time   = %e",setup_max);
+        fprintf(fp,"  Min Setup Time   = %e",setup_min);
+        fprintf(fp,"  Max Hold Time    = %e",hold_max);
+        fprintf(fp,"  Min Hold Time    = %e",hold_min);
+
+        fclose(fp);
+
+    }else{
+
+        tran_total_sig = gettransitions(sig);
+        if(trigger=="Reference"){
+            tran_total_ref = gettransitions(ref);
+            if(tran_total_ref != tran_total_sig){
+                printf("\n\nWARNING : The number of transitions in the input and output signals do not match");
+                printf("\n  Transitions in Signal    : %d",tran_total_sig);
+                printf("\n  Transitions in Reference : %d",tran_total_ref);
+
+                tran_stop = min(tran_total_ref,tran_total_sig);
+                printf("\n  Computing till transition number %d",tran_stop);
+            }else{
+                tran_stop = tran_total_ref;
+            }
+
+        }else{
+            tran_stop = tran_total_sig;
+        }
+
+        for(tran=tran_start;tran<=tran_stop;tran++){
+
+            if(trigger=="Reference"){
+                delta = delay(sig,tran,ref,tran);
+            }else{
+                time=gettransitiontime(sig,tran);
+                delta = time-(tran)*(0.5/ref_freq);
+/*              printf("\n\n  %3d    : Time  = %e",tran,time);*/
+            }
+
+            if((tran-tran_start)%2==1){
+
+                delta_odd_max = max(delta_odd_max,delta);
+                delta_odd_min = min(delta_odd_min,delta);
+
+                if(tran==tran_start+1){
+                    delta_odd_prev = delta;
+                    jitter_c2c = 0;
+                }else{
+                    jitter_c2c = fabs(delta-delta_odd_prev);
+                    delta_odd_prev = delta;
+                }
+
+                if(jitter_c2c > jitter_c2c_odd_max){
+                    jitter_c2c_odd_max = jitter_c2c;
+                    num_odd = (tran)/2;
+                }
+/*              printf("\n    Odd  : Delta = %e : Max = %e : Min = %e",delta,delta_odd_max,delta_odd_min);*/
+            }
+
+            if((tran-tran_start)%2==0){
+
+                delta_even_max = max(delta_even_max,delta);
+                delta_even_min = min(delta_even_min,delta);
+
+                if(tran==tran_start){
+                    delta_even_prev = delta;
+                    jitter_c2c = 0;
+                }else{
+                    jitter_c2c = fabs(delta-delta_even_prev);
+                    delta_even_prev = delta;
+                }
+
+                if(jitter_c2c > jitter_c2c_even_max){
+                    jitter_c2c_even_max = jitter_c2c;
+                    num_even = (tran+1)/2;
+                }
+/*              printf("\n    Even : Delta = %e : Max = %e : Min = %e",delta,delta_even_max,delta_even_min);*/
+            }
+
+            delta_period_max = max(delta_period_max,delta);
+            delta_period_min = min(delta_period_min,delta);
+/*          printf("\n    Data : Delta = %e : Max = %e : Min = %e : Diff = %e",delta,delta_period_max,delta_period_min,delta_period_max-delta_period_min);*/
+
+        } /* End of setup!="SrcSyn" -> for loop */
+
+
+        jitter_p2p_odd    = delta_odd_max    - delta_odd_min;
+        jitter_p2p_even   = delta_even_max   - delta_even_min;
+        jitter_p2p_period = delta_period_max - delta_period_min;
+
+        str_delta_odd_max       = unitify(delta_odd_max);
+        str_delta_even_max      = unitify(delta_even_max);
+        str_delta_odd_min       = unitify(delta_odd_min);
+        str_delta_even_min      = unitify(delta_even_min);
+        str_jitter_p2p_odd      = unitify(jitter_p2p_odd);
+        str_jitter_p2p_even     = unitify(jitter_p2p_even);
+        str_jitter_c2c_odd_max  = unitify(jitter_c2c_odd_max);
+        str_jitter_c2c_even_max = unitify(jitter_c2c_even_max);
+        str_jitter_p2p_period   = unitify(jitter_p2p_period);
+
+        printf("\n");
+
+        printf("Punch file      : %s\n",ifile);
+        printf("\n");
+        printf("Period jitter   = %s",str_jitter_p2p_period);
+        printf("\n");
+        if(isfall(sig,tran_start)){
+            printf("P2P rise jitter = %s\n",str_jitter_p2p_odd);
+            printf("C2C rise jitter = %s in transition no. %d\n",str_jitter_c2c_odd_max,num_odd);
+            printf("Rise min delta  = %s ; max delta = %s\n",str_delta_odd_min,str_delta_odd_max);
+            printf("\n");
+            printf("P2P fall jitter = %s\n",str_jitter_p2p_even);
+            printf("C2C fall jitter = %s in transition no. %d\n",str_jitter_c2c_even_max,num_even);
+            printf("Fall min delta  = %s ; max delta = %s\n",str_delta_even_min,str_delta_even_max);
+        }else{
+            printf("P2P rise jitter = %s\n",str_jitter_p2p_even);
+            printf("C2C rise jitter = %s in transition no. %d\n",str_jitter_c2c_even_max,num_even);
+            printf("Rise min delta  = %s ; max delta = %s\n",str_delta_even_min,str_delta_even_max);
+            printf("\n");
+            printf("P2P fall jitter = %s\n",str_jitter_p2p_odd);
+            printf("C2C fall jitter = %s in transition no. %d\n",str_jitter_c2c_odd_max,num_odd);
+            printf("Fall min delta  = %s ; max delta = %s\n",str_delta_odd_min,str_delta_odd_max);
+        }
+        printf("\n\n");
+
+        fp=fopen(ofile,"w");
+        fprintf(fp,"Punch file      : %s\n",ifile);
+        fprintf(fp,"\n");
+        fprintf(fp,"Period jitter   = %e\n",jitter_p2p_period);
+        fprintf(fp,"\n");
+        if(isfall(sig,tran_start)){
+            fprintf(fp,"P2P rise jitter = %e\n",jitter_p2p_odd);
+            fprintf(fp,"C2C rise jitter = %e in transition no. %d\n",jitter_c2c_odd_max,num_odd);
+            fprintf(fp,"Rise min delta  = %e ; max delta = %e\n",delta_odd_min,delta_odd_max);
+            fprintf(fp,"\n");
+            fprintf(fp,"P2P fall jitter = %e\n",jitter_p2p_even);
+            fprintf(fp,"C2C fall jitter = %e in transition no. %d\n",jitter_c2c_even_max,num_even);
+            fprintf(fp,"Fall min delta  = %e ; max delta = %e\n",delta_even_min,delta_even_max);
+        }else{
+            fprintf(fp,"P2P rise jitter = %e\n",jitter_p2p_even);
+            fprintf(fp,"C2C rise jitter = %e in transition no. %d\n",jitter_c2c_even_max,num_even);
+            fprintf(fp,"Rise min delta  = %e ; max delta = %e\n",delta_even_min,delta_even_max);
+            fprintf(fp,"\n");
+            fprintf(fp,"P2P fall jitter = %e\n",jitter_p2p_odd);
+            fprintf(fp,"C2C fall jitter = %e in transition no. %d\n",jitter_c2c_odd_max,num_odd);
+            fprintf(fp,"Fall min delta  = %e ; max delta = %e\n",delta_odd_min,delta_odd_max);
+        }
+        fclose(fp);
+
+    } /* End of setup!="SrcSyn" */
+
+}
+';
+
+close $fout;
+return 0;
+}

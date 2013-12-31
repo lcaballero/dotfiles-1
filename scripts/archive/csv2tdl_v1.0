@@ -1,0 +1,90 @@
+#!/usr/bin/perl -l 
+
+#***************************************************************************************************
+#
+# Creates TDL file from CSV file 
+# 
+# SYNTAX : tdl2csv <input filename> [<output filename>]
+#
+# Created by : Kartik Shenoy (a0393831)
+#
+# Changelog
+#
+# 2009-12-18
+#   - Created
+#
+#***************************************************************************************************
+
+
+use strict;
+use diagnostics;
+use constant DEBUG=>0;
+
+if($#ARGV == -1){
+	print "ERROR : Enter the name of the input file. Output filename may also be specified explicitly.";
+	exit(1);
+}elsif($#ARGV == 0){
+	print "WARNING : Output file not specified. Writing the output to $ARGV[0].tdl";
+	open FOUT, ">${ARGV[0]}.tdl";
+}elsif($#ARGV == 1){
+	$ARGV[1]=~s/\.csv$//;
+	open FOUT, ">${ARGV[1]}.tdl";
+}else{
+	print "WARNING : More than 2 arguments specified. Ignoring all arguments after the 2nd";
+}
+
+open FIN, "<$ARGV[0]" or die "ERROR : Specified input file doesn't exist. Terminating";
+
+
+print FOUT '
+
+ TDL_VERSION = "ASIC_TDL_91 6.1";
+
+
+ ASIC_TITLE = " LIBRARY_TYPE = sr70,
+					CUSTOMER = TI,
+			  TI_PART_NUMBER = F781779,
+			PATTERN_SET_NAME = IO75_LCOL_DCPA_0000,
+			PATTERN_SET_TYPE = DC_PARA,
+	 PATTERN_SET_DESCRIPTION = Tdl Created using TdlGen-11.11.32,
+					REVISION = 1.01,
+						DATE = 04/03/2009 ";
+
+
+(*$                                  TDLGEN version 11.11.32          *)
+(*$SIMULATION FILE (NOM): ../vcd/IO75_LCOL_DCPA_0000.vcd              *)
+(*$    TEMPLATE TDL FILE: /data/testchip1/MTC72_PBIST_TDL_HANDOFF_PHASE2/IO75/tdlgen/IO75_template_dcpa_lcol.tdl *)
+(*$             TDL FILE: /data/testchip1/MTC72_PBIST_TDL_HANDOFF_PHASE2/IO75/tdlgen/tdls//IO75_LCOL_DCPA_0000.tdl *)
+(*$           ERROR FILE: /data/testchip1/MTC72_PBIST_TDL_HANDOFF_PHASE2/IO75/tdlgen/tdls//tdlgen.pattern.err *)
+(*$                 DATE: 04/03/2009 13:58:48                         *)
+(*$               TESTER: VLCT                                        *)
+(*$          TI_DIVISION: ASIC                                        *)
+CONNECT P,';
+
+
+$_=<FIN>;
+s/,/",\n\t\t\t"/g;
+s/,\n\t+"\n*$/ ),/;
+print FOUT "\tVAR = ( \"$_\n";
+
+my $line="";
+my $repeat=0;
+while(<FIN>){
+	unless($_ eq $line){
+		print "New Line detected" if(DEBUG);
+
+		unless($repeat==0){
+			print "Printing Repeat Factor $repeat" if(DEBUG);
+			print FOUT "RUNP FOR $repeat";
+			$repeat=0;
+		}
+
+		$line=$_;
+		s/,//g;
+		chomp();
+		print FOUT "SETR P:=T'$_';";
+
+	}else{
+		$repeat++;
+	}
+}

@@ -1,0 +1,33 @@
+=============
+Layout : DRC
+=============
+setenv cellname = 
+
+bsub -q short -R ws40 -P P0:IO_10015123 -J DRC1 /apps/ame/bin/pvkit layoutConvert -technology c014p -outFormat gdsii \
+-layout /cdb/acd/sr70/sr70_io/cds/a0393831_kartik/ -cell ${cellname} \
+-outLayout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${cellname}.gds
+
+bsub -q short -R ws40 -P P0:IO_10015123 -J DRC2 /apps/ame/bin/pvkit layoutConvert -technology c014p -outFormat laff \
+-layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${cellname}.gds \
+-outLayout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${cellname}.laff
+
+bsub -q short -R ws40 -P P0:IO_10015123 -J DRC3 /apps/ame/bin/pvkit runHerc -technology c014p -rules drc \
+-tool hercules -mode chip_sr70_8lm5x1y1zhp \
+-layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${cellname}.laff -cell ${cellname}
+
+
+
+=============
+Layout : LVS
+=============
+/proj/gateway/layout/sr70/scripts/cds2cdlnetlist <libname> ${cellname} schematic ${cellname}.cdl
+
+\mv ${cellname}.cdl /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz
+
+cd /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz
+
+/apps/ame/bin/pvkit verToHerc -cdlIn /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/${cellname}.cdl -technology c014p -cell ${cellname} -schematicTopCell ${cellname} -process C014.P8 P8
+
+/apps/ame/bin/pvkit layToHerc -tech c014p -cell ${cellname} -layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/${cellname}.laff -process C014.P8 -metalSys 8M_5X1Y1Z
+
+/apps/ame/bin/pvkit hercComp -tech c014p -cell ${cellname} -layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/${cellname}.laff -process C014.P8 -metalSys 8M_5X1Y1Z -property_tolerance 0.1 -explode_on_error true

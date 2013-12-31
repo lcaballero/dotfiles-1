@@ -1,0 +1,30 @@
+#!/tools/local/perl
+use strict;
+
+my @fields;
+my $details;
+
+open(IN, "<contacts.txt");
+open(OUT, ">newcontacts.txt");
+while(<IN>){
+	next if(/^First Name/);
+	@fields = split /\t/;
+	#Case 1: To generate Display name from First, Last names
+	if($fields[0]=~/\b\w+\b/ & $fields[1]=~/\b\w+\b/){
+		$fields[2] = "$fields[1], $fields[0]";
+		$details=join "\t", @fields;
+		#print "Matched without quotes\n$details\n";
+	}
+	#Case 2: To generate First, Last names from Display Name
+	elsif($fields[2]=~/\b(\w+), (\w+)/){		
+		$fields[0] = $1;
+		$fields[1] = $2;
+		$details = join "\t", @fields;
+		#print "Matched quotes\n$details\n";
+	}else{
+	#Case 3: Fallback case in case nothing matches
+		$details=${_}."\n";
+		print "Matched nothing for $details";
+	}
+	print OUT $details;
+}

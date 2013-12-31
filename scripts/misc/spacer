@@ -1,0 +1,7 @@
+#/bin/tcsh -f
+# Script to find the space occupied
+du -aclh > /tmp/$$_spacer.log
+grep -vP "\d+\.?\d*[GMK]" /tmp/$$_spacer.log | sort -n
+grep -P "^\d+\.?\d*K" /tmp/$$_spacer.log | sort -n
+grep -P "^\d+\.?\d*M" /tmp/$$_spacer.log | sort -n
+grep -P "^\d+\.?\d*G" /tmp/$$_spacer.log | sort -n

@@ -1,0 +1,15 @@
+#!/bin/tcsh -f
+
+set file = $1
+/usr/bin/tail $file > ${file}_oldfoot
+
+while (1)		# infinite loop. Press ctrl+c to terminate
+	/usr/bin/tail $file > ${file}_newfoot
+	set key = `diff -wB ${file}_newfoot ${file}_oldfoot | wc -l`
+   	if {$key} then
+		/bin/mv ${file}_newfoot ${file}_oldfoot -f
+		/usr/bin/clear
+		cat ${file}_oldfoot
+   	endif
+	sleep 15	# wait for this much time, then ...
+end

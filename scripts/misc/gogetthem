@@ -1,0 +1,26 @@
+#!/bin/bash
+# --KS
+
+# $1 = filename of the generated script
+# $2 = path to check if the file is there or not
+# nl = number of files + 1 (as #!/bin/bash is also counted)
+
+nl=`wc -l $1 | cut -d " " -f1`
+
+i=2
+while [ $i -le $nl ]
+do
+	line=`tail -n +$i $1 | head -n 1`
+	`echo $line > $$`
+	file=`cut -d "/" -f 9- $$`
+	rm $$
+
+	if [ -f $2/$file ];
+		then `cp $2/$file ./`;
+		else `tail -n +$i $1 | head -n 1`;
+	fi;
+	
+	i=`expr $i + 1`
+done
+
+exit

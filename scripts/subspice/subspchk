@@ -1,0 +1,111 @@
+#!/usr/bin/perl
+#
+# Script to check the simulation deck for sub_spice
+# Written by Kartik Shenoy (a0393831)
+#
+# SYNTAX : subspchk [runfile]
+#
+# If no arguments are given, the script uses "run" by default to identify the input deck and config file
+# Spice check is then performed on the simulation deck using parameters specified in config file
+#
+# A run file can be explicitly specified by supplying the name as the 1st argument
+#
+# Both normal and cut-config files are supported
+#
+use strict;
+use constant DEBUG => 0;
+
+
+# Variable Declaration
+my $run="run";
+my $cfg;
+my $refdeck;
+my $spicesim="tispice";
+my @arr_tags;
+my @arr_val;
+my $res=1;
+
+
+
+# Script initialisation. Checks if input arguments are specified correctly
+if($#ARGV == -1){
+        print "Using default run file \"run\"\n";
+}elsif($#ARGV == 0){
+        print "Using specified run file \"$ARGV[0]\"\n";
+		$run=$ARGV[0];
+}else{
+        print "WARNING : Ignoring extra arguments\n";
+}
+
+
+
+# Opens run file and identifies the deck and config file to use
+open RUN, "<$run" or die "ERROR : run file doesn't exist. Terminating";
+while(<RUN>){
+	next unless(/^set/ || /-ideck/ || /-config/ || /-hspice/);
+	$spicesim=$1 if /^-(hspice)/;
+	$cfg=$1 if /^-config\s+(\S+)/;
+	$refdeck=$1.".deck" if /setup\s*=\s*(\S+)/;
+	$refdeck=$1 if(/^-ideck\s+(\S+)/ && !(defined $refdeck));
+}
+close RUN;
+print "\nSpice Sim = $spicesim\n" if(DEBUG);
+
+
+
+# Creates a local copy of the deck file
+my $spcdeck="spc_".$refdeck;
+system("/bin/cp -f $refdeck $spcdeck");
+print "\nIdentified the following\n  Deck   = $refdeck\n  Config = $cfg\nCreating Check Deck = $spcdeck\n" if(DEBUG); 
+
+
+
+# Opening config file for reading
+open CFG, "<$cfg" or die "ERROR : Unable to open config file. Terminating";
+$_=<CFG>;
+chomp;
+
+if(/^#/){
+# To extract tags and values from cut-config file
+	print "\nIdentified config file as a cut-config file\n" if(DEBUG);
+	s/^#//;
+	@arr_tags=split(/,/);
+	$_=<CFG>;
+	chomp;
+	@arr_val=split(/,/);
+}else{
+# To extract tags and values from normal config file
+	print "\nVariable ==> Value" if(DEBUG);
+	do{
+		next if(/^\s*$/);
+		/^([^=\s]+)\s*=\s*(-?[.\w]+)/;
+		push(@arr_tags,$1);
+		push(@arr_val,$2);
+		print" \n $1 ==> $2" if(DEBUG);
+	}while(<CFG>);
+}
+
+
+
+foreach my $i (0..$#arr_tags){
+	print "\n\n* Replacing $arr_tags[$i] with $arr_val[$i]\n" if(DEBUG);
+	system("/bin/sed -i 's/<$arr_tags[$i]>/$arr_val[$i]/' $spcdeck");
+}
+
+
+
+# Runs sub_spice if the spice check completes successfully
+# Also deletes intermediate files created during the spice check
+if($spicesim eq "tispice"){
+	$res=system("/apps/ame/bin/spice3 -check $spcdeck");
+	print "Running tispice check\n";
+}else{
+	$res=system("/apps/ame/bin/hspice $spcdeck");
+}
+unless($res){
+	system("/bin/rm -rf $spcdeck*");
+	print "\nRunning sub_spice...\n";
+	exec("/usr/bin/perl $run");
+}else{
+	print "\nSpice Check Failed. Not deleting temporary files...\n\n";
+}

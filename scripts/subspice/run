@@ -1,0 +1,27 @@
+#!/usr/local/bin/tcsh
+set setup=
+#/proj/gateway/lsf/bin/bsub -q normal -J ${setup} -R ws40 -P gs70 \
+#/proj/gateway/scripts/sub_spice/bin/sub_spice \
+/proj/gateway/scripts/sub_spice2/bin/sub_spice.pl \
+-ideck ${setup}.deck \
+-wkarea ./dump \
+-q short \
+#-R ws40\
+#-priority 70 \
+#-maxattempt 3\
+#-rerun 0 \
+#-maxjobs 100 \
+#-retain_punch \
+#-hspice \
+#-hspice64 \
+-simulator hsp \
+#-safe \
+#-nospice \
+#-local \
+-project gs70 \
+#-param \
+-rpt ${setup} \
+-n 0 \
+#-postprocess \
+-config config \
+-lis ${setup}.lis

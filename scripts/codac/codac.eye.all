@@ -1,0 +1,820 @@
+/*********************************************************/
+/* CODAC script to parse data and generate eye diagram   */
+/* Brian Young                                           */
+/* brian.young@ti.com                                    */
+/* Austin Design Center                                  */
+/* Modified eye opening to ignore the first transition - JW 02/26/03 */
+/*********************************************************/
+/* Modified 4/3/03 to output delays,rise/fall times, current,
+/*   common mode voltages, and p-p differential voltage 	*/
+
+/* punch_list is a comma-separated list of punch filenames with no spaces              */
+/* data_name_list is a comma-separated list of punch file entries with no spaces       */
+/* Use none for clock_name if it is not utilized.                                      */
+
+main(string punch_in_start, string data_name, string data_name_minus, string clock_name, string clock_name_minus,
+     float frequency, float offset, string vdd1_string, string vdd2_string, float starttime, float endtime, string id, string sigma)
+{
+   int run_num=0,run_num_true=0,jitter_fall_max_corner,jitter_rise_max_corner,tfall_min_wc_corner,trise_min_wc_corner,tfall_max_wc_corner,trise_max_wc_corner;
+   int vdiff_plus_max_corner,vdiff_plus_min_corner,vdiff_minus_max_corner,vdiff_minus_min_corner,vdiff_max_corner,vdiff_min_corner;
+   float vdd,jitter_fall,jitter_rise,jitter_fall_max,jitter_rise_max,vdd1,vdd2; 
+   string results_fall_jitterfile,results_rise_jitterfile,results_fall_edgesfile,results_rise_edgesfile,results_plus_vdifffile,results_minus_vdifffile,results_summaryfile;
+   file results_fall_jitter,results_rise_jitter,results_fall_edges,results_rise_edges,results_plus_vdiff,results_minus_vdiff,results_summary;
+   string results_vdiffppfile,results_vdiffcmfile,results_currentfile;
+
+/* The following code added by Matt Rowley on 4/3/2003 to create data files with no	*/
+/* text.  These data files are meant to be used in data processing packages without	*/
+/* the need for stripping off text (i.e. Matlab).  The data files directly correlate	*/
+/* to their 'results' brethren just without the text denoting the run conditions.	*/
+
+   string rdata_fall_jitterfile,rdata_rise_jitterfile,rdata_fall_edgesfile,rdata_rise_edgesfile,rdata_plus_vdifffile,rdata_minus_vdifffile,rdata_powerfile;
+   file rdata_fall_jitter,rdata_rise_jitter,rdata_fall_edges,rdata_rise_edges,rdata_plus_vdiff,rdata_minus_vdiff,results_vdiffpp,results_vdiffcm,results_current;
+   string results_tphlfile,results_tplhfile,results_dutycyclefile,rdata_currentfile,rdata_tphlfile,rdata_tplhfile,rdata_vdiffcmfile,rdata_vdiffppfile,rdata_dutycyclefile;
+   file results_tphl,results_tplh,results_dutycycle,rdata_current,rdata_tphl,rdata_tplh,rdata_vdiffcm,rdata_vdiffpp,rdata_dutycycle;
+
+   string results_powerfile;
+   file results_power,rdata_power;
+
+
+   int i,j,k,m;
+   float time,data,oldtime,olddata,interpdata;
+   string outputfile;
+
+   waveform  wf_data,wf_data1,wf_data2,wf_clock,wf_ref1,wf_ref2,wf_current,wf_vdd_data_in,wf_vdd_data;
+   waveform  wf_data_in,wf_data1_in,wf_data2_in,wf_clock_in,wf_ref1_in,wf_ref2_in,wf_current_in;
+   int numpoints;
+
+   float setup,hold,setup_min,hold_min,setup2_min,hold2_min,trip_offset;
+   float slew,slewrate_min,duty,dutycycle_min,dutycycle_max,dutycycle_min_wc,dutycycle_max_wc;
+   float time2,height,height_up,height_dn,open_min,open_max,fall_max,fall_min,rise_max,rise_min,open_offset;
+   float tfall_max,tfall_min,trise_max,trise_min,power,power_min,power_max;
+   float tfall_max_wc,tfall_min_wc,trise_max_wc,trise_min_wc,tedge,vdiff_plus_max,vdiff_plus_min,vdiff_minus_max,vdiff_minus_min,vdiff_max,vdiff_min;
+   float tplh_min,tplh_max,tphl_min,tphl_max,trise,tfall,trise_min2080,trise_max2080,tfall_min2080,tfall_max2080,skewval;
+   int tplh_min_corner,tplh_max_corner,tphl_min_corner,tphl_max_corner;
+   float tplh_min_wc,tplh_max_wc,tphl_min_wc,tphl_max_wc,trise_wc,tfall_wc,trise_min2080_wc,trise_max2080_wc,tfall_min2080_wc,tfall_max2080_wc;
+   float vdiffpp,vdiffcm,current,vdiffpp_min,vdiffpp_max,vdiffcm_min,vdiffcm_max,i_min,i_max;
+   int data_transition,clock_transition,transition_count,setopenoffset=0,power_min_corner,power_max_corner;
+   int vdiffpp_min_corner,vdiffpp_max_corner,vdiffcm_min_corner,vdiffcm_max_corner,i_min_corner,i_max_corner,dutycycle_min_corner,dutycycle_max_corner;
+
+   float maxval_duty,minval_duty;
+
+   float period;
+   float runningoffset=0;
+
+   float testval,maxval,minval,maxvalx,minvalx;
+
+   float start,stop;
+
+   file results;
+
+   string punch_in; 
+   string StrongModels = "Strong"; 
+   string NominalModels	= "Nom"; 
+   string WeakModels = "Weak";
+   string NBTIModels = "NBTI";
+   string NNSPModels = "NnSp";
+   string NNWPModels = "NnWp";
+   string SNNPModels = "SnNp";
+   string WNNPModels = "WnNp";
+   string SNWPModels = "SnWp";
+   string WNSPModels = "WnSp";
+
+   int		temperature;
+   float	voltagein;
+   string	models;
+
+   /* period */
+   period=1./frequency;
+   /* for DDR, cut the period in half */
+   period/=2.;
+
+   results_fall_jitterfile="results_fall_jitter_" + id;
+   results_rise_jitterfile="results_rise_jitter_" + id;
+   results_fall_edgesfile="results_fall_edges_" + id;
+   results_rise_edgesfile="results_rise_edges_" + id;
+   results_tphlfile="results_tphl_" + id;
+   results_tplhfile="results_tplh_" + id;
+   results_plus_vdifffile="results_plus_vdiff_" + id;
+   results_minus_vdifffile="results_minus_vdiff_" + id;
+   results_vdiffppfile="results_vdiffpp_" + id;
+   results_vdiffcmfile="results_vdiffcm_" + id;
+   results_currentfile="results_current_" + id;
+   results_summaryfile="results_summary_" + id;
+   results_dutycyclefile="results_dutycycle_" + id;
+   results_powerfile="results_power_" + id;
+
+
+   results_fall_jitter=fopen(results_fall_jitterfile,"w");
+   results_rise_jitter=fopen(results_rise_jitterfile,"w");
+   results_fall_edges=fopen(results_fall_edgesfile,"w");
+   results_rise_edges=fopen(results_rise_edgesfile,"w");
+   results_tphl=fopen(results_tplhfile,"w");
+   results_tplh=fopen(results_tphlfile,"w");
+   results_plus_vdiff=fopen(results_plus_vdifffile,"w");
+   results_minus_vdiff=fopen(results_minus_vdifffile,"w");
+   results_vdiffpp=fopen(results_vdiffppfile,"w");
+   results_vdiffcm=fopen(results_vdiffcmfile,"w");
+   results_current=fopen(results_currentfile,"w");
+   results_summary=fopen(results_summaryfile,"w");
+   results_dutycycle=fopen(results_dutycyclefile,"w");
+   results_power=fopen(results_powerfile,"w");
+   
+
+/* The following code added by Matt Rowley on 4/3/2003 to create data files with no	*/
+/* text.  These data files are meant to be used in data processing packages without	*/
+/* the need for stripping off text (i.e. Matlab).  The data files directly correlate	*/
+/* to their 'results' brethren just without the text denoting the run conditions.	*/
+
+
+/* string rdata_fall_jitterfile,rdata_rise_jitterfile,rdata_fall_edgesfile,rdata_rise_edgesfile,rdata_plus_vdifffile,rdata_minus_vdifffile;	*/
+/* file rdata_fall_jitter,rdata_rise_jitter,rdata_fall_edges,rdata_rise_edges,rdata_plus_vdiff,rdata_minus_vdiff;				*/
+
+   rdata_fall_jitterfile="rdata_fall_jitter_" + id;
+   rdata_rise_jitterfile="rdata_rise_jitter_" + id;
+   rdata_fall_edgesfile="rdata_fall_edges_" + id;
+   rdata_rise_edgesfile="rdata_rise_edges_" + id;
+   rdata_plus_vdifffile="rdata_plus_vdiff_" + id;
+   rdata_minus_vdifffile="rdata_minus_vdiff_" + id;
+   rdata_currentfile="rdata_current_" + id;
+   rdata_tphlfile="rdata_tphl_" + id;
+   rdata_tplhfile="rdata_tplh_" + id;
+   rdata_vdiffcmfile="rdata_vdiffcm_" + id;
+   rdata_vdiffppfile="rdata_vdiffpp_" + id;
+   rdata_dutycyclefile="rdata_dutycycle_" + id;
+   rdata_powerfile="rdata_power_" + id;
+
+
+   rdata_fall_jitter=fopen(rdata_fall_jitterfile,"w");
+   rdata_rise_jitter=fopen(rdata_rise_jitterfile,"w");
+   rdata_fall_edges=fopen(rdata_fall_edgesfile,"w");
+   rdata_rise_edges=fopen(rdata_rise_edgesfile,"w");
+   rdata_plus_vdiff=fopen(rdata_plus_vdifffile,"w");
+   rdata_minus_vdiff=fopen(rdata_minus_vdifffile,"w");
+   rdata_current=fopen(rdata_currentfile,"w");
+   rdata_tphl=fopen(rdata_tphlfile,"w");
+   rdata_tplh=fopen(rdata_tplhfile,"w");
+   rdata_vdiffcm=fopen(rdata_vdiffcmfile,"w");
+   rdata_vdiffpp=fopen(rdata_vdiffppfile,"w");
+   rdata_dutycycle=fopen(rdata_dutycyclefile,"w");
+   rdata_power=fopen(rdata_powerfile,"w");
+
+
+   printf ("Processing all spice runs...\n");
+   fprintf (results_fall_jitter,"# Jitter values for FALLING transitions (all PVT corners)\n");
+   fprintf (results_rise_jitter,"# Jitter values for RISING  transitions (all PVT corners)\n");
+   fprintf (results_fall_edges,"# FALL times (all PVT corners)\n");
+   fprintf (results_rise_edges,"# RISE times (all PVT corners)\n");
+   fprintf (results_plus_vdiff,"# VOD max for + and - states (all PVT corners)\n");
+   fprintf (results_summary,"##### SUMMARY OF RESULTS #####\n");
+
+   jitter_fall_max=-1e30;
+   jitter_rise_max=-1e30;
+   tfall_max_wc=-1e30;
+   tfall_min_wc=1e30;
+   trise_max_wc=-1e30;
+   trise_min_wc=1e30;
+   vdiff_plus_max=-1e30;
+   vdiff_plus_min=1e30;
+   vdiff_minus_max=-1e30;
+   vdiff_minus_min=1e30;
+   vdiff_max=-1e30;
+   vdiff_min=1e30;
+   vdiffpp_max=-1e30;
+   vdiffpp_min=1e30;
+   vdiffcm_max=-1e30;
+   vdiffcm_min=1e30;
+   i_max=-1e30;
+   i_min=1e30;
+   tplh_max=-1e30;
+   tplh_min=1e30;
+   tphl_max=-1e30;
+   tphl_min=1e30;
+   trise_max2080=-1e30;
+   trise_min2080=1e30;
+   tfall_max2080=-1e30;
+   tfall_min2080=1e30;
+   power_max=-1e30;
+   power_min=1e30;
+   
+
+/* loop for each punch file 0 to 80 if 6sigma, 0 to 63 if 3sigma*/  	    
+	loop(voltagein : .99, 1.1, 1.16)
+	    loop(temperature : -40, 27, 125)
+	      loop(models :  StrongModels, NominalModels, WeakModels, NNSPModels, NNWPModels, 
+		                    SNNPModels, WNNPModels, SNWPModels, WNSPModels, NBTIModels )
+if (sigma == "6sigma" || ((sigma == "3sigma") && ((models != "WnSp") && (models != "SnWp"))))
+{
+   /* preset values for rolled-up specs */
+   open_max=-1e30;
+   open_min=1e30;
+   fall_max=-1e30;
+   fall_min=1e30;
+   rise_max=-1e30;
+   rise_min=1e30;
+   tfall_max=-1e30;
+   tfall_min=1e30;
+   trise_max=-1e30;
+   trise_min=1e30;
+   slewrate_min=1e33;
+   dutycycle_min=1e33;
+   dutycycle_max=-1e33;
+
+   dutycycle_min_wc=1e33;
+   dutycycle_max_wc=-1e33;
+
+   height_up=1e30;
+   height_dn=-1e30;
+   maxval=-1e30;
+   minval=1e30;
+   setup_min=1e33;
+   hold_min=1e33;
+   setup2_min=1e33;
+   hold2_min=1e33;
+
+   tplh_max=-1e30;
+   tplh_min=1e30;
+   tphl_max=-1e30;
+   tphl_min=1e30;
+   
+   minval_duty=1e33;
+   maxval_duty=-1e33;   
+
+   punch_in=punch_in_start+str(run_num_true)+".pun";
+        outputfile=punch_in+".eye";
+        results=fopen(outputfile,"w");
+ 
+      /* load the punch file */
+      printf ("Loading %s ...\n",punch_in);
+      readspicepunch(punch_in);
+
+         /* load the waveforms*/
+         printf ("Loading waveforms ...\n");
+
+/* for single-ended output case        */
+           if (data_name_minus == "none") 
+           {  printf ("... for data waveform %s\n",data_name);
+              wf_data_in=readwave(punch_in,data_name);
+              if (endtime == 0) wf_data=range(wf_data_in);
+              else wf_data=range(wf_data_in,starttime,endtime);
+	      wf_data1=wf_data; /* to make common mode measurement valid */
+	      wf_data2=wf_data; /* to make common mode measurement valid */
+	   }
+/* for differential output case        */
+ 	else
+           {  printf ("... for data waveforms %s and %s\n",data_name,data_name_minus);
+              wf_data1_in=readwave(punch_in,data_name);
+              wf_data2_in=readwave(punch_in,data_name_minus);
+              if (endtime == 0) wf_data1=range(wf_data1_in);
+              else wf_data1=range(wf_data1_in,starttime,endtime);
+              if (endtime == 0) wf_data2=range(wf_data2_in);
+              else wf_data2=range(wf_data2_in,starttime,endtime);
+	      wf_data=wf_data1-wf_data2;
+	   }
+  
+/* for single-ended input case        */
+           if (clock_name != "none" && clock_name_minus=="none") 
+           {
+              printf ("... for clock waveform %s\n",clock_name);
+              wf_clock_in=readwave(punch_in,clock_name);
+              if (endtime == 0) wf_clock=range(wf_clock_in);
+              else wf_clock=range(wf_clock_in,starttime,endtime);
+           }
+
+/* for differential input case        */
+ 
+           if (clock_name != "none" && clock_name_minus!="none") 
+           {
+              printf ("... for clock waveforms %s and %s\n",clock_name,clock_name_minus);
+              wf_ref1_in=readwave(punch_in,clock_name);
+              wf_ref2_in=readwave(punch_in,clock_name_minus);
+              if (endtime == 0) wf_ref1=range(wf_ref1_in);
+              else wf_ref1=range(wf_ref1_in,starttime,endtime);
+              if (endtime == 0) wf_ref2=range(wf_ref2_in);
+              else wf_ref2=range(wf_ref2_in,starttime,endtime);
+	      wf_clock=wf_ref1-wf_ref2;
+           }
+  
+           printf ("... for current waveform IV0\n");
+           wf_current_in=readwave(punch_in,"iv4");
+           if (endtime == 0) wf_current=range(wf_data_in);
+           else wf_current=range(wf_current_in,starttime,endtime);
+  
+	   printf ("... for vdd data voltage waveform \n");		
+           wf_vdd_data_in=readwave(punch_in,"vvdd");	
+           if (endtime == 0) wf_vdd_data=range(wf_vdd_data_in);		
+           else wf_vdd_data=range(wf_vdd_data_in,starttime,endtime);	
+
+
+	/* Normalize the single-ended output waveforms before further processing */
+
+           if (data_name_minus == "none") 
+	   {
+	      wf_data = wf_data/wf_vdd_data;
+	   }
+	
+
+         /* compute the peak and minimum overall voltages */
+         /* get the number of transitions */
+         data_transition=gettransitions(wf_data);
+         if (clock_name != "none") clock_transition=gettransitions(wf_clock);
+   
+         /* get the number of data points */
+         numpoints=getpoints(wf_data);
+
+         printf ("Processing overall maximum and minimum values ...\n");
+         testval=peak(wf_data,xpoint(wf_data,0),xpoint(wf_data,numpoints-1));
+         if (testval > maxval) maxval=testval;
+         testval=dip(wf_data,xpoint(wf_data,0),xpoint(wf_data,numpoints-1));
+         if (testval < minval) minval=testval;
+         printf ("min value: %f\n",maxval);
+         printf ("max value %f\n",minval);
+
+
+    if (vdd1_string == "0") 
+       { 
+
+      /* get the number of data points */
+         numpoints=getpoints(wf_data);
+
+         maxval=peak(wf_data,xpoint(wf_data,0),xpoint(wf_data,numpoints-1));
+         minval=dip(wf_data,xpoint(wf_data,0),xpoint(wf_data,numpoints-1));
+         setsiglow(minval+0.2*(maxval-minval),wf_data);
+         setsigcent(0,wf_data);
+         setsighigh(maxval-0.2*(maxval-minval),wf_data);
+         printf ("##Using differential trip points for output:\n");
+         printf ("Output - trip for trise/tfall: %f\n",(minval+0.2*(maxval-minval)));
+         printf ("Output + trip for trise/tfall %f\n",(maxval-0.2*(maxval-minval)));
+       } 
+    else 
+    if (vdd1_string == "vdd")
+       { setsiglow(0.2*voltagein,wf_data);
+         setsigcent(0.5*voltagein,wf_data);
+         setsighigh(0.8*voltagein,wf_data); 
+         printf ("##Using single-ended trip points for output:\n");
+         printf ("Output - trip for trise/tfall: %f\n",0.2*voltagein);
+         printf ("Output + trip for trise/tfall %f\n",0.8*voltagein);
+       }
+
+         if (clock_name != "none")
+    if (vdd2_string == "0") 
+       { 
+
+      /* get the number of clock points */
+         numpoints=getpoints(wf_clock);
+
+         maxvalx=peak(wf_clock,xpoint(wf_clock,0),xpoint(wf_clock,numpoints-1));
+         minvalx=dip(wf_clock,xpoint(wf_clock,0),xpoint(wf_clock,numpoints-1));
+         setsiglow(minvalx+0.2*(maxvalx-minvalx),wf_clock);
+         setsigcent(0,wf_clock);
+         setsighigh(maxvalx-0.2*(maxvalx-minvalx),wf_clock);
+         printf ("##Using differential trip points for input:\n");
+         printf ("Input - trip for trise/tfall: %f\n",(minvalx+0.2*(maxvalx-minvalx)));
+         printf ("Input + trip for trise/tfall %f\n",(maxvalx-0.2*(maxvalx-minvalx)));
+       } 
+    else if (vdd2_string == "vdd")
+         {
+            setsiglow(0.2*voltagein,wf_clock);
+            setsigcent(0.5*voltagein,wf_clock);
+            setsighigh(0.8*voltagein,wf_clock);
+         printf ("##Using single-ended trip points for input:\n");
+         printf ("Input - trip for trise/tfall: %f\n",0.2*voltagein);
+         printf ("Input + trip for trise/tfall %f\n",0.8*voltagein);
+         }
+
+   
+         /* get the number of transitions */
+         data_transition=gettransitions(wf_data);
+         if (clock_name != "none") clock_transition=gettransitions(wf_clock);
+   
+         /* get the number of data points */
+         numpoints=getpoints(wf_data);
+  
+         /* plot the data's eye diagram */
+   
+/*         printf ("Processing eye diagram into %s ...\n",outputfile);		*/
+/*										*/
+/*         runningoffset=offset;						*/
+/*         oldtime=-1e25;							*/
+/*         olddata=0;								*/
+/*         fprintf (results,"\n");						*/
+/*         i=0;									*/
+/*         while (i < numpoints)						*/
+/*         {									*/
+/*           time=xpoint(wf_data,i)-runningoffset;				*/
+/*           data=ypoint(wf_data,i);						*/
+/*   										*/
+/*           if (time < 0) time+=period;					*/
+/*           while (time > 2*period) {time-=period; runningoffset+=period;}	*/
+/*           if (time > period)							*/
+/*           {									*/
+/*              if (oldtime > -1e24)						*/
+/*              {								*/
+/*                 interpdata=((olddata-data)*period+oldtime*data-time*olddata)/*/
+/*                            (oldtime-time);					*/
+/*                 fprintf (results,"%g %g\n",period,interpdata);		*/
+/*                 fprintf (results,"0 %g\n",interpdata);			*/
+/*              }								*/
+/*   										*/
+/*              time-=period;							*/
+/*              runningoffset+=period;						*/
+/*           }									*/
+/*           else if (time == period)						*/
+/*           {									*/
+/*              fprintf (results,"%g %g\n",time,data);				*/
+/*              time-=period;							*/
+/*              runningoffset+=period;						*/
+/*           }									*/
+/*   										*/
+/*           fprintf (results,"%g %g\n",time,data);				*/
+/*   										*/
+/*           oldtime=time;							*/
+/*           olddata=data;							*/
+/*   										*/
+/*           i++;								*/
+/*         }									*/
+
+            printf ("Processing delays ...\n");
+            i=2; 
+            while (i <= data_transition-1)
+            {
+           	     if ((isrise(wf_data,i) && isfall(wf_clock,i)) || (isfall(wf_data,i) && isrise(wf_clock,i)))
+			   skewval=delay(wf_data,i,wf_clock,i-1);
+		     else  skewval=delay(wf_data,i,wf_clock,i);
+
+
+           	     if (isrise(wf_data,i)) 
+		     {
+                       if (skewval > tplh_max) tplh_max=skewval;
+                       if (skewval < tplh_min) tplh_min=skewval;
+		     }
+                     else
+ 		     {
+                       if (skewval > tphl_max) tphl_max=skewval;
+                       if (skewval < tphl_min) tphl_min=skewval;
+		     }
+                i++;
+            }
+
+         
+   
+         /* compute the rise/fall times (20-80%) */
+         printf ("Processing slew rate rise/fall times (20-80)...\n");
+         i=1;
+         while (i <= data_transition)
+         {
+            if (isrise(wf_data,i))
+		{ trise=risetime(wf_data,i);
+  	          if (trise < trise_min2080) trise_min2080=trise;
+ 	          if (trise > trise_max2080) trise_max2080=trise;
+		}
+             if (isfall(wf_data,i))
+    	        { tfall=falltime(wf_data,i);
+   	          if (tfall < tfall_min2080) tfall_min2080=tfall;
+    	          if (tfall > tfall_max2080) tfall_max2080=tfall;
+		}
+           i++;
+         }
+
+        /* compute jitter */
+	 setopenoffset=0;
+         printf ("Processing jitter for rise transition ...\n");
+   
+        if (isrise(wf_data,2)) i=2; else i=3;
+         if (! setopenoffset)
+         {
+            open_offset=gettransitiontime(wf_data,i);
+            setopenoffset=1;
+         }
+         while (i < data_transition)
+         {
+           time=gettransitiontime(wf_data,i);
+           time-=open_offset;
+           while (time > 0.5*period) time-=period;
+           if (time > rise_max) rise_max=time;
+           if (time < rise_min) rise_min=time;
+           tedge=risetime(wf_data,i);
+           if (tedge > trise_max) trise_max=tedge;
+           if (tedge < trise_min) trise_min=tedge;
+           i = i+2;
+            
+         }
+
+         setopenoffset=0;
+         printf ("Processing jitter for fall transition ...\n");
+   
+        if (isfall(wf_data,2)) i=2; else i=3;
+         if (! setopenoffset)
+         {
+            open_offset=gettransitiontime(wf_data,i);
+            setopenoffset=1;
+         }
+         while (i < data_transition)
+         {
+           time=gettransitiontime(wf_data,i);
+           time-=open_offset;
+           while (time > 0.5*period) time-=period;
+           if (time > fall_max) fall_max=time;
+           if (time < fall_min) fall_min=time;
+           tedge=falltime(wf_data,i);
+           if (tedge > tfall_max) tfall_max=tedge;
+           if (tedge < tfall_min) tfall_min=tedge;
+           i = i+2;
+            
+         }
+   
+         /* compute duty cycle */
+         printf ("Processing duty cycle ...\n");
+         i=2;
+         while (i <= (data_transition - 4))
+         {
+            duty=dutycycle(wf_data,i)*100;
+            if (duty < dutycycle_min) dutycycle_min=duty;
+            if (duty > dutycycle_max) dutycycle_max=duty;
+            i++;
+         }
+
+         /* compute average current */
+         printf ("Processing average current ...\n");
+         current=fabs(average(wf_current));
+
+	 /* compute the average power */
+         printf ("Processing average power ...\n");	 
+	 power = voltagein * current;
+
+
+
+
+
+
+         printf ("\n");
+   jitter_fall = fall_max-fall_min;
+   jitter_rise = rise_max-rise_min;
+   vdiffpp = maxval-minval;
+   vdiffcm =(peak(wf_data1)+dip(wf_data2))/2;
+
+   /* print out the results */
+   fprintf (results,"#\n#  rise/fall times at 20-80 percent\n#  delays at 50 percent\n#\n");
+   fprintf (results,"# fall transition jitter at %g: %g\n",vdd/2,fall_max-fall_min);
+   fprintf (results,"# rise transition jitter at %g: %g\n",vdd/2,rise_max-rise_min);
+   fprintf (results,"# duty cycle min: %g\n",dutycycle_min);
+   fprintf (results,"# duty cycle max: %g\n",dutycycle_max);
+   fprintf (results,"# trise_min : %g\n",trise_min2080);
+   fprintf (results,"# trise_max : %g\n",trise_max2080);
+   fprintf (results,"# tfall_min : %g\n",tfall_min2080);
+   fprintf (results,"# tfall_max : %g\n",tfall_max2080);
+   fprintf (results,"# tplh_min  : %g\n",tplh_min);
+   fprintf (results,"# tplh_max  : %g\n",tplh_max);
+   fprintf (results,"# tphl_min  : %g\n",tphl_min);
+   fprintf (results,"# tphl_max  : %g\n",tphl_max);
+   fprintf (results,"# dutycycle_min  : %g\n",dutycycle_min);
+   fprintf (results,"# dutycycle_max  : %g\n",dutycycle_max);
+
+
+   fclose(results);
+
+        if (jitter_fall > jitter_fall_max) 
+		{ jitter_fall_max=jitter_fall;
+		  jitter_fall_max_corner=run_num; }
+        if (jitter_rise > jitter_rise_max) 
+		{ jitter_rise_max=jitter_rise;
+		  jitter_rise_max_corner=run_num; }
+        if (tfall_max > tfall_max_wc) 
+		{ tfall_max_wc=tfall_max;
+		  tfall_max_wc_corner=run_num; }
+        if (trise_max > trise_max_wc) 
+		{ trise_max_wc=trise_max;
+		  trise_max_wc_corner=run_num; }
+        if (tfall_min < tfall_min_wc) 
+		{ tfall_min_wc=tfall_min;
+		  tfall_min_wc_corner=run_num; }
+        if (trise_min < trise_min_wc) 
+		{ trise_min_wc=trise_min;
+		  trise_min_wc_corner=run_num; }
+
+        if (tphl_max > tphl_max_wc) 
+		{ tphl_max_wc=tphl_max;
+		  tphl_max_corner=run_num; }
+        if (tplh_max > tplh_max_wc) 
+		{ tplh_max_wc=tplh_max;
+		  tplh_max_corner=run_num; }
+        if (tphl_min < tphl_min_wc) 
+		{ tphl_min_wc=tphl_min;
+		  tphl_min_corner=run_num; }
+        if (tplh_min < tplh_min_wc) 
+		{ tplh_min_wc=tplh_min;
+		  tplh_min_corner=run_num; }
+
+        if (dutycycle_max > dutycycle_max_wc) 
+		{ dutycycle_max_wc=dutycycle_max;
+		  dutycycle_max_corner=run_num; }
+        if (dutycycle_min < dutycycle_min_wc) 
+		{ dutycycle_min_wc=dutycycle_min;
+		  dutycycle_min_corner=run_num; }
+
+        if (maxval > vdiff_plus_max) 
+		{ vdiff_plus_max=maxval;
+		  vdiff_plus_max_corner=run_num; }
+        if (maxval < vdiff_plus_min) 
+		{ vdiff_plus_min=maxval;
+		  vdiff_plus_min_corner=run_num; }
+        if (minval > vdiff_minus_max) 
+		{ vdiff_minus_max=minval;
+		  vdiff_minus_max_corner=run_num; }
+        if (minval < vdiff_minus_min) 
+		{ vdiff_minus_min=minval;
+		  vdiff_minus_min_corner=run_num; }
+
+        if (fabs(vdiff_minus_max) < vdiff_min) 
+		{  vdiff_min=fabs(vdiff_minus_max);
+		  vdiff_min_corner=run_num; }
+        if (fabs(vdiff_plus_min) < vdiff_min) 
+		{ vdiff_min=fabs(vdiff_plus_min);
+		  vdiff_min_corner=run_num; }
+        if (fabs(vdiff_minus_min) > vdiff_max) 
+		{ vdiff_max=fabs(vdiff_minus_min);
+		  vdiff_max_corner=run_num; }
+        if (fabs(vdiff_plus_min) > vdiff_max) 
+		{ vdiff_max=fabs(vdiff_plus_max);
+		  vdiff_max_corner=run_num; }
+
+        if (vdiffpp > vdiffpp_max) 
+		{ vdiffpp_max=vdiffpp;
+		  vdiffpp_max_corner=run_num; }
+        if (vdiffpp < vdiffpp_min) 
+		{ vdiffpp_min=vdiffpp;
+		  vdiffpp_min_corner=run_num; }
+        if (vdiffcm > vdiffcm_max) 
+		{ vdiffcm_max=vdiffcm;
+		  vdiffcm_max_corner=run_num; }
+        if (vdiffcm < vdiffcm_min) 
+		{ vdiffcm_min=vdiffcm;
+		  vdiffcm_min_corner=run_num; }
+        if (current > i_max) 
+		{ i_max=current;
+		  i_max_corner=run_num; }
+        if (current < i_min) 
+		{ i_min=current;
+		  i_min_corner=run_num; }
+
+	if (power > power_max) 
+		{ power_max=power;
+		  power_max_corner=run_num; }
+        if (power < power_min) 
+		{ power_min=power;
+		  power_min_corner=run_num; }
+
+
+
+        fprintf (results_fall_jitter,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,jitter_fall,temperature,voltagein,models,"models\n");
+        fprintf (results_rise_jitter,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,jitter_rise,temperature,voltagein,models,"models\n");
+        fprintf (results_fall_edges,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,tfall_min,temperature,voltagein,models,"models\n");
+        fprintf (results_fall_edges,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,tfall_max,temperature,voltagein,models,"models\n");
+        fprintf (results_rise_edges,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,trise_min,temperature,voltagein,models,"models\n");
+        fprintf (results_rise_edges,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,trise_max,temperature,voltagein,models,"models\n");
+        fprintf (results_tphl,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,tphl_min,temperature,voltagein,models,"models\n");
+        fprintf (results_tphl,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,tphl_max,temperature,voltagein,models,"models\n");
+        fprintf (results_tplh,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,tplh_min,temperature,voltagein,models,"models\n");
+        fprintf (results_tplh,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,tplh_max,temperature,voltagein,models,"models\n");
+        fprintf (results_plus_vdiff,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,minval,temperature,voltagein,models,"models\n");
+        fprintf (results_plus_vdiff,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,maxval,temperature,voltagein,models,"models\n");
+        fprintf (results_vdiffpp,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,vdiffpp,temperature,voltagein,models,"models\n");
+        fprintf (results_vdiffcm,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,vdiffcm,temperature,voltagein,models,"models\n");
+        fprintf (results_current,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,current,temperature,voltagein,models,"models\n");
+        fprintf (results_dutycycle,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,dutycycle_min,temperature,voltagein,models,"models\n");
+        fprintf (results_dutycycle,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,dutycycle_max,temperature,voltagein,models,"models\n");
+	fprintf (results_power,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,power,temperature,voltagein,models,"models\n");
+
+
+/*       fprintf (results_minus_vdiff,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,minval,temperature,voltagein,models,"models\n");	*/
+/*       fprintf (results_minus_vdiff,"%d %g \t\t#Conditions:  %dC, \t%gV, \t%s %s",run_num,maxval,temperature,voltagein,models,"models\n");	*/
+
+	
+/* The following code added by Matt Rowley on 4/3/2003 to create data files with no	*/
+/* text.  These data files are meant to be used in data processing packages without	*/
+/* the need for stripping off text (i.e. Matlab).  The data files directly correlate	*/
+/* to their 'results' brethren just without the text denoting the run conditions.	*/
+
+
+
+        fprintf (rdata_fall_jitter,"%d %g %s",run_num,jitter_fall,"\n");
+        fprintf (rdata_rise_jitter,"%d %g %s",run_num,jitter_rise,"\n");
+        fprintf (rdata_fall_edges,"%d %g %e %s",run_num,tfall_min,tfall_max,"\n");
+/*        fprintf (rdata_fall_edges,"%d %g %s",run_num,tfall_max,"\n");			*/
+        fprintf (rdata_rise_edges,"%d %g %e %s",run_num,trise_min,trise_max,"\n");
+/*        fprintf (rdata_rise_edges,"%d %g %s",run_num,trise_max,"\n");			*/
+        fprintf (rdata_plus_vdiff,"%d %g %e %s",run_num,minval,maxval,"\n");
+/*        fprintf (rdata_plus_vdiff,"%d %g %s",run_num,maxval,"\n");			*/
+/*        fprintf (rdata_minus_vdiff,run_num,jitter_fall);	*/
+/*        fprintf (rdata_minus_vdiff,run_num,jitter_fall);	*/
+        fprintf (rdata_current,"%d %g %s",run_num,current,"\n");
+        fprintf (rdata_tphl,"%d %g %e %s",run_num,tphl_min,tphl_max,"\n");
+        fprintf (rdata_tplh,"%d %g %e %s",run_num,tplh_min,tplh_max,"\n");
+        fprintf (rdata_vdiffcm,"%d %g %s",run_num,vdiffcm,"\n");
+        fprintf (rdata_vdiffpp,"%d %g %s",run_num,vdiffpp,"\n");
+        fprintf (rdata_dutycycle,"%d %g %e %s",run_num,dutycycle_min,dutycycle_max,"\n");
+	fprintf (rdata_power,"%d %g %s",run_num,power,"\n");
+
+
+	freewave(wf_data);
+	freewave(wf_data1);
+	freewave(wf_data2);
+	freewave(wf_clock);
+	freewave(wf_ref1);
+	freewave(wf_ref2);
+	freewave(wf_current);
+	freewave(wf_vdd_data_in);
+	freewave(wf_vdd_data);
+	freewave(wf_data_in);
+	freewave(wf_data1_in);
+	freewave(wf_data2_in);
+	freewave(wf_clock_in);
+	freewave(wf_ref1_in);
+	freewave(wf_ref2_in);
+	freewave(wf_current_in);
+
+
+	run_num++;
+	run_num_true++;
+}
+else run_num_true++;
+
+
+    
+   fprintf (results_fall_jitter,"\n# Max FALL jitter = %g%s%d\n",jitter_fall_max," at rerun #",jitter_fall_max_corner);
+   fprintf (results_rise_jitter,"\n# Max RISE jitter = %g%s%d\n",jitter_rise_max," at rerun #",jitter_rise_max_corner);
+   fprintf (results_fall_edges,"\n# Min FALL time (20-80) = %g%s%d\n",tfall_min_wc," at rerun #",tfall_min_wc_corner);
+   fprintf (results_fall_edges,"\n# Max FALL time (20-80) = %g%s%d\n",tfall_max_wc," at rerun #",tfall_max_wc_corner);
+   fprintf (results_rise_edges,"\n# Min RISE time (20-80) = %g%s%d\n",trise_min_wc," at rerun #",trise_min_wc_corner);
+   fprintf (results_rise_edges,"\n# Max RISE time (20-80) = %g%s%d\n",trise_max_wc," at rerun #",trise_max_wc_corner);
+   fprintf (results_tphl,"\n# Min FALL time (20-80) = %g%s%d\n",tphl_min_wc," at rerun #",tphl_min_corner);
+   fprintf (results_tphl,"\n# Max FALL time (20-80) = %g%s%d\n",tphl_max_wc," at rerun #",tphl_max_corner);
+   fprintf (results_tplh,"\n# Min RISE time (20-80) = %g%s%d\n",tplh_min_wc," at rerun #",tplh_min_corner);
+   fprintf (results_tplh,"\n# Max RISE time (20-80) = %g%s%d\n",tplh_max_wc," at rerun #",tplh_max_corner);
+   fprintf (results_plus_vdiff,"\n# Max - Vod voltage = %g%s%d\n",vdiff_plus_min," at rerun #",vdiff_plus_min_corner);
+   fprintf (results_plus_vdiff,"\n# Max + Vod voltage = %g%s%d\n",vdiff_plus_max," at rerun #",vdiff_plus_max_corner);
+   fprintf (results_vdiffpp,"\n# Min p-p differential voltage = %g%s%d\n",vdiffpp_min," at rerun #",vdiffpp_min_corner);
+   fprintf (results_vdiffpp,"\n# Max p-p differential voltage = %g%s%d\n",vdiffpp_max," at rerun #",vdiffpp_max_corner);
+   fprintf (results_vdiffcm,"\n# Min common mode voltage = %g%s%d\n",vdiffcm_min," at rerun #",vdiffcm_min_corner);
+   fprintf (results_vdiffcm,"\n# Max common mode voltage = %g%s%d\n",vdiffcm_max," at rerun #",vdiffcm_max_corner);
+   fprintf (results_current,"\n# Min average current = %g%s%d\n",i_min," at rerun #",i_min_corner);
+   fprintf (results_current,"\n# Max average current = %g%s%d\n",i_max," at rerun #",i_max_corner);
+   fprintf (results_dutycycle,"\n# Min duty cycle = %g%s%d\n",dutycycle_min_wc," at rerun #",dutycycle_min_corner);
+   fprintf (results_dutycycle,"\n# Max duty cycle = %g%s%d\n",dutycycle_max_wc," at rerun #",dutycycle_max_corner);
+   fprintf (results_power,"\n# Min power = %g%s%d\n",power_min," at rerun #",power_min_corner);
+   fprintf (results_power,"\n# Max power = %g%s%d\n",power_max," at rerun #",power_max_corner);
+
+
+
+   fprintf (results_summary,"# Max FALL jitter = %g%s%d\n",jitter_fall_max," at rerun #",jitter_fall_max_corner);
+   fprintf (results_summary,"# Max RISE jitter = %g%s%d\n",jitter_rise_max," at rerun #",jitter_rise_max_corner);
+   fprintf (results_summary,"# Min FALL time (20-80) = %g%s%d\n",tfall_min_wc," at rerun #",tfall_min_wc_corner);
+   fprintf (results_summary,"# Max FALL time (20-80) = %g%s%d\n",tfall_max_wc," at rerun #",tfall_max_wc_corner);
+   fprintf (results_summary,"# Min RISE time (20-80) = %g%s%d\n",trise_min_wc," at rerun #",trise_min_wc_corner);
+   fprintf (results_summary,"# Max RISE time (20-80) = %g%s%d\n",trise_max_wc," at rerun #",trise_max_wc_corner);
+   fprintf (results_summary,"# Min |Vod| voltage = %g%s%d\n",vdiff_min," at rerun #",vdiff_min_corner);
+   fprintf (results_summary,"# Max |Vod| voltage = %g%s%d\n",vdiff_max," at rerun #",vdiff_max_corner);
+   fprintf (results_summary,"# Min p-p differential voltage = %g%s%d\n",vdiffpp_min," at rerun #",vdiffpp_min_corner);
+   fprintf (results_summary,"# Max p-p differential voltage = %g%s%d\n",vdiffpp_max," at rerun #",vdiffpp_max_corner);
+   fprintf (results_summary,"# Min common mode voltage = %g%s%d\n",vdiffcm_min," at rerun #",vdiffcm_min_corner);
+   fprintf (results_summary,"# Max common mode voltage = %g%s%d\n",vdiffcm_max," at rerun #",vdiffcm_max_corner);
+   fprintf (results_summary,"# Min average current = %g%s%d\n",i_min," at rerun #",i_min_corner);
+   fprintf (results_summary,"# Max average current = %g%s%d\n",i_max," at rerun #",i_max_corner);
+   fprintf (results_summary,"\n# Min duty cycle = %g%s%d\n",dutycycle_min_wc," at rerun #",dutycycle_min_corner);
+   fprintf (results_summary,"\n# Max duty cycle = %g%s%d\n",dutycycle_max_wc," at rerun #",dutycycle_max_corner);
+   fprintf (results_summary,"# Min power = %g%s%d\n",power_min," at rerun #",power_min_corner);
+   fprintf (results_summary,"# Max power = %g%s%d\n",power_max," at rerun #",power_max_corner);
+
+
+
+   printf ("Complete!  Refer to results_fall*, results_rise*, results_plus_vdiff*, results_summary* \n");
+   fclose(results_fall_jitter);
+   fclose(results_rise_jitter);
+   fclose(results_fall_edges);
+   fclose(results_rise_edges);
+   fclose(results_minus_vdiff);
+   fclose(results_plus_vdiff);
+   fclose(results_summary);
+   fclose(results_tphl);
+   fclose(results_tplh);
+   fclose(results_vdiffpp);
+   fclose(results_vdiffcm);
+   fclose(results_current);
+   fclose(results_dutycycle);
+   fclose(results_power);
+
+
+   fclose(rdata_fall_jitter);
+   fclose(rdata_rise_jitter);
+   fclose(rdata_fall_edges);
+   fclose(rdata_rise_edges);
+   fclose(rdata_plus_vdiff);
+   fclose(rdata_current);
+   fclose(rdata_tphl);
+   fclose(rdata_tplh);
+   fclose(rdata_vdiffcm);
+   fclose(rdata_vdiffpp);
+   fclose(rdata_minus_vdiff);
+   fclose(rdata_dutycycle);
+   fclose(rdata_power);
+
+}

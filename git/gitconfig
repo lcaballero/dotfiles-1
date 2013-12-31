@@ -1,0 +1,26 @@
+[user]
+  name = KS
+  email = theresmorethanoneway@gmail.com
+
+[core]
+  editor = gvim --nofork
+	excludesfile = /home/ks/.gitignore_global
+
+[color]
+  ui = auto
+
+[push]
+  default = simple
+
+[diff]
+  tool = meld
+[difftool]
+  prompt = false
+[difftool "meld"]
+  cmd = meld --diff $LOCAL $BASE
+
+[merge]
+  tool = meld
+  conflictstyle = diff3
+[mergetool "meld"]
+  cmd = meld --diff $BASE $LOCAL --diff $BASE $REMOTE --diff $LOCAL $BASE $REMOTE $MERGED

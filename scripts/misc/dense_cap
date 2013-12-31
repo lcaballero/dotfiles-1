@@ -1,0 +1,92 @@
+#!/usr/bin/perl
+#==============================================================================#
+#                                                                              #
+#  Script to                                                                   #
+#  Created by Kartik Shenoy (a0393831)                                         #
+#                                                                              #
+#  REQUIRED:                                                                   #
+#                                                                              #
+#  OPTIONAL:                                                                   #
+#                                                                              #
+#  SYNTAX:                                                                     #
+#                                                                              #
+#  DESCRIPTION:                                                                #
+#                                                                              #
+#==============================================================================#
+
+## Modules
+use Getopt::Long;
+#use carp;
+
+## Pragmas
+use strict;
+use warnings;
+use diagnostics;
+use Data::Dumper;
+
+#local $SIG{__DIE__} = \&croak;
+#local $SIG{__WARN__} = \&carp;
+
+## Command-line parameter handling
+#GetOptions(
+#	"ifile|i=s" => \my $ifile,
+#	"ofile|o=s" => \my $ofile,
+#);
+
+## NOTE: All units are in microns
+
+my $l_min = 0.2;
+my $l_max = 2;
+my $w_min = 0.4;
+my $area_max = 3;
+my $w_max = $area_max/$l_min;
+my $poh = 0.08;     # Poly-overhang
+my $spc_w = 0.18;
+my $spc_l = 0.18;
+
+my $grid_side = 10;
+my $acc=0.005;
+
+my $w;
+my $l;
+my $area;
+my $area_cap;
+my %results = (
+    'Area_Cap' => 0,
+);
+
+for(my $spc_w=0.18 ; $spc_w<$grid_side ; $spc_w+=$acc){
+    for(my $spc_l=0.18 ; $spc_l<$grid_side ; $spc_l+=$acc){
+
+        for(my $nl=int($grid_side/($l_min+$spc_l)) ; $nl>int($grid_side/($l_max+$spc_l)) ; $nl--){
+            for(my $nw=int($grid_side/($w_min+$spc_w)) ; $nw>int($grid_side/($w_max+$spc_w)) ; $nw--){
+
+                $w=$grid_side/$nw-$spc_w;
+                $w=int($w/$acc)*$acc;
+
+                $l=$grid_side/$nl-$spc_l;
+                $l=int($l/$acc)*$acc;
+
+                next unless($l*$w<3);
+                $area=$nl*$l*$nw*$w;
+                $area_cap=$nl*($l-2*$poh)*$nw*$w;
+
+                next unless($area<65);
+                if( $area_cap > $results{'Area_Cap'} ){
+                    $results{'Area'} = $area;
+                    $results{'Area_Cap'} = $area_cap;
+                    $results{'w'} = $w;
+                    $results{'l'} = $l;
+                    $results{'Nw'} = $nw;
+                    $results{'Nl'} = $nl;
+                    $results{'Spacing_w'} = $spc_w;
+                    $results{'Spacing_l'} = $spc_l;
+                }
+            }
+        }
+    }
+}
+print Dumper(\%results);
+
+
+exit 0;

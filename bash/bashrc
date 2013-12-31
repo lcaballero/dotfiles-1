@@ -8,8 +8,9 @@
 #======================
 
 HISTCONTROL=ignoredups:ignorespace
-#if [ -f ~/Dropbox/Softwares/Linux/shell/bash/bash_history ]; then
-#  HISTFILE=~/Dropbox/Softwares/Linux/shell/bash/bash_history
+# Triggers too many Dropbox updates
+#if [ -f ~/Dropbox/Softwares/Linux/bash/bash_history ]; then
+#  HISTFILE=~/Dropbox/Softwares/Linux/bash/bash_history
 #fi
 HISTFILESIZE=5000
 # Ignore trivial one- and two-char commands
@@ -101,21 +102,21 @@ fi
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 
-if [ -f ~/Dropbox/Softwares/Linux/shell/bash/bash_func ]; then
+if [ -f ~/Dropbox/Softwares/Linux/bash/bash_func ]; then
   #echo "  Sourcing bash_func ..."
-  . ~/Dropbox/Softwares/Linux/shell/bash/bash_func
+  . ~/Dropbox/Softwares/Linux/bash/bash_func
   #echo "  ... done"
 fi
 
-if [ -f ~/Dropbox/Softwares/Linux/shell/aliases ]; then
+if [ -f ~/Dropbox/Softwares/Linux/aliases ]; then
   #echo "  Sourcing aliases ..."
-  . ~/Dropbox/Softwares/Linux/shell/aliases
+  . ~/Dropbox/Softwares/Linux/aliases
   #echo "  ... done"
 fi
 
-if [ -f ~/Dropbox/Softwares/Linux/shell/bash/bash_prompt ]; then
+if [ -f ~/Dropbox/Softwares/Linux/bash/bash_prompt ]; then
   #echo "  Sourcing bash_prompt ..."
-  . ~/Dropbox/Softwares/Linux/shell/bash/bash_prompt
+  . ~/Dropbox/Softwares/Linux/bash/bash_prompt
   preprompt_sjlmod
   #echo "  ... done"
 fi

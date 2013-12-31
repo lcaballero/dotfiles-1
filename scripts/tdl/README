@@ -1,0 +1,42 @@
+#===========================
+# Generate and Verify TDLs
+#
+NOTE: Set variable $filename to the required name of the TDL
+
+set filename = <name>
+
+
+1.  Create timing template (eg: ${filename}.tpl)
+    Ensure that this file contains the following info:
+      - pattern_set_name : Each TDL file should have a unique name.
+                           If not specified, by default 'IO_TDL' will be used.
+      - pattern_set_type : Each TDL should have a valid type defined. Some commonly used types are IDDQ, FUNC and ANALOG_BIDI.
+                           If not specified, be default 'ANALOG_BIDI' will be used.
+      - input_offset  : Default =  15ns
+      - output_offset : Default =  85ns
+      - period        : Default = 100ns
+    For inout pins, use L,H,Y to specify inputs and 0,1,Z,X,M to specify the outputs
+
+
+2.  Run 'gentdl' to convert the timing template to TDL
+    SYNTAX: gentdl [-i] ${tdl}.tpl [[-o] <tdl filename>] [[-t] <asic_title>]
+
+    Custom ASIC_TITLE header file can be specified using the '-t' switch
+    
+
+3.  Verify the generated TDL using using "chktdl"
+    Set the values of $tdl, $module and $DFTMpath inside "chktdl"
+    Ensure that all verilog models are placed in a subdirectory called "verilog_models"
+
+    SYNTAX: chktdl [-all] [-simout] [-runsim] [-syntax]
+
+    "chktdl" accepts the following options
+      -simout : generates verilog testbench
+      -runsim : runs the generated testbench and compares the simulated value with expected value
+      -syntax : performs only syntax checking
+      -all    : run all 3 checkers
+    Not specifying any switch will default to running all the checkers
+
+
+      
+For more info, refer /apps/chipcreate/dftm_toolkit/v7.1.0/documentation/ToolKit_Documentation/docs/ccdftm/test/tdl/index.htm

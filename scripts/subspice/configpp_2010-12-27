@@ -1,0 +1,201 @@
+#!/usr/bin/perl -lw
+use strict;
+use diagnostics;
+
+use Tie::File;
+use Getopt::Long;
+
+
+#===================================================================================================
+# Variable Declaration and initialisation
+
+my $flag_ptv_arr_added=0;
+my $flag_tag_list_vect=0;
+
+my $tag_list_arr="#";
+my $tag_list_vect;
+my %tag_list_vect;
+
+my (@ptv_arr, @ptv_vect, @ptv_combo, @cfg);
+
+
+#===================================================================================================
+# File I/O Handling
+
+GetOptions(
+    'ifile|i=s' => \my $ifile,
+    'ofile|o=s' => \my $ofile,
+);
+
+$ifile||=$ARGV[0] unless defined $ifile;
+defined($ifile) or die("ERROR: Input file not specified.\n");
+die("ERROR : $ifile not found.\n") unless(-e $ifile);
+open(my $fin,"<$ifile") or die("ERROR: Unable to open $ifile for reading.\n");
+
+$ofile||=$ARGV[1] unless defined $ofile;
+unless(defined $ofile){
+    $ofile||=$ifile.".cfgpp";
+    warn("INFO: Output file not specified. Writing the output to $ofile\n");
+}
+
+(tie my @cfg_file, "Tie::File", $ofile) or die "ERROR: Unable to open $ofile for editing. Exiting...\n";
+@cfg_file=();
+
+
+#===================================================================================================
+# Reading input config file
+
+while(<$fin>){
+    chomp; s/\s//;
+
+    if(/^#((?:[-.\w]+,)*[-.\w]+)/){
+        # Vector tag-list identified.
+
+        unless($.==1){
+        # Treating lines beginning with '#' as comment
+            warn "WARNING: Treating line no. $. as a comment as Tag-list has already been identified\n";
+            next;
+        }
+
+        $tag_list_vect="#".$1.",";
+        %tag_list_vect=map({$_=>1} split(/,/,$1));
+        # Making a hash of the tags to identify possible mismatches with Array Tag-list
+
+        #$flag_tag_list_vect=($tag_list_vect=~s/,/,/g);
+        $flag_tag_list_vect=$#{[(keys(%tag_list_vect))]}+1;
+        # Setting flag to indicate that Vector tag-list has been determined. Value of flag indicates no. of tags in the list
+
+        @cfg=($tag_list_vect,@cfg);
+        # Adding Vector tag-list to top of config file
+
+    }elsif(/([-.\w]+)=((?:[-.\w]+,)*[-.\w]+)/){
+        # Array listing identified
+
+        die "ERROR: Duplicate tag name $1 detected in Array-tag list $tag_list_arr. Exiting...\n" if($tag_list_arr=~/,$1,/);
+        # Terminate if duplicate tag has been detected
+
+        die "ERROR: Tags from Vector and Array Listing don't match. Exiting...\n" if(defined($tag_list_vect) and not exists($tag_list_vect{$1}));
+        # Terminate if array name doesn't match with tag present in Vector tag-list provided the latter exists
+
+        $tag_list_arr.=$1.",";
+        # Adding array name to Array tag-list
+
+        &replicate(\@ptv_arr,[split(/,/,$2)]);
+        # Expand the arrays and add it to temp arr
+
+        @cfg=(@cfg,@ptv_arr) if($flag_ptv_arr_added=(defined($tag_list_vect) and ($tag_list_vect eq $tag_list_arr)));
+        # Append all array-vectors to config file once Array tag-list matches with Vector tag-list
+
+    }elsif(/^((?:[-.\w]+,)*[-.\w]+),?$/){
+        # Normal cut-config vector identified
+
+        if(defined $flag_tag_list_vect){
+            # Checking to see if Vector tag-list has been specified
+
+            #if($flag_tag_list_vect == (s/,/,/g)+1){
+            if($flag_tag_list_vect == $#{[(split(/,/,$1))]}+1){
+                # Checking to see if no. of values match with no. of tags specified in Vector tag-list
+                push(@cfg,$_.",");
+            }else{
+                warn "WARNING: Discarding vector on line no. $. as no. of tags in vector doesn't match with no. of tags in Tag list\n";
+            }
+        }else{
+            warn "WARNING: Discarding vector on line no. $. as Tag list has not been specified\n";
+        }
+
+    }elsif(/\((?:[-.\w]+,)*[-.\w]+,?\)/){
+        # To resolve array-vector combos
+
+        @ptv_combo=();
+
+        if(defined $flag_tag_list_vect){
+            # Checking to see if Vector tag-list has been specified
+
+            my @arr=(/\(((?:[-.\w]+,)*[-.\w]+),?\)/g);
+            s/\(((?:[-.\w]+,)*[-.\w]+),?\)/()/g;
+            # Identifies array from the combo, saves it and removes them from the original vector
+
+            my @vect=split(/,/);
+            if($flag_tag_list_vect == $#vect+1){
+                foreach my $i (@vect){
+                    unless($i eq "()"){
+                        &replicate(\@ptv_combo,[$i]);
+                    }else{
+                        &replicate(\@ptv_combo,[split(/,/,shift(@arr))]);
+                    }
+                }
+                @cfg=(@cfg,@ptv_combo);
+            }else{
+                warn "WARNING: Discarding vector on line no. $. as no. of tags in combo-vector doesn't match with no. of tags in Tag list\n";
+                print "$flag_tag_list_vect <=> $#vect";
+            }
+        }else{
+            warn "WARNING: Discarding vector on line no. $. as Tag list has not been specified\n";
+        }
+
+    }else{
+        warn "WARNING: Discarding invalid vector specified on line no. $.\n";
+    }
+}
+
+
+#===================================================================================================
+# Checking the Input Vectors and boundary conditions
+
+defined($tag_list_vect) or ($tag_list_arr ne "#") or die "ERROR: No Tag-list found. Exiting...\n";
+# This resolves the condition of neither tag-list being specified
+# At this point, at least one tag-list has been identified
+
+if(defined $tag_list_vect){
+    # Both tag-lists have been defined
+
+    if(($tag_list_arr ne "#") and ($tag_list_arr ne $tag_list_vect)){
+        # Array-Tag List doesn't match with Vector tag-list
+        $tag_list_vect=~s/^#//; $tag_list_arr=~s/^#//;
+
+        # Checking for length mismatch
+        my @tag_list_vect=split(/,/,$tag_list_vect);
+        my @tag_list_arr=split(/,/,$tag_list_arr);
+        die "ERROR: No. of tags in Tag list doesn't match with no. of arrays. Exiting...\n" if($#tag_list_vect != $#tag_list_arr);
+
+        # Checking and resolving for order mismatch in tag-lists
+        my %tag_list_arr=map({$tag_list_arr[$_]=>$_} (0..$#tag_list_arr));
+        my @pos=map({$tag_list_arr{$tag_list_vect[$_]}} (0..$#tag_list_vect));
+        warn "WARNING: Order of tags in tag-list and arrays does not match. Following the order specified in the tag-list...\n";
+        foreach my $i(@ptv_arr){
+            $i=join(',',(split(/,/,$i))[@pos]).",";
+        }
+
+        # Appending array vectors to config file
+        @cfg=(@cfg,@ptv_arr);
+    }
+
+}else{
+    # Putting only array vectors in config file as Vector tag-list hasn't been defined
+    @cfg=($tag_list_arr,@cfg,@ptv_arr);
+}
+
+#Writing to config file
+@cfg_file=@cfg;
+
+
+#===================================================================================================
+
+close $fin;
+exit 0;
+
+
+#===================================================================================================
+# Subroutine definition
+
+sub replicate {
+    my ($a,$b) = @_;
+    my $blen=scalar(@{$b});
+    for(my $i=$#{$a};$i>0;$i--){
+        @{$a}[$i*$blen..(($i+1)*$blen-1)]=map({${$a}[$i].$_.","} @{$b});
+    }
+    @{$a}[0..($blen-1)]=map({(${$a}[0]||"").$_.","} @{$b});
+}
+
+
+#===================================================================================================

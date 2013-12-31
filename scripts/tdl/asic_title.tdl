@@ -1,0 +1,10 @@
+ASIC_TITLE = " 
+               LIBRARY_TYPE = SR80,
+                   CUSTOMER = Texas Instruments,
+             TI_PART_NUMBER = NO_PART,
+           PATTERN_SET_NAME = IO85,
+           PATTERN_SET_TYPE = FUNC, 
+    PATTERN_SET_DESCRIPTION = Created using gentdl,
+                   REVISION = 1.00,
+                       DATE = 2-Jun-2011
+";

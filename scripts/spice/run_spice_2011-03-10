@@ -1,0 +1,98 @@
+#!/tools/local/perl -l
+
+## Pragmas
+use strict;
+use diagnostics;
+use Getopt::Long;
+
+use constant DEBUG => 0;
+
+
+## Command-line parameter handling
+GetOptions(
+	"ifile|i:s" => \my $refdeck,
+	"configfile|c:s" => \my $cfg,
+	"verbose|v" => \my $verbose,
+);
+
+
+## Variable Initialisation
+my $spicesim="/apps/ame/bin/hspice";
+#my $spicesim="/apps/ame/bin/spice3";
+
+defined($refdeck) || warn("WARNING: Input file not specified. Using sample.deck by default\n");
+$refdeck=$refdeck||"sample.deck";
+die("ERROR : \'$refdeck\' not found. Terminating...\n") unless(-e $refdeck);
+
+$verbose|=DEBUG;
+
+if(-e "command"){
+	warn("WARNING: Command file already exists. Appending to it...\n");
+	open(COM,">>command");
+	chomp($_=`date`);
+	print COM "\n####################################################################################################\n# Added on ".$_;
+}else{
+	open(COM,">command");
+}
+
+
+my $currdeck;
+$refdeck=~s/\.deck$//;
+
+## Config file to be specified must be a cut-config file
+if(defined($cfg)&&($cfg ne "")){
+	open CFG, "<$cfg" or die "ERROR: Specified config file \'$cfg\' doesn't exist\n";
+
+	my @arr_tags;
+	my @arr_val;
+	my $flag;
+
+	while(<CFG>){
+		chomp;
+		if(/^#/){
+			# Extracts tags from cut-config file
+			print "Identified config file as a cut-config file" if($verbose);
+			$flag=s/^#//;
+			@arr_tags=split(/,/);
+			print "  Reference Deck : $refdeck.deck\n  Config file : $cfg" if($verbose);
+
+		}elsif($flag){
+			@arr_val=split(/,/);
+			s/,/_/g;s/_$//;
+            $currdeck=$refdeck."_".$_.".deck";
+			system("/bin/cp -f $refdeck.deck $currdeck");
+			print "Creating $currdeck" if($verbose); 
+
+			foreach my $i (0..$#arr_tags){
+				print "  Replacing $arr_tags[$i] with $arr_val[$i]" if($verbose);
+				system("/bin/sed -i 's/<$arr_tags[$i]>/$arr_val[$i]/' $currdeck");
+			}
+
+			print COM "/usr/local/lsf/bin/bsub -P P0:IO_10015123 -q regress -R ws40 -sp 100 -J $_ -o ${currdeck}.lsf.out $spicesim $currdeck";
+			
+		}
+	}
+	$flag || die "ERROR: Specified config file not recognizable as a cut-config file. To specify normal config file format, use arrays explicitly\n";
+	close(CFG);
+
+}else{
+	print "Config file not specified, generating files for all combinations";
+	print "  Reference Deck : $refdeck.deck" if($verbose);
+
+	my @process_list = qw(ff tt ss);
+	my @vdds_list = qw(1.62 1.8 1.98);
+	my @temp_list = qw(-40 25 125);
+
+	foreach my $process(@process_list) {
+		foreach my $vdds (@vdds_list) {
+            foreach my $temp (@temp_list) {
+                $currdeck="${refdeck}_${process}_${vdds}_${temp}.deck";
+                print "Creating $currdeck" if($verbose); 
+                system("/bin/cp -f $refdeck.deck $currdeck; /bin/sed -i -e 's/<process>/$process/' -e 's/<vdds>/$vdds/' -e 's/<temp>/$temp/' $currdeck");
+                print COM "/usr/local/lsf/bin/bsub -P P0:IO_10015123 -q short -R ws40 -J $currdeck -o ${currdeck}.lsf.out $spicesim $currdeck";
+			}
+		}
+	}
+}
+
+close COM;

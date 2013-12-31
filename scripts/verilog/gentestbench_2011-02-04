@@ -1,0 +1,253 @@
+#!/usr/bin/perl
+#--------------------------------------------------------------------------------------------------#
+# Script to generate testbench, ncverilog command for simulation                                   #
+#                                                                                                  #
+# testbench generation would be in very elementary terms the following                             #
+#                                                                                                  #
+# Obtain PIN LIST from Verilog File                                                                #
+# Convert input pins to reg                                                                        #
+# Convert output/inout pins to wire                                                                #
+# Convert template signals to verilog                                                              #
+#                                                                                                  #
+# Changelog:-                                                                                      #
+# ------------                                                                                     #
+# Created by Somu Ghosh (a0393049)                                                                 #
+#                                                                                                  #
+# 2010-04-13 : Kartik Shenoy (a0393831)                                                            #
+# - Template file can accept input pins with levels L,H,Y which are converted to 0,1,X in verilog  #
+#   testbench                                                                                      #
+# - Template file can accept output pins with level M which is converted to X in the verilog       #
+#   testbench                                                                                      #
+#                                                                                                  #
+#--------------------------------------------------------------------------------------------------#
+
+use strict;
+use warnings;
+use diagnostics;
+
+use constant DEBUG => 1;
+
+
+my $template  = shift; $template  =~ s/[\n\t\f\s]//g;
+my $libdir    = shift; $libdir    =~ s/[\n\t\f\s]//g;
+my $testbench = shift; $testbench =~ s/[\n\t\f\s]//g;
+
+($template and $libdir and $testbench) or die "Usage $0 <template> <libdir> <testbench>\n";
+
+my %keywords;
+$keywords{verilog_models}=1;
+$keywords{input_pins}=1;
+$keywords{output_pins}=1;
+$keywords{timescale}=1;
+$keywords{timestep}=1;
+$keywords{pin_order}=1;
+$keywords{waitstep}=1;
+
+my %templatehash;
+
+
+# Read Template and Parse Values
+open (TPL, "$template") or die "Couldn't open $template for reading\n";
+while(<TPL>){
+	s/[\n\t\f\s]//g;
+	next unless $_;
+	next if /^#/;
+	
+	my @fields=split(/:/);
+	if($#fields==1){
+		$templatehash{$fields[0]}=$fields[1];
+	}else{
+		warn "Illegal Statement $_ at line no. $.. Ignoring...\n";
+	}
+}
+
+if(defined $templatehash{timescale}){
+	unless($templatehash{timescale} =~ /^\d+[fpnum]?s\/\d+[fpnum]?s$/){
+		warn "WARNING: timescale ($templatehash{timescale}) value not in correct format. Using default value 1ps/1ps\n";
+		$templatehash{timescale}="1ps/1ps";
+	}
+}else{
+	warn "WARNING: timescale value not specified. Using default value 1ps/1ps\n";
+	$templatehash{timescale}="1ps/1ps";
+}
+
+if(defined $templatehash{timestep}){
+	unless($templatehash{timestep} =~ /^\d+$/){
+		warn "WARNING: timestep value not in correct format. Using default value 10\n";
+		$templatehash{timestep} = "10";
+	}
+}else{
+	warn "WARNING: timestep value not specified. Using default value 10\n";
+	$templatehash{timestep} = "10";
+}
+
+if(defined $templatehash{waitstep}){
+	unless($templatehash{waitstep} =~ /^\d+$/){
+		warn "WARNING: waitstep value not in correct format. Using default value 10\n";
+		$templatehash{waitstep} = "10";
+	}
+}else{
+	warn "WARNING: waitstep value not specified. Using default value 10\n";
+	$templatehash{waitstep} = "10";
+}
+
+
+my %pinhash;
+my $simstep = 0;
+foreach my $key (keys %templatehash){
+	next if grep (/$key/,keys %keywords);
+	die "ERROR: Illegal pin name $key found in $template\n" unless($key =~ /^[A-Za-z]+[A-Za-z0-9_]*$/);
+	if($templatehash{$key} =~ /^[10LHXYMZC]*$/i){
+		$pinhash{$key} = $templatehash{$key};
+		$simstep=length($templatehash{$key}) if($simstep < length($templatehash{$key}));
+	}else{
+		warn "WARNING: Illegal signal levels for $key\n";
+	}
+}
+
+die "ERROR: input_pins not specified. Will Terminate Now!!!" unless $templatehash{input_pins};
+{
+	foreach my $pin (split(/,/,$templatehash{input_pins})){
+		if($pin =~ /^[A-Za-z]+[A-Za-z0-9_]*$/){
+			warn "WARNING: Illegal signal levels for Input PIN $pin\n" unless $pinhash{$pin}=~/[LH01YXZ]/i;
+			s/L/0/gi, s/H/1/gi, s/Y/X/gi for $pinhash{$pin};
+		}else{
+			warn "WARNING: Illegal pin name $pin found in input_pins\n";
+		}
+	}
+}
+
+
+die "ERROR: output_pins not specified. Will Terminate Now!!!\n" unless $templatehash{output_pins};
+{
+	foreach my $pin (split(/,/,$templatehash{output_pins})){
+		if($pin =~ /^[A-Za-z]+[A-Za-z0-9_]*$/){
+			unless(defined $pinhash{$pin}){
+				print "INFO: No Signal Specified for OutPut pin $pin\n";
+			}else{
+				warn "WARNING: Illegal signal levels for Input PIN $pin\n" unless $pinhash{$pin}=~/[01MXZ]/i;
+				s/M/X/gi for $pinhash{$pin};
+			}
+		}else{
+			warn "WARNING: Illegal pin name $pin found in output_pins\n";
+		}
+	}
+}
+
+
+die "ERROR: pin_order not specified. Will Terminate Now!!!\n" unless $templatehash{pin_order};
+{
+	foreach my $pin (split(/,/,$templatehash{pin_order})){
+		die "ERROR: Illegal pin name $pin found in pin_order\n" unless($pin =~ /^[A-Za-z]+[A-Za-z0-9_]*$/);
+		$pin =~ s/\s//g;
+		(grep /$pin/,split(/\,/,$templatehash{input_pins}))  or 
+		(grep /$pin/,split(/\,/,$templatehash{output_pins})) or 
+		die "ERROR: $pin of pin_order not in INPUT/OUTPUT. Exiting...\n";
+	}
+}
+
+
+# Print Values Obtained
+print "\nFollowing Data found in template";
+print "---------------------------------";
+print "verilog_model  : " . $templatehash{verilog_model};
+print "timescale      : " . $templatehash{timescale};
+print "timestep       : " . $templatehash{timestep};
+print "waitstep       : " . $templatehash{waitstep};
+#print "INPUT_PINS     : " . $templatehash{input_pins};
+#print "OUTPUT_PINS    : " . $templatehash{output_pins};
+#print "PIN_ORDER      : " . $templatehash{pin_order};
+print "Total Sim Time : " . "$simstep*($templatehash{timestep}+$templatehash{waitstep})*".(split(/\//,$templatehash{timescale}))[0]."\n";
+
+
+# Check Verilog File
+open(VLG, "$libdir/$templatehash{verilog_model}.v") or die "Couldn't open $libdir/$templatehash{verilog_model}.v for reading\n";
+close(VLG);
+
+
+# Generate testbench
+chomp(my $id=`whoami`);
+chomp(my $toc=`date`); 
+open (VTB, "> $testbench") or die "Couldn't open $testbench for writing";
+$testbench=~s/\.v$//;
+
+print VTB "// Verilog Test Bench Setup created by gentestbench 
+// Created by: $id                                         
+// Created on: $toc                                        
+                                                           
+`timescale $templatehash{timescale}                        
+                                                           
+module $testbench ()\; \n";
+
+my $pinalign = 0;
+foreach my $pin (sort keys %pinhash){
+	if(grep(/$pin/,split(/,/,$templatehash{output_pins}))){
+		print VTB "wire $pin\;";
+		print VTB "reg  expected_${pin}\;";
+		$pinalign = (length($pin)+9) if $pinalign < (length($pin)+9);
+	}elsif(grep(/$pin/,split(/\,/,$templatehash{input_pins}))){
+		print VTB "reg  $pin\;";
+		$pinalign = length($pin) if $pinalign < length($pin);
+	}else{
+		warn "WARNING: $pin not in input_pins, output_pins\n";
+		warn "WARNING: $pin will not be populated in testbench\n";
+		undef $pinhash{$pin};
+	}
+}	
+print VTB "\ninteger failures=0,counter=0;";
+print VTB "\n\ninitial \n\tbegin 
+\t\t#0                         
+\t\t\$dumpfile\(\"${testbench}.vcd\"\)\;
+\t\t\$dumpvars\(0," . (split("/",$testbench))[-1] . "\)\;";
+
+for(my $simcount=0;$simcount < $simstep;$simcount++){
+	foreach my $pin (sort keys %pinhash){
+		my $pinval = (split(//,$pinhash{$pin}))[$simcount];
+		next unless defined $pinval;
+		my $pindir = (grep(/$pin/,split(/\,/,$templatehash{input_pins})) ? 1 : 0);
+
+		printf VTB "\t\t%-*s = %s\;\n",$pinalign,$pin,"1\'b$pinval" if($pindir==1 and $pinval=~/[01XZ]/i);
+		printf VTB "\t\t%-*s = %s\;\n",$pinalign,"expected_${pin}","1\'b$pinval" if($pindir==0 and $pinval=~/[01XZ]/i);
+	}
+	print VTB "\n\t\t#$templatehash{waitstep}\n\t\tcounter = counter + 1\;\n\t\tevaluate_testbench\;";
+	if($simcount < ($simstep -1)){
+		print VTB "\n\t\t#$templatehash{timestep}";
+	}else{
+		print VTB "\n\t\tterminate_testbench\;";
+	}
+}
+$simstep = $simstep * $templatehash{timestep};
+print VTB "\tend\n
+$templatehash{verilog_model} TB_$templatehash{verilog_model} ($templatehash{pin_order})\;\n
+
+task terminate_testbench\;
+begin
+\t\$display\(\"Simulation found %0d failures\", failures\)\;
+\t\$finish\;
+end
+endtask
+\n
+task evaluate_testbench;
+begin";
+
+foreach my $pin (split(/,/,$templatehash{output_pins})){
+	print VTB "\n\tif \(expected_$pin !== 1'bX\) begin";
+#	print VTB "\t\t\$strobe_compare(expected_$pin,$pin);";
+	print VTB "\t\tif \(expected_$pin !== $pin\) begin";
+	print VTB "\t\t\tfailures = failures + 1;";
+	print VTB "\t\t\$display\(\"Sim Failed for $pin in \%0d. Expected=\%d, Simulated=\%d\", counter,expected_$pin,$pin)\;";
+	print VTB "\t\tend";
+	print VTB "\tend";
+#	print VTB "\telse begin";
+#	print VTB "\t\t\$display \(\"Sim Passed for $pin in \%0d Expected=\%d, Simulated=\%d\", counter,expected_$pin,$pin)\;";
+#	print VTB "\tend";
+}
+
+
+print VTB "end\nendtask";
+print VTB "\nendmodule";
+
+close (VTB);
+
+print "\nTo verify your simulation execute\n
+\\rm -rf INCA_libs ; /apps/ame/bin/ncverilog ./${testbench}.v -y ./ -y ./verilog_models/ +libext+.v -l ${testbench}.log +define+TI_functiononly +define+TI_pupdmodeled +nocopyright +access+r\n";

@@ -1,0 +1,89 @@
+# Move/Copy multiple files:
+    cp {file1,file2} <target>
+
+# Zip:
+    zip -r <zip filename> <list of files>
+
+# Gtar:
+    gtar <tar.gz filename> <list of files>
+
+
+
+#=============
+# Find/Xargs
+#==
+# Reference
+    http://www.cyberciti.biz/faq/find-command-exclude-ignore-files/
+
+# Find only files and ignore directories
+    find . -type f
+
+# Find all files newer than 'old_file' but ignore hidden files
+    find -newer Desktop -not -name '.*'
+
+# Find all files modified less than 30mins ago
+    find -mmin -30
+# Find all files modified less than 1day ago and more than 10mins ago
+    find -mtime -1 -and -mmin +10
+
+# Find all files that start with 'test' but do not end in 'cc' or start with 'junk' only in the current directory.
+# Ignore subdirectories
+    find -maxdepth 1 \( -name 'test*' -not -name '*cc' \) -or \( -name 'junk*' \)
+
+# Rename all tr0 files to tr0.bak. Other brackets can be used instead of {}
+    \ls *.tr0 | xargs -t -I{} \mv \{\} \{\}.bak
+
+# Delete all dump directories, with prompting
+    find . -name dump | xargs -p -n1 rm -rf
+
+# Delete all dump directories, without prompting
+    find . -name dump | xargs -n1 rm -rf
+
+# Find/Xargs on files that have spaces in them
+    find . -print0 | xargs -0 cmd -option1 -option2 --
+
+# Newer versions of find support the -exec switch which can be used as a replacement for xargs
+    SYNTAX: find . -exec cmd -option1 -option2 -- {} +
+    find . -name junk -exec \ls -l {} +
+
+
+#======
+# ZSH
+#==
+
+# Find all tr0 files with missing pun files and submit to lsf for tr2pun conversion
+    for i in *tr0; do
+        if [[ ! -e `basename $i tr0`pun ]]; then
+            echo "`basename $i tr0`pun missing. Converting..."
+            lsftr2pun $i
+        fi
+    done
+
+
+# Find all pun files with missing codac output files and run codac
+    for i in *pun; do
+        if [[ ! -e $i.txt ]]; then
+            echo "$i.txt missing. Running Codac..."
+            codac jitter.k $i
+        fi
+    done
+OR
+    for i in `print *.pun(e_'[[ ! -e ${REPLY}.txt ]]'_)`; do # Yes, REPLY is correct
+        codac jitter.k $i
+    done
+
+
+# Convert all tr0 files to pun if pun not present
+    for i in `print *.tr0(e_'[[ ! -e $REPLY:r.pun ]]'_)`; do
+        lsftr2pun $i
+    done
+
+
+# For Loop
+    for i in 1 2 4; do
+    echo $i
+    done
+# For Loop (Brace Expansion)
+    for i in {1..3}; do
+    echo $i
+    done

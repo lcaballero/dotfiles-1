@@ -1,0 +1,72 @@
+*********************************************************************************************************************
+* Made by Kartik Shenoy (TISpice Version)
+*
+* Spice Deck to convert 6-bit Binary Code to 6-bit Gray Code
+*
+* Inputs Reqd :
+*  1. No. of p/n slices specified as params (pslices,nslices)
+*  2. Value of VDD specified as a parameter (pvdd)
+*
+*********************************************************************************************************************
+
+
+.PARAM pdiv1 = 'pslices/2'
+.PARAM pdiv2 = 'int(pdiv1)/2'
+.PARAM pdiv3 = 'int(pdiv2)/2'
+.PARAM pdiv4 = 'int(pdiv3)/2'
+.PARAM pdiv5 = 'int(pdiv4)/2'
+.PARAM pdiv6 = 'int(pdiv5)/2'
+
+.PARAM p1bin = 'round(pdiv1)-int(pdiv1)'
+.PARAM p2bin = 'round(pdiv2)-int(pdiv2)'
+.PARAM p3bin = 'round(pdiv3)-int(pdiv3)'
+.PARAM p4bin = 'round(pdiv4)-int(pdiv4)'
+.PARAM p5bin = 'round(pdiv5)-int(pdiv5)'
+.PARAM p6bin = 'round(pdiv6)-int(pdiv6)'
+
+.PARAM p6gray = p6bin
+.PARAM p5gray = '(p5bin && !p6bin) || (!p5bin && p6bin)'
+.PARAM p4gray = '(p4bin && !p5bin) || (!p4bin && p5bin)'
+.PARAM p3gray = '(p3bin && !p4bin) || (!p3bin && p4bin)'
+.PARAM p2gray = '(p2bin && !p3bin) || (!p2bin && p3bin)'
+.PARAM p1gray = '(p1bin && !p2bin) || (!p1bin && p2bin)'
+
+.PARAM ndiv1 = 'nslices/2'
+.PARAM ndiv2 = 'int(ndiv1)/2'
+.PARAM ndiv3 = 'int(ndiv2)/2'
+.PARAM ndiv4 = 'int(ndiv3)/2'
+.PARAM ndiv5 = 'int(ndiv4)/2'
+.PARAM ndiv6 = 'int(ndiv5)/2'
+
+.PARAM n1bin = 'round(ndiv1)-int(ndiv1)'
+.PARAM n2bin = 'round(ndiv2)-int(ndiv2)'
+.PARAM n3bin = 'round(ndiv3)-int(ndiv3)'
+.PARAM n4bin = 'round(ndiv4)-int(ndiv4)'
+.PARAM n5bin = 'round(ndiv5)-int(ndiv5)'
+.PARAM n6bin = 'round(ndiv6)-int(ndiv6)'
+
+.PARAM n6gray = n6bin
+.PARAM n5gray = '(n5bin && !n6bin) || (!n5bin && n6bin)'
+.PARAM n4gray = '(n4bin && !n5bin) || (!n4bin && n5bin)'
+.PARAM n3gray = '(n3bin && !n4bin) || (!n3bin && n4bin)'
+.PARAM n2gray = '(n2bin && !n3bin) || (!n2bin && n3bin)'
+.PARAM n1gray = '(n1bin && !n2bin) || (!n1bin && n2bin)'
+
+
+.subckt bin2gray P6gray P5gray P4gray P3gray P2gray P1gray N6gray N5gray N4gray N3gray N2gray N1gray 
+
+vP6gray P6gray 0 'p6gray*pvdd'
+vP5gray P5gray 0 'p5gray*pvdd'
+vP4gray P4gray 0 'p4gray*pvdd'
+vP3gray P3gray 0 'p3gray*pvdd'
+vP2gray P2gray 0 'p2gray*pvdd'
+vP1gray P1gray 0 'p1gray*pvdd'
+
+vN6gray N6gray 0 'n6gray*pvdd'
+vN5gray N5gray 0 'n5gray*pvdd'
+vN4gray N4gray 0 'n4gray*pvdd'
+vN3gray N3gray 0 'n3gray*pvdd'
+vN2gray N2gray 0 'n2gray*pvdd'
+vN1gray N1gray 0 'n1gray*pvdd'
+
+.ends bin2gray

@@ -1,0 +1,14 @@
+#!/usr/local/bin/tcsh
+#
+# Script to rename all files containing the string 'arg1' with the string 'arg2'
+# where arg1 and arg2 are the first and second arguments respectively
+
+if ($#argv != 2) then
+	echo "Usage : renall arg1 arg2"
+	echo "Renames all files containing the name 'arg1' to 'arg2'"
+	exit(1)
+endif
+
+foreach  i (*$1*)
+	mv $i `echo $i | sed -e "s/$1/$2/"`
+end

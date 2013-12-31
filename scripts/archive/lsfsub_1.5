@@ -1,0 +1,134 @@
+#!/usr/local/bin/perl
+#
+# Perl Script to fire a single LSF Job by prompting for options
+# Supported switches are
+#  -P  : Defaults to P0:IO_10015123
+#  -q  : Short, Normal, Regress, Gui (with -I option). Defaults to short
+#  -R  : Option to specify OS and Mem option. Defaults to "select[ws40]"
+#  -sp : Priority, omitted unless specified
+#  -J  : Omitted unless specified
+#  -o  : Specify output file. Omitted by default. If selected and name not give, defaults to lsf.out
+#
+#==================================================================================================#
+
+use strict;
+use diagnostics;
+use constant DEBUG=>0;
+
+
+my $ans="";
+my $flag=0;
+
+
+print "\nTo use default values wherever available, press Enter\n";
+
+#=== Command ======================================================================================#
+
+print "   Enter Command : "; chomp(my $command=<>);
+$command =~ s{\bspice\b}{/apps/ame/bin/spice3}g;
+$command =~ s{\bhspice\b}{/apps/ame/bin/hspice}g;
+
+print "\nCOMMAND = $command\n\n" if(DEBUG==1);
+
+
+
+#=== Job Name =====================================================================================#
+
+print "   Enter Job Name : "; chomp(my $jobname=<>);
+my $log = $jobname.".lsf.out";
+
+$jobname = "-J $jobname" if($jobname ne "");
+
+print "\nJOB = $jobname\n\n" if(DEBUG==1);
+
+
+
+#=== Queue Selection ==============================================================================#
+my $queue;
+my $I="";
+
+do{
+	print "   Select Queue (default=short)\n" unless ($flag);
+	print "      Options : s(hort)/n(ormal)/r(egress)/g(ui) : " unless ($flag); chomp($queue=<>);
+	
+	$flag=0;	
+	if (($queue=~/s(hort)?/i)||($queue eq "")){
+		$queue="-q short";
+	}elsif($queue=~/n(ormal)?/i){
+		$queue="-q normal";
+	}elsif($queue=~/r(egress)?/i){
+		$queue="-q regress";
+	}elsif($queue=~/g(ui)?/i){
+		$queue="-q gui";
+	}else{
+		print "      Invalid queue. Select from the specified options or press Enter to skip : ";
+		$flag=1;
+	}
+}while($flag);
+
+if ($queue=~/gui/i){
+	print "      Is it Interactive? (y/n) (default:No) : "; chomp($I=<>);
+	$I="-I" if($I=~/y(es)?/);
+}
+ 
+print "\nQueue = $queue" if(DEBUG==1);
+print "\nInteractive = $jobname\n\n" if(DEBUG==1);
+
+
+
+#=== Priority Selection ===========================================================================#
+my $priority;
+
+do{
+print "   Select Priority. Type just the number (default:omitted) : "; chomp($priority=<>);
+print "      Invalid input. Enter an integer between 0 and 100 or press Enter to skip.\n" unless (($priority=~/^\d+$/)&&($priority>=0)&&($priority<=100)||($priority eq ""));
+}while(!(($priority=~/^\d+$/)&&($priority>=0)&&($priority<=100)||($priority eq "")));
+
+$priority = "-sp $priority" if($priority ne "");
+
+print "\nPRIORITY = $priority\n\n" if(DEBUG==1);
+
+
+
+#=== Resource Selection ===========================================================================#
+
+print "   Select Machine. Type name with quotes (default=ws40) : "; chomp(my $os=<>);
+print "   Specify Memory Requirement (default:omitted) : "; chomp(my $mem=<>);
+
+$os  = ($os  eq "" ? "ws40" : "$os");
+$mem = " && mem>$mem" if($mem ne "");
+my $resource = sprintf("%s%s",${os},${mem});
+
+print "\nRESOURCE = $resource\n\n" if(DEBUG==1);
+
+
+
+#=== Project Name =================================================================================#
+
+print "   Enter Project Name (default:P0:IO_10015123) : "; chomp(my $proj=<>);
+$proj= ($proj eq "" ? "-P P0:IO_10015123" : "-P $proj");
+
+print "\nPROJ = $proj\n\n" if(DEBUG==1);
+
+
+
+#=== Output File ==================================================================================#
+
+print "   Save Log? (default:Yes) : "; chomp($ans=<>);
+if (($ans=~/y(es)?/i)||($ans eq "")){
+   print "      Specify name of log file (default:$log) : "; chomp($_=<>);
+   $log = ($_ eq "" ? "-o $log" : "-o $_");
+}
+print "\nLOG = $log\n\n" if(DEBUG==1);
+
+
+
+#==================================================================================================#
+
+my $lsfcommand = "/usr/local/lsf/bin/bsub $proj $queue $I -R \"select[$os$mem]\" $priority $jobname $log $command";
+$lsfcommand =~ s/\s+/ /g;
+
+print "\nCommand :\n   $lsfcommand";
+
+print "\n\nExecute? (default:No) : "; chomp($ans=<>);
+system("$lsfcommand") if($ans=~/y(es)?/i);

@@ -1,0 +1,172 @@
+#!/usr/bin/perl
+# Script written by Kartik Shenoy on Jan 16 2008
+#
+# Syntax : nameboy <cellname>
+#
+# The script parses through the cell name and provides an explanation of the comprising terms
+# Also in case any terms aren't recognized, it is mentioned at the end
+
+
+use strict;
+
+
+######################################################################
+# Match Patterns                                                            
+######################################################################
+
+my %direction = (
+    'b' => "Bi-directional Buffer",
+	'i' => "Input Buffer",
+	'o' => "Output Buffer",
+	'bafthru' => "Analog Baf-thru cell",
+	'bfthru' => "Baf-thru cell"
+);
+
+my %type = (
+	'c'    => "LVCMOS",
+	'ovtp' => "VTP controller",
+	'vref'=> "Vref input/output",
+	'osc'  => "Oscillator",
+	'hstl' => "HSTL Cell",
+	'sstl' => "SSTL Cell",
+	'shtl' => "HSTL/pseudo-SSTL Logic IO for DDR2/DDR3 interface",
+	'bias' => "Bias-cell",
+);
+
+my %voltage = (
+	'(?:(\d\d)(\d\d))?dv' => "Dual Voltage Cell",
+	'(\d\d)[^a-e]' => "Operating Voltage is",
+);
+
+my %class = (
+	'(\d\d)a' => "Class-A buffer, operating frequency is 50MHz and output impedence is",
+	'(\d\d)b' => "Class-B buffer, operating frequency is 100MHz and output impedence is",
+	'(\d\d)c' => "Class-C buffer, operating frequency is 150MHz and output impedence is",
+	'(\d\d)d' => "Class-D buffer, operating frequency is 200MHz and output impedence is",
+	'(\d\d)e' => "Class-E buffer, operating frequency is 250MHz and output impedence is",
+	'a' => "Class-A buffer, operating frequency is 50MHz and output impedence is",
+	'b' => "Class-B buffer, operating frequency is 100MHz and output impedence is",
+	'c' => "Class-C buffer, operating frequency is 150MHz and output impedence is",
+	'd' => "Class-D buffer, operating frequency is 200MHz and output impedence is",
+	'e' => "Class-E buffer, operating frequency is 250MHz and output impedence is",
+);
+
+my %formfactor = (
+	's' => "Short-fat form-factor",
+	't' => "Tall-skinny form-factor",
+	'g' => "Greater than tall form-factor",
+	'u' => "Ultra-short form-factor",
+);
+
+my %characteristics = (
+	'q'  => "Custom Cell",
+	'hy' => "Receiver with Hysteresis",
+	'pb' => "Pull-both", 
+	'pu' => "Pull-up",
+	'pd' => "Pull-down",
+	'fz' => "Force to Z",
+	'fh' => "Force-high",
+	'fl' => "Force-low",
+	'fs' => "Fail-safe",
+	'fb' => "Force-both",
+	'p18'=> "High-voltage design using 1.8V transistors",
+	'tc' => "Thermometer coded impedance calibration scheme",
+	'sc' => "Slew-rate control",
+);
+
+
+my @matched_list;
+my $v1;
+my $v2;
+
+
+######################################################################
+# Code
+######################################################################
+
+$_ = $ARGV[0];
+
+my @direction = sort {length($b) <=> length($a)} keys(%direction);
+my $matched = 0;
+foreach my $i (@direction){
+	if (($_ =~ qr/^$i/) && ($matched == 0)) {
+		$matched_list[0] = "$& => $direction{$i}\n";
+		$_ =~ s/$i//;
+		$matched = 1;
+	};
+};
+
+
+my @characteristics = sort {length($b) <=> length($a)} keys(%characteristics);
+my $var = 6;
+foreach my $i (@characteristics){
+	if ($_ =~ qr/$i/) {
+		$matched_list[$var++] = "$& => $characteristics{$i}\n";
+		$_ =~ s/$i//;
+	};
+};
+
+
+my @voltage = sort {length($b) <=> length($a)} keys(%voltage);
+$matched = 0;
+foreach my $i (@voltage){
+	if (($_ =~ qr/$i/) && ($matched == 0)) {
+		$v1 = $1/10 if defined($1);
+		$v2 = $2/10 if defined($2);
+		my $volt = $&;
+		if ($& =~ /dv$/) {
+			$matched_list[2] = "$volt => $voltage{$i} Volt1 = ${v1}V Volt2 = ${v2}V\n";
+			$_ =~ s/$i//;
+		}else{
+			$matched_list[2] = "$1 => $voltage{$i} ${v1}V\n";
+			$_ =~ s/$1//;
+		};
+		$matched = 1;
+	};
+};
+
+
+my @type = sort {length($b) <=> length($a)} keys(%type);
+$matched = 0;
+foreach my $i (@type){
+	if (($_ =~ qr/$i/) && ($matched == 0)) {
+		$matched_list[1] = "$& => $type{$i}\n";
+		$_ =~ s/$i//;
+		$matched = 1;
+	};
+};
+
+
+my @class = sort {length($b) <=> length($a)} keys(%class);
+$matched = 0;
+foreach my $i (@class){
+	if (($_ =~ qr/$i/) && ($matched == 0)) {
+		$matched_list[3] = "$& => $class{$i} ";
+		$matched_list[4] = "$1 ohms\n" if defined ($1);
+		$_ =~ s/$i//;
+		$matched = 1;
+	};
+};
+
+
+my @formfactor = sort {length($b) <=> length($a)} keys(%formfactor);
+$matched = 0;
+foreach my $i (@formfactor){
+	if (($_ =~ qr/$i/) && ($matched == 0)) {
+		$matched_list[5] = "$& => $formfactor{$i}\n";
+		$_ =~ s/$i//;
+		$matched = 1;
+	};
+};
+
+
+foreach my $index(0..$#matched_list){
+	print $matched_list[$index] if defined($matched_list[$index]);
+}
+
+
+unless ($_ eq ""){
+	print "Unrecognized parameters : ";
+	print $_;
+	print "\n";
+};

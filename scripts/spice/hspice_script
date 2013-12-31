@@ -1,0 +1,101 @@
+#Script to modify the cadence generated netlist which adds .subckt to proper location.
+
+#Needs two inputs :
+#Cellname - case sensitive
+#Pinorder file - contains cellname and then pinorder in single line
+
+#Command:
+#perl hspice_script.pl -c <cell_name> -p <pinorder_file>
+
+#Made by : Manish Garg 
+#Date    :23/04/2007
+
+
+
+
+#!/usr/local/bin/perl -w
+use strict;
+use Getopt::Std;
+use vars qw($opt_c $opt_p);
+
+getopts('c:p:');
+#checking whether currect options are given on the command line or not
+if(!$opt_c || !$opt_p)
+{
+	die "Usage: Script -c cellname -p pinorder_file\nHELP: Cellname must be given in the case (UPPER/lower) in which cadence netlist is present and Pinorder_file should contain <cellname> <pin_order> only\n";
+}
+
+my $wkarea = "/proj/gateway6/products/sr70/expts/manish/3p3design/netlist";
+my $cellname = $opt_c;
+my $filename = "$cellname.hsp";
+my $pinorder="";
+open(PIN,"$opt_p") or die "ERROR: Can't find given Pinorder_file ==> ./$opt_p\n" ;
+my @p=<PIN>;
+close(PIN);
+
+foreach (@p)
+{
+	if (/^\s*$cellname\s+/i)
+	{
+		chomp; 
+		$pinorder=lc($_);#dropping the case of pinorder
+	}
+}
+
+if($pinorder eq "")
+{
+	die "ERROR: Pinorder for given cell <$cellname> not found in the file ./$opt_p";
+}
+
+my $status=system("/bin/cp $wkarea/$filename /tmp/$filename");
+if($status)
+{
+	die "ERROR: Can't find cadence netlist ==> $wkarea/$filename\nHELP: Check cellname\n";
+}
+
+open(INFO,"/tmp/$filename") or die "Can't find /tmp/$filename\n";
+my @lines = <INFO>;
+close(INFO);
+
+my $i=0;
+my $j=0;
+my $c=0;
+my $c2=0;
+my @f_up;
+my @f_down;
+foreach (@lines)
+{
+	if (/^\*\* Cell name: $cellname/i)
+	{ 	
+		$c=1;
+		
+	}
+	if ($c && /^.subckt/i)
+	{ 	
+		$c=0;
+	}
+	
+	
+	if($c)
+	{	
+		$f_up[$i]=$_;
+		$i=$i+1;
+	}
+	else
+	{
+		$f_down[$j]=$_;
+		$j=$j+1;	
+	}
+}
+
+open(OFILE,">/tmp/$cellname.junk2");
+print OFILE "\n**File modified for hspice - Manish**\n\n.SUBCKT $pinorder\n";
+print OFILE @f_up;
+print OFILE ".ENDS\n";
+print OFILE @f_down;	
+close(OFILE);	
+
+$status=`grep -v ^"+  " /tmp/$cellname.junk2 | grep -vi option | grep -vi temp | grep -vi include > $wkarea/$cellname.hspice_raw`;
+$status=`/bin/rm /tmp/$cellname.*`;
+
+print "Sucessfully modified the netlist - \n$wkarea/$cellname.hspice_raw\n"

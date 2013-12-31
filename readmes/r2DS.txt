@@ -1,0 +1,24 @@
+## Source the following
+ct setview release2vob
+source /apps/cmtools/ldm/current_release/scripts/setup.cshrc
+unsetenv PERLLIB
+setenv PYRAMID_HOME /vobs/pyramid/
+source /proj/gateway/Public/Generic/DesignSync/sourcefile
+# Verify above commands #
+
+release2sync \
+-libname GS70 \
+-srcdir /proj/gateway4/products/gs70/expts/a0393831/r2DS \
+-tmphandoffdir /proj/gateway4/products/gs70/expts/a0393831/r2DS/temp \
+-celllist /proj/gateway4/products/gs70/expts/a0393831/r2DS/celllists/bcshtltcscdvpbfz_sisims \
+-palbaseline \
+-category cell_char_outputs \
+-designgroup io \
+-libtype strategic \
+-celltype io \
+-libversion 2.3.0 \
+-chipcreateflow pyramid \
+-label bcshtltcscdvpbfz_sisims \
+-releasenotes /proj/gateway4/products/gs70/expts/a0393831/r2DS/releasenotes/bcshtltcscdvpbfz_sisims \
+-cclist kartikshenoy@ti.com \
+-log bcshtltcscdvpbfz_sisims.log

@@ -1,0 +1,178 @@
+#!/usr/bin/perl -l
+#===================================================================================================
+#
+# TDL Parser, creates CSV file from input TDL pattern file
+# If regexp is supplied, reorders the pins in the CSV file and also generate a new TDL file
+# 
+# SYNTAX : tdl_parser -i <input filename> [-o <output filename>] [-p <regexp pattern>]
+# SYNTAX : tdl_parser <input filename> [<regex pattern> [<output filename>]]
+#
+# Created by : Kartik Shenoy (a0393831)
+#
+# Changelog
+#
+# 2009-12-18
+#   - Created
+#
+# 2009-12-23
+#	- Added support for selective pin-name and state printing by specifying a
+#     Perl-compatible regular expression
+#
+# 2009-12-24
+#	- Reorders the pins in CSV file if regexp pattern is specified
+#	- Regenerates a new TDL file based on the pin-order
+#
+#***************************************************************************************************
+
+
+## Pragmas
+use strict;
+use diagnostics;
+use Getopt::Long;
+
+
+## Variable Declaration
+my $fin;
+my $fout;
+my $pattern;
+my $verbose;
+
+
+## Command-line parameter handling
+GetOptions(
+	"ifile|i=s" => \$fin,
+	"ofile|o:s" => \$fout,
+	"pattern|p:s" => \$pattern,
+	"verbose|v" => \$verbose,
+);
+
+unless($#ARGV==-1){
+	$fin = $ARGV[0];
+	$fin =~ s/[\n\t\f\s]//g;
+	if($#ARGV>0){
+		$pattern = $ARGV[1];
+		$pattern =~ s/[\n\t\f\s]//g;
+	}
+	if($#ARGV==2){
+		$fout = $ARGV[2];
+		$fout =~ s/[\n\t\f\s]//g;
+	}
+}
+
+unless(defined $fin){
+	print "ERROR  : Incorrect Syntax. Input file not specified.";
+	print "\nSyntax : tdl_parser -i <input filename> [-o <output filename>] [-p <regexp pattern>]";
+	print "     or  tdl_parser <input filename> [<regex pattern> [<output filename>]]\n\nTerminating...";
+	exit(1);
+}
+open(FIN, "<$fin") or die("ERROR : Unable to open specified input file. Terminating...\n");
+
+unless(defined($fout) && ($fout ne "")){
+	($fout) = ($fin =~ /(.*?)(?:\.tdl)?$/);
+	if(defined $pattern){
+		warn "WARNING : Output file not specified. Writing output files ${fout}_out.tdl and $fout.csv\n";
+		open(TDL, ">${fout}_out.tdl") or die "Unable to open ${fout}_out.tdl\n";
+	}else{
+		warn "WARNING : Output file not specified. Writing output to $fout.csv\n";
+	}
+}else{
+	$fout =~ s/\.(?:tdl|csv)\.(?:csv|tdl)//;
+	if(defined $pattern){
+		print "Writing output files $fout.tdl and $fout.csv" if($verbose);
+		open(TDL, ">$fout.tdl") || die "Unable to open $fout.tdl";
+	}else{
+		print "Writing output file to $fout.csv" if($verbose);
+	}
+}
+open(CSV, ">${fout}.csv") || die "Unable to open ${fout}.csv";
+
+
+my @pins;
+my @pindef;
+my @pos;
+my $num=0;
+while(chomp($_=<FIN>)){
+	if(/^\s*VAR/ .. /\),\s*$/){
+		foreach(/"(\w+)"/g){
+			if(defined $pattern && (/$pattern/i)){
+				unshift(@pins,$_);
+				unshift(@pos,$num++);
+			}else{
+				push(@pins,$_);
+				push(@pos,$num++);
+			}
+		}
+	}elsif(/DEFPIN/ .. /\);\s*$/){          # Rearranging pin-definitions
+		foreach(/((?:OUT|IN)\s+\d+)/g){
+			/(OUT|IN) (\d+)/;
+			foreach (1 .. $2){
+				push(@pindef,$1); 
+			}
+		}
+		last if /\);\s*$/;
+	}else{
+		print TDL if(defined $pattern);
+	}
+}
+@pindef = @pindef[@pos];
+
+print "$#pins pins identified";
+print "List of all identified pins :\n@pins" if($verbose);
+print "Reordering pins based on specified pattern" if(defined $pattern);
+print "\nList of reordered pins :\n@pins" if($verbose && defined $pattern);
+print "\nList of reordered pin positions :\n@pos" if($verbose && defined $pattern);
+print "\nPin Directions :\n@pindef" if($verbose);
+
+$num=1;
+foreach (1 .. $#pindef){
+	if($pindef[$_] eq $pindef[$_-1]){
+		$num++;
+	}else{
+		push(@_,"$pindef[$_-1] $num,");
+		$num=1;
+	}
+	if($_ == $#pindef){
+		push(@_,"$pindef[$_] $num");
+		@pindef=@_;
+	}
+}
+
+print "\nNew Pin Definition Order:\n@pindef" if($verbose);
+
+
+$"="\",\n\t\t\"";
+print TDL "\tVAR = ( \n\t\t\"@pins\" )," if(defined $pattern);
+$"=" ";
+print TDL "\tDEFPIN = ( @pindef );" if defined $pattern;
+$"=",";
+print CSV "@pins,";
+
+my $repeat=1;
+my @states;
+my $str;
+while(<FIN>){
+	chomp;
+	if(/SETR P:=T'/ .. /';.*$/){
+		$str .= $_;
+		if(/(';.*$)/){
+			$_=$&;
+			@states=($str =~ /[01YZLHM]/sg)[@pos];
+			print CSV "@states,";
+			print "\nState : @states" if($verbose);
+
+			$str=join('',@states).$_;
+			print TDL "SETR P:=T'".$str if(defined $pattern);
+			$str="";
+		}			
+	}elsif(/RUNP FOR (\d+);/){
+	    print TDL if(defined $pattern);
+		print CSV "@states," foreach(1 .. $1);
+	    print "Repeats $1 times" if($verbose);
+	}else{
+	    print TDL if(defined $pattern);
+	}	
+}
+
+close(FIN);
+close(CSV);
+close(TDL) if(defined $pattern);

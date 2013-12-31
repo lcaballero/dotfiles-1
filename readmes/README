@@ -1,0 +1,122 @@
+========
+Cadence
+========
+setenv ks gs70 && /usr/atria/bin/cleartool setview acd${ks}_bangalore_kartik
+ct setcs -current && cd /cdb/acd/${ks}/${ks}_io/cds/ && unsetenv ks && source /user/senthils/.cshrc_cc
+icfb & 
+
+
+=======================
+Virtuoso Customisation
+=======================
+load ".cdsinit.bangalore"
+Set Rule and Tech file (src and ref lib)
+load "/proj/coremac/cadence/skill/IO_tools/Lay_utils_cln45gs/loadall.il"
+
+
+
+=============
+Layout : DRC
+=============
+bsub -q short -R "rhel40u4" -P P0:IO_10015127 -J DRC1 /apps/ame/bin/pvkit layoutConvert -technology c014p -outFormat gdsii \
+-layout /cdb/acd/sr70/sr70_io/cds/a0393831_kartik/ -cell ${i} \
+-outLayout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${i}.gds
+
+bsub -q short -R "rhel40u4" -P P0:IO_10015127 -J DRC2 /apps/ame/bin/pvkit layoutConvert -technology c014p -outFormat laff \
+-layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${i}.gds \
+-outLayout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${i}.laff
+
+bsub -q short -R "rhel40u4" -P P0:IO_10015127 -J DRC3 /apps/ame/bin/pvkit runHerc -technology c014p -rules drc \
+-tool hercules -mode chip_sr70_8lm5x1y1zhp \
+-layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/transmitter/${i}.laff -cell ${i}
+
+
+
+=============
+Layout : LVS
+=============
+/proj/gateway/layout/sr70/scripts/cds2cdlnetlist a0393831_kartik ${i} schematic ${i}.cdl
+
+\mv ${i}.cdl /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz
+
+cd /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz
+
+/apps/ame/bin/pvkit verToHerc -cdlIn /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/${i}.cdl -technology c014p -cell ${i} -schematicTopCell ${i} -process C014.P8 P8
+
+/apps/ame/bin/pvkit layToHerc -tech c014p -cell ${i} -layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/${i}.laff -process C014.P8 -metalSys 8M_5X1Y1Z
+
+/apps/ame/bin/pvkit hercComp -tech c014p -cell ${i} -layout /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/${i}.laff -process C014.P8 -metalSys 8M_5X1Y1Z -property_tolerance 0.1 -explode_on_error true
+
+
+
+=============
+LSF : Syntax
+=============
+Note : P-Q-R-S and J
+bsub -P P0:IO_10015123 -q short -R ws40 -sp 100 -J 
+
+bsub -q normal -sp 70 -R ws40 -J Jitter -P P0:IO_10015123 /apps/ame/bin/spice3 jitter.deck &
+bsub -q gui -I -sp 70 -R ws40 -J Scope -P P0:IO_10015123 /apps/ame/bin/tiscope &
+
+
+
+==========
+Grep Gems
+==========
+Grep command to print the results from a prt file
+	grep "SUMMARY for RERUN" -A10 iohiol.test.prt | grep -v "MAX|MIN"
+	
+Grep command to identify run failures from an rpt file
+	grep -v "\d+\.\d+[um]\s+\d+\.\d+[um]" iohiol00.rpt
+
+
+
+==========
+Perl Gems
+==========
+Find a particular quantity and print it. Similar to grep but the advantage here is that printing can be selective and formatted
+	<input source> | perl -ne '$_=<>;/<regex>/;print "<desired saved result variables>\n"'
+	
+	
+	
+===========
+Shell Gems
+===========
+Paste contents of files vertically	
+	paste -d"," `perl -e 'for($i=0;$i<20;$i++){printf("#InputFile#%0.2d ",$i);}'` > #OutputFile#
+
+
+	
+==================
+Mismatch Analysis
+==================
+
+A) RUN = /proj/gateway/bin/getsndparams.pl <spice models path till tis/> <output file>
+   **It will generate a global file with snd parameters having <pGlobal> parameter in it.
+   
+B) Create a deck with op analysis.
+   --Put .OPTION LIST in spice_options
+   Spice this deck.
+   **It will give you .prt file with all mos parameters.
+     
+C) RUN = /proj/gateway/bin/getmmparams.pl <prt file (ran with .OPTION LIST)> <spice models path till tis/> <output file>
+   **It gets all devices from the prt file and creates local mismatch file with the following parameters:
+   ** 1.pLocalAllDevices - This needs to be set to 1 at top level deck to enable local mismatch for all devices.
+   ** 2.pLocal_<Device>  - Device specific local mismatch parameter. Set to 1 by default at the end of local mismatch file. 
+ 	User willing to turn on/off device specific parameters need to open the local mismatch file generated, scroll to the 
+ 	end and set the parameter to 0 or 1. This still needs pLocalAllDevices set to 1 at top level deck.
+
+   
+D) Take transient analysis deck for which mismatch analysis to be done and make following changes:
+   --Include local mismatch file
+   --Include global snd parameter file
+   --Include models_mmstat from spice_models
+   --Set .PARAM pLocalAllDevices = 1
+   --Set .PARAM pGlobal = 1
+   --Add .PARAM rseed=<Seed> 
+   
+E) Open script /proj/gateway4/products/gs60/expts/hvdesigns/hpSrc/ztcDesign/PadB/decks/mismatch3Sigma/gen.pl
+   --Give the temp,vdd,vdds etc range for your set up (remember to make these parameters as variables like <Temp> in the deck)
+   --Make a maxjobs file containing the number of jobs to be fired at a time. 
+   --RUN the script.	 
+

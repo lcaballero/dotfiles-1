@@ -1,0 +1,184 @@
+#!/usr/bin/perl
+#==================================================================================================#
+#                                                                                                  #
+#  Script to convert CSV file to XLS                                                               #
+#  Created by Kartik Shenoy (a0393831)                                                             #
+#                                                                                                  #
+#  REQUIRED:                                                                                       #
+#   - Input file in CSV format                                                                     #
+#                                                                                                  #
+#  OPTIONAL:                                                                                       #
+#   - No. of input fields                                                                          #
+#     (Providing this though not compulsary will be really useful)                                 #
+#   - Name for output XLS file                                                                     #
+#                                                                                                  #
+#  SYNTAX:                                                                                         #
+#     xc2xl [-i|--ifile] <input file> [-o|--ofile] <output file> \                                 #
+#       [-f|--fields=<no. of input fields>]                                                        #
+#                                                                                                  #
+#  DESCRIPTION:                                                                                    #
+#  Script accepts input in CSV format and does the following                                       #
+#   - formats the data by adding borders, setting number formats etc                               #
+#   - freezes panes for the title and the input fields if "-f" is defined                          #
+#   - adds MAX and MIN functions for each output column                                            #
+#   - adds 1 chart containing all output series                                                    #
+#                                                                                                  #
+#==================================================================================================#
+
+## Modules ========================================================================================#
+use Getopt::Long;
+use Date::Calc;
+use Spreadsheet::WriteExcel;
+use Spreadsheet::WriteExcel::Utility;
+use Parse::RecDescent;
+#use Smart::Comments '###';
+
+## Pragmas
+use strict;
+use diagnostics;
+use warnings;
+
+use constant ROW_START => 3;
+
+
+## Command-line parameter handling
+GetOptions(
+	"ifile|i=s" => \my $ifile,
+	"ofile|o=s" => \my $ofile,
+    "fields|f=i" => \my $fields,
+);
+
+
+## Variable Initialisation
+$ifile||=$ARGV[0] unless defined $ifile;
+defined($ifile) or die("ERROR: Input file not specified.\n");
+die("ERROR : $ifile not found.\n") unless(-e $ifile);
+open(my $fin,"<$ifile") or die("ERROR: Unable to open $ifile for reading.\n");
+### Opened $ifile for reading...
+
+$ofile||=$ARGV[1] unless defined $ofile;
+my $chart_title;
+unless(defined $ofile){
+    ($ofile) = $ifile =~ /(.*?)(?:\.xls)?(?:\.csv)?$/;
+    $chart_title=$1;
+    $ofile.=".xls";
+    warn("INFO: Output file not specified. Writing the output to $ofile\n");
+}
+
+my $book = Spreadsheet::WriteExcel->new($ofile) or die("ERROR: Unable to open $ofile for writing.\n");
+### Opened $ofile for writing...
+
+# Starting column is set to 1 (B) if input fields aren't defined else 0 (A)
+# Used to allot space for MAX and MIN functions
+my $col_start=1^(defined $fields);
+### $col_start
+$fields||=0;
+# Offset is the column no. of the last input field
+my $offset=$col_start+$fields-1;
+### $offset
+
+my %sheet_name = (1 => "Data");
+
+my %sheet;
+$sheet{1}=$book->add_worksheet($sheet_name{1});
+
+my @arr_num_flag;
+my ($col,$col_last,$format);
+
+my $row=ROW_START;
+while(<$fin>){   ### Reading input ...  % done
+    # Extracting data. Skip if array is empty
+    my @arr = /([\w\.\+\-]+)/g;
+    next unless($#arr > -1);
+
+    $col=$col_start;
+    $col_last=$col_start+$#arr if($.==1);
+    foreach(0..$#arr){
+        $format=$book->add_format();
+
+        if($.==1){
+            # Output columns width set to 11
+            $sheet{1}->set_column($offset+1, $col_last, 11); 
+
+            # Formatting for Data title
+            $format->set_bold();
+            $format->set_top(2);
+            $format->set_bottom(2);
+            $arr[$_]="\u$arr[$_]" if($col<=$offset);
+        }
+        
+        # Format first column
+        $format->set_left(2) if($_==0);
+        # Format last input column and last column
+        $format->set_right(($col==$col_last or $col==$offset) ? 2 : 1);
+        
+        # Set number format depending on value
+        if($arr[$_]=~/\b-?\d+(?:\.\d+)?(?:[eE][\+-]\d+)?\b/){
+#            if(abs($arr[$_])>=1 or $arr[$_]==0){
+#                $format->set_num_format('0.00') if($arr[$_]-int($arr[$_])!=0);
+#            }elsif(abs($arr[$_])>=10e-3){
+#                $format->set_num_format('0.000');
+#            }elsif(abs($arr[$_])<10e-3){
+                $format->set_num_format('##0.00E+00');
+#            }
+        }
+
+        # Print data
+        $sheet{1}->write($row,$col,$arr[$_],$format);
+        $col++
+    }
+    $row++;
+}
+my $row_last=$row-1;
+
+# Thick bottom border for last line
+$format=$book->add_format(top=>'2');
+for($col=$col_start;$col<=$col_last;$col+=1){
+    $sheet{1}->write($row,$col,undef,$format) 
+}
+
+# Adding MAX and MIN functions
+$format=$book->add_format(bold=>'1',left=>'2',right=>'2',top=>'2');
+$sheet{1}->write(1,$offset,"Max",$format);
+$format=$book->add_format(bold=>'1',left=>'2',right=>'2',bottom=>'2');
+$sheet{1}->write(2,$offset,"Min",$format);
+
+my ($xy1,$xy2);
+for($col=$offset+1;$col<=$col_last;$col++){
+    # Format for MAX function
+    my $format1=$book->add_format(top=>'2',num_format=>'##0.00E+00');
+    $format1->set_right($col==$col_last ? 2 : 1);
+
+    # Format for MIN function
+    my $format2=$book->add_format(bottom=>'2',num_format=>'##0.00E+00');
+    $format2->set_right($col==$col_last ? 2 : 1);
+    
+    $xy1=&xl_rowcol_to_cell(ROW_START+1,$col);
+    $xy2=&xl_rowcol_to_cell($row_last,$col);
+    $sheet{1}->write(1,$col,"=SUBTOTAL(4,$xy1:$xy2)",$format1);
+    $sheet{1}->write(2,$col,"=SUBTOTAL(5,$xy1:$xy2)",$format2);
+}
+
+# Autofilter
+$sheet{1}->autofilter(ROW_START,$col_start,ROW_START,$col_last);
+
+# Freeze panes
+$sheet{1}->freeze_panes(ROW_START+1,$col_start);
+
+# Line chart for outputs
+my $chart=$book->add_chart(type=>'line', embedded=>1);
+    $chart->set_title(name=>"\u$chart_title");
+    #$chart->set_legend(position=>'right');
+    $chart->set_x_axis(name=>'PTV Corners');
+    $chart->set_y_axis(name=>"\u$chart_title");
+for($col=$offset+1;$col<=$col_last;$col++){
+    $xy1=&xl_rowcol_to_cell(ROW_START+1,$col);
+    $xy2=&xl_rowcol_to_cell($row_last,$col);
+    $chart->add_series(name_formula => "=$sheet_name{1}!$xy1", values => "=$sheet_name{1}!$xy1:$xy2");
+}
+$sheet{1}->insert_chart( ROW_START+1, $col_last+1, $chart, 25, 0);
+
+
+close $fin;
+$book->close();
+exit 0;

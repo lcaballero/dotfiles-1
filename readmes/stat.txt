@@ -1,0 +1,57 @@
+=====================
+Statistical Analysis
+=====================
+
+Global Only :-
+--------------
+1.	Generate the global_snd_params file using the following command.
+	SYNTAX : /proj/gateway/bin/getsndparamsf.pl <mmstat model file path> <global_snd_params output file name>
+	
+	NOTE : The generated global file with snd parameters has <pGlobal> parameter in it.
+	       The global_snd_params file depends only on the mm_stat model file and not on the netlist
+
+
+2.	Include the following in a deck 
+	 - Include the global_snd_params file
+	 - Include the mm_stat model file
+	 - Set .OPTION rseed=<rseed>	: 'rseed' is the no. of runs, vary it as required (usually 1000)
+	 - Set .PARAM pGlobal=1			: Enables global analysis
+	 
+	 
+	 
+Mismatch (Local) :-
+-------------------
+Continuing from above...
+
+3.	Change the simulation option to ".OPTION LIST" (default is NOLIST) in the above deck
+	Run spice -check <deck> at the worst case global point (by putting appropriate seed value) to generate the .prt file
+
+	In case worst case global point cannot be identified or is not required, then any corner will do
+	The .prt file is generated to obtain all the MOS parameters.
+
+	Grep the SND parameters from the .prt file. This will contain the values of the SND params.
+	Call this file global_snd_params_values
+	
+  
+4.	Generate local mismatch params file using /proj/gateway/bin/getmmparamsf.pl
+	SYNTAX : /proj/gateway/bin/getmmparamsf.pl <prt file> <mmstat model file path> <local_mm_param output file name>
+	NOTE   : The local_mm_params file depends on the devices present in the netlist only and not on the model files
+	
+	This gets all devices from the prt file and creates local mismatch file with the following parameters:
+	- pLocalAllDevices - This needs to be set to 1 at top level deck to enable local mismatch for all devices.
+	- pLocal_<Device>  - Device specific local mismatch parameter; set to 1 by default in the generated mismatch file. 
+ 	User can turn on/off device specific analysis by setting the appropriate parameter, 
+	present at the end of the generated mismatch file to 0.
+	Note that this still needs pLocalAllDevices set to 1 at top level deck.
+
+
+5.	Include the following in the deck 
+	 - Replace 'global_snd_params' with 'global_snd_params_values' file
+	 - Include the local_mm_params file
+	 - Include mm_stat model file
+	 - Set .PARAM pGlobal=0 		 : Disables global analysis
+	 - Set .PARAM pLocalAllDevices=1 : This needs to be set to 1 at top level deck to enable local mismatch for all devices.
+	 - Set .OPTION NOLIST			 : Change it back from LIST to avoid consuming lots of disk space during mismatch runs
+	 - Set .OPTION rseed=<rseed>	 : 'rseed' is the no. of runs, vary it as required (usually 1000)
+
+

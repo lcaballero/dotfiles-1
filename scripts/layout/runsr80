@@ -1,0 +1,93 @@
+#!/bin/tcsh -f
+
+set wkarea=/proj/gateway10/products/sr80/expts/a0393831/layout_checks
+set laffs_dir=${wkarea}/laffs_dir
+set checkers_dir=${wkarea}/checkers_dir
+
+setenv SR80TECH /db/coremac1/products/c28.p/tech/
+setenv HERCULES_HOME /apps/synopsys/hercules/2008.09-SP2/
+
+set runlvs = "yes"
+set rundrc = "yes"
+
+if ($#argv < 2)  then
+    echo "Usage: runsr80 <libname> <cellname> [drc/lvs]"
+    exit
+else if ($#argv == 3) then
+    if($argv[3] == drc) then
+        set runlvs  = "no"
+        echo "WILL RUN DRC ONLY"
+    else if ($argv[3] == lvs) then
+        set rundrc = "no"
+        echo "WILL RUN LVS ONLY"
+    endif
+endif
+
+set lib  = $1
+set cell = `echo $2 | tr "[A-Z]" "[a-z]"` 
+
+
+
+#####################################################################
+### Convert the Cadence Database to .gds
+#####################################################################
+if(-e $laffs_dir) then
+else
+    mkdir -p $laffs_dir
+endif
+
+/apps/ame/bin/strmout -library $lib -strmFile $laffs_dir/$cell.gds -runDir ./ -topCell $cell -view layout -techLib tsmcN28 -layerMap /view/release2vob/vobs/mstd_pdk/tsmcN28/cdk/tsmcN28/tsmcN28.layermap
+
+
+
+#####################################################################
+### Run Hercules DRC on the .gds file
+#####################################################################
+if($rundrc == yes) then
+    if(-e $checkers_dir/$cell) then
+    else
+        mkdir -p $checkers_dir/$cell
+    endif
+
+    cd $checkers_dir/$cell
+
+    set gdsname = "$laffs_dir/${cell}.gds"
+    set rulefile = "/proj/gateway/layout/sr80/mapfiles/ICVN28HP_10M_5X2Y2Z_002.10a"
+
+    icv -2009.12-SP1 -i $gdsname -c $cell -f GDSII $rulefile
+    cd -
+
+endif
+
+
+
+#####################################################################
+### Convert the Cadence Database to CDL Netlist
+#####################################################################
+if($runlvs == yes) then
+    \cp -rf /proj/gateway/layout/sr80/scripts/starxt/DFM/ $checkers_dir/$cell/
+    \cp -rf /proj/gateway/layout/sr80/scripts/starxt/unit.cdl $checkers_dir/$cell/
+    \cp -rf /proj/gateway/layout/sr80/scripts/starxt/hercules_deck $checkers_dir/$cell/
+
+    /proj/coremac/bin/cadence_scripts/cds2cdlnetlist $lib $cell schematic $cell.cdl
+    cat $cell.cdl /cdb/acd/sr80/sr80_io/cds/rupoly.cdl > $checkers_dir/$cell/cellname.cdl
+
+    $HERCULES_HOME/bin/AMD.64/hercules -i $wd/$cell.gds -b $cell $checkers_dir/$cell/hercules_deck
+
+endif
+
+
+
+## DRC Report
+if($rundrc == yes) then
+    echo "Generated on: `date +'%b %d %H:%M:%S %Y'`" > $checkers_dir/$cell/$$
+    echo >> $checkers_dir/$cell/$$
+    echo >> $checkers_dir/$cell/$$
+    cat $checkers_dir/$cell/$cell.LAYOUT_ERRORS >> $checkers_dir/$cell/$$
+    \mv -f $checkers_dir/$cell/$$ $checkers_dir/$cell/$cell.LAYOUT_ERRORS
+    echo "  DRC report: $checkers_dir/$cell/$cell.LAYOUT_ERRORS"
+endif
+## LVS Report
+if($runlvs == yes) then
+    echo "  LVS report: $checkers_dir/$cell/"
+endif

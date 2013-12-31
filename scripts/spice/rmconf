@@ -1,0 +1,6 @@
+#! /bin/tcsh -f
+
+head -8 $1 > $$
+tail +18 $1 >> $$
+mv -f $$ $1
+./run_spice.pl

@@ -1,0 +1,18 @@
+# Join pairs of lines side-by-side (like "paste")
+sed '$!N;s/\n/ /'
+
+# HSPICE Netlist: Remove .TEMP and .OPTIONS and add .subckt definition using a pinorder file
+sed -i -e '/^\.TEMP/ r <pinorder file>' -e '/^\.TEMP/d' -e '/^\.OPTION/,/^$/ d' -e '$ a .ends oosch18' <filename>
+sed -i -e '/^\.TEMP/,/^$/d' -e '/Cell name: ooschf18/ N; /View name: schematic/ r ooschf18.pin' -e '$ a .ends ooschf18' ooschf18.hsp
+
+# If a line ends with a backslash, append the next line to it
+sed -e :a -e '/\\$/N; s/\\\n//; ta'
+
+# If a line begins with a plus sign, append it to the previous line and replace the "+" with a single space
+sed -e :a -e '$!N;s/\n+/ /;ta' -e 'P;D'
+
+# Delete all lines from line matching <start pattern> to <stop pattern>
+sed '/<start pattern>/,/<stop pattern>/d'
+
+# Perform substitution on all lines from line matching <start pattern> to <stop pattern>
+sed '/<start pattern>/,/<stop pattern>/ s/<text1>/<text2>/'

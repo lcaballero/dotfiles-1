@@ -1,0 +1,53 @@
+*********************************************************************************************************************
+* Made by Kartik Shenoy (TISpice Version)
+*
+* Spice math file to convert Decimal Value (upto 63) to 6-bit Gray Code
+*
+* Input Reqd : No. of p/n slices specified as params (pslices,nslices)
+*
+*********************************************************************************************************************
+
+
+.PARAM p1d2b = 'pslices/2'
+.PARAM p2d2b = 'int(p1d2b)/2'
+.PARAM p3d2b = 'int(p2d2b)/2'
+.PARAM p4d2b = 'int(p3d2b)/2'
+.PARAM p5d2b = 'int(p4d2b)/2'
+.PARAM p6d2b = 'int(p5d2b)/2'
+
+.PARAM p6b = 'round(p6d2b)-int(p6d2b)'
+.PARAM p5b = 'round(p5d2b)-int(p5d2b)'
+.PARAM p4b = 'round(p4d2b)-int(p4d2b)'
+.PARAM p3b = 'round(p3d2b)-int(p3d2b)'
+.PARAM p2b = 'round(p2d2b)-int(p2d2b)'
+.PARAM p1b = 'round(p1d2b)-int(p1d2b)'
+
+.PARAM p6gray = p6b
+.PARAM p5gray = '(p5b && !p6b) || (!p5b && p6b)'
+.PARAM p4gray = '(p4b && !p5b) || (!p4b && p5b)'
+.PARAM p3gray = '(p3b && !p4b) || (!p3b && p4b)'
+.PARAM p2gray = '(p2b && !p3b) || (!p2b && p3b)'
+.PARAM p1gray = '(p1b && !p2b) || (!p1b && p2b)'
+
+
+
+.PARAM n1d2b = 'nslices/2'
+.PARAM n2d2b = 'int(n1d2b)/2'
+.PARAM n3d2b = 'int(n2d2b)/2'
+.PARAM n4d2b = 'int(n3d2b)/2'
+.PARAM n5d2b = 'int(n4d2b)/2'
+.PARAM n6d2b = 'int(n5d2b)/2'
+
+.PARAM n6b = 'round(n6d2b)-int(n6d2b)'
+.PARAM n5b = 'round(n5d2b)-int(n5d2b)'
+.PARAM n4b = 'round(n4d2b)-int(n4d2b)'
+.PARAM n3b = 'round(n3d2b)-int(n3d2b)'
+.PARAM n2b = 'round(n2d2b)-int(n2d2b)'
+.PARAM n1b = 'round(n1d2b)-int(n1d2b)'
+
+.PARAM n6gray = n6b
+.PARAM n5gray = '(n5b && !n6b) || (!n5b && n6b)'
+.PARAM n4gray = '(n4b && !n5b) || (!n4b && n5b)'
+.PARAM n3gray = '(n3b && !n4b) || (!n3b && n4b)'
+.PARAM n2gray = '(n2b && !n3b) || (!n2b && n3b)'
+.PARAM n1gray = '(n1b && !n2b) || (!n1b && n2b)'

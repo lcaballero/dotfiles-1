@@ -1,0 +1,12 @@
+#!/bin/tcsh
+cd /cdb/acd/sr70/sr70_io/cds/
+~/scripts/rundrc.sh oc1150bgfz
+#~/scripts/runlvs.sh oc1150bgfz
+cd /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz
+/sp/gateway/devraj/c014P_fillexpt/withoutfill/lateststarxt/starxt_sub.pl -tech sr70 -lm 10lm5x2y2z -cell oc1150bgfz -laff /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/oc1150bgfz.laff -work /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz -keep true -extraction c -corner cworst_125 -reduction HIGH -removeDanglingNets yes -flatten false -pwrGndNets /proj/gateway/products/generic/db/power_nets -extractViaCaps true -ccAbsThreshold 1E-15 -lumpPowerCap true -selectiveNetlistFile net_type -workingdir /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/layout/oc1150bgfz/
+\cp oc1150bgfz.c.cworst.*.netname /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/oc1150bgfz/netlists/oc1150bgfz_extracted_netlist
+cd /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/oc1150bgfz/postlayout/tran/
+#n ../../netlists/oc1150bgfz.c.cworst.125.netname
+sed -re 's/\s*\.SUBCKT.*/.SUBCKT oc1150bgfz A GZ HHV VSS VSSS VDD VDDS PAD/' /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/oc1150bgfz/netlists/oc1150bgfz_extracted_netlist > /tmp/$$
+\mv /tmp/$$ /proj/gateway4/products/sr70/expts/a0393831/SIMULATIONS/oc1150bgfz/netlists/oc1150bgfz_extracted_netlist
+hspice test.deck

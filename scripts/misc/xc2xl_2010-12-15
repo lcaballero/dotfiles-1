@@ -1,0 +1,124 @@
+#!/usr/bin/perl -l
+
+## Pragmas
+use strict;
+use diagnostics;
+use warnings;
+use Getopt::Long;
+use Date::Calc;
+
+use lib "/user/a0393831/scripts/perl_lib";
+use Spreadsheet::WriteExcel;
+use Spreadsheet::WriteExcel::Utility;
+use Parse::RecDescent;
+
+use constant DEBUG => 0;
+use constant ROW_START => 3;
+use constant COL_START => 0;
+
+
+## Command-line parameter handling
+GetOptions(
+	"ifile|i=s" => \my $ifile,
+	"ofile|o=s" => \my $ofile,
+	"verbose|v:i" => \my $v,
+    "offset|o=i" => \my $col_off,
+);
+
+
+## Variable Initialisation
+$v|=DEBUG;
+
+$ifile||=$ARGV[0];
+defined($ifile) or die("ERROR: Input file not specified.\n");
+die("ERROR : $ifile not found.\n") unless(-e $ifile);
+
+$ofile||=$ARGV[1];
+unless(defined $ofile){
+    ($ofile) = ($ifile =~ /(.*?)(?:(?:\.xls)\.csv)?$/);
+    $ofile.=".xls";
+    warn("INFO: Output file not specified. Writing the output to $ofile\n");
+}
+
+open(my $fin,"<$ifile") or die("ERROR: Unable to open $ifile for reading.\n");
+our $workbook = Spreadsheet::WriteExcel->new($ofile) or die("ERROR: Unable to open $ofile for writing.\n");
+
+my %worksheet;
+my %style, my %align;
+
+my $format;
+my @arr;
+my @arr_num_flag;
+my $row=ROW_START;
+my $col=COL_START;
+my $col_last;
+
+$worksheet{1}=$workbook->add_worksheet("Data");
+
+while(<$fin>){
+    chomp; s/,\s*,*$//;
+    next if /^\s*$/;
+    $col=COL_START;
+
+    @arr=split(/,/);
+    foreach(0..$#arr){
+        $format=$workbook->add_format();
+
+        if($.==1){
+            $col_last=COL_START+$#arr;
+            $format->set_bold();
+            $format->set_top(2);
+            $format->set_bottom(2);
+        }
+
+        $format->set_left(2) if($_==0);
+        $format->set_right(($col==$col_last or $col==COL_START+$col_off) ? 2 : 1);
+        
+        if($arr[$_]=~/\b-?\d+(?:\.\d+)?(?:e[\+-]\d+)?\b/){
+            if(abs($arr[$_])>=1 or $arr[$_]==0){
+                $format->set_num_format('0.000') if($arr[$_]-int($arr[$_])!=0);
+            }elsif(abs($arr[$_])>=1e-3){
+                $format->set_num_format('0.000');
+            }elsif(abs($arr[$_])<1e-3){
+                $format->set_num_format(0x30);
+            }
+        }
+
+        $worksheet{1}->write($row,$col,$arr[$_],$format);
+        $col++;
+    }
+    $row++;
+}
+my $row_last=$row-1;
+
+$col=COL_START;
+$format=$workbook->add_format(top=>'2');
+while($col<=$col_last){
+    $worksheet{1}->write($row,$col,undef,$format);
+    $col++;
+}
+
+$format=$workbook->add_format(bold=>'1',left=>'2',right=>'2',top=>'2');
+$worksheet{1}->write('A2',"Max",$format);
+$format=$workbook->add_format(bold=>'1',left=>'2',right=>'2',bottom=>'2');
+$worksheet{1}->write('A3',"Min",$format);
+
+my $format1;
+my $format2;
+for($col=COL_START;$col<=$col_last;$col++){
+    $format1=$workbook->add_format(top=>'2',num_format=>'0.00E+00');
+        $format1->set_right(($col==$col_last or $col==COL_START+$col_off) ? 2 : 1);
+    $format2=$workbook->add_format(bottom=>'2',num_format=>'0.00E+00');
+        $format2->set_right(($col==$col_last or $col==COL_START+$col_off) ? 2 : 1);
+    my $xy1=&xl_rowcol_to_cell(ROW_START+1,$col);
+    my $xy2=&xl_rowcol_to_cell($row_last,$col);
+    $worksheet{1}->write(1,$col,"=SUBTOTAL(4,$xy1:$xy2)",$format1);
+    $worksheet{1}->write(2,$col,"=SUBTOTAL(5,$xy1:$xy2)",$format2);
+}
+
+$worksheet{1}->autofilter(ROW_START,COL_START,ROW_START,$col_last);
+$worksheet{1}->freeze_panes(ROW_START+1,COL_START);
+
+close $fin;
+$workbook->close();
+exit 0;

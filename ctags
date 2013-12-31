@@ -1,0 +1,16 @@
+--regex-vim=/^"= (.*) +=$/\1/h,heading/
+--regex-vim=/^"== (.*) +-$/\1/s,subheading/
+--regex-vim=/^"=== (.*) +~$/\1/S,subsubheading/
+
+--regex-sh=/^#= (.*) +=$/\1/h,heading/
+--regex-sh=/^#== (.*) +-$/\1/s,subheading/
+--regex-sh=/^#=== (.*) +~$/\1/S,subsubheading/
+
+--langdef=conf
+--regex-conf=/^#= (.*) +=$/\1/h,heading/
+--regex-conf=/^#== (.*) +-$/\1/s,subheading/
+--regex-conf=/^#=== (.*) +~$/\1/S,subsubheading/
+
+--regex-vhdl=/^--= (.*) +=$/\1/h,heading/
+--regex-vhdl=/^--== (.*) +-$/\1/s,subheading/
+--regex-vhdl=/^--=== (.*) +~$/\1/S,subsubheading/

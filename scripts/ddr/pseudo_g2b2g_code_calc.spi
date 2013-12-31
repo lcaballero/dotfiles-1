@@ -1,0 +1,197 @@
+* Based on /proj/gateway5/products/gs70/expts/lpddr2/driver/designs/6bit_slice/codeselect.inc
+*********************************************************************************************************************
+* Made by Kartik Shenoy (TISpice Version)
+*
+* This setup imitates the functionality of GS70 mDDR/DDR2/DDR3 Code-converter (bcshtltcscdvpbfz_code_converter)
+* Functionality is to accept a 6-bit gray code, convert it to 6-bit binary code, perform the requisite processing
+* and reconvert back to 6-bit gray code which is the required output
+*
+* Inputs Reqd :
+*  1. The 6-bit input gray code (for both p and n slices)
+*  2. No. of always-on slices and total no. of slices specified as a parameter
+*  3. Base Idrive (Idrive of training resistor) specified as a parameter
+*  4. I(2:0) (pI2,pI1,pI0) specified as parameters
+*  5. p0,n0,efuseset,gz,odt1 specified as parameters
+*  6. The no. of slices to be turned on during efuseset mode to be specified as params (efuse_p & efuse_n)
+*
+* Method : 
+*  1.  Convert 6-bit input gray code to 6-bit binary code
+*  2.  Calculate decimal value from the binary code
+*  3.  Calculate total no. of p/n slices by adding always-on slices to p/n ON slices
+*  4.  Multiply this by Idrive (calculate from I(2:0)) and divide by Idrivebase (Idrive of training resistor) 
+*      to get total no. of p/n slices for the training resistor
+*  5.  An upper-bound equal to the total no. of slices is imposed if the result is greater
+*  6.  A lower-bound equal to the no. of always-on slices is imposed if the result is lesser
+*  7.  Subtract from this no. of always-on slices to get variable no. of p/n slices
+*  8.  If ODT mode is enabled then the no. of nslices is increased by 1 to prevent pull-up and pull-down imbalance 
+*      caused due to unequal no. of p and n slices
+*  9.  If efuseset mode is enabled then the no. of slices is set to nom corner value
+*  10. Convert above no. to binary to obtain p/n bits
+*  11. Convert obtained binary code to gray code
+*  12. Substitute voltage sources for the bits
+*
+* Note :
+*  1. Icode to Idrive conversion takes place here by adding 5(mA). This number has to be specified here too
+*  2. The function "round" is used to mimic rounding-up or down as implemented in the actual code-converter
+*
+*********************************************************************************************************************
+
+
+.PARAM totalslices = 59
+.PARAM always_on = 10
+.PARAM nom_25_1.8_50_pslices = 12
+.PARAM nom_25_1.8_50_nslices = 13
+
+.PARAM Idrivebase = 8
+.PARAM Idrive = 'pI2*4+pI1*2+pI0*1 + 5'
+
+
+
+*** Expected Input Gray Code ****************************************************************************************
+.PARAM p6gin = p6gray
+.PARAM p5gin = p5gray
+.PARAM p4gin = p4gray
+.PARAM p3gin = p3gray
+.PARAM p2gin = p2gray
+.PARAM p1gin = p1gray
+
+.PARAM n6gin = n6gray
+.PARAM n5gin = n5gray
+.PARAM n4gin = n4gray
+.PARAM n3gin = n3gray
+.PARAM n2gin = n2gray
+.PARAM n1gin = n1gray
+*********************************************************************************************************************
+
+
+
+*** Processing for P-Slices *****************************************************************************************
+.PARAM p6bin = 'p6gin'
+.PARAM p5bin = '(p5gin && !p6bin) || (!p5gin && p6bin)'
+.PARAM p4bin = '(p4gin && !p5bin) || (!p4gin && p5bin)'
+.PARAM p3bin = '(p3gin && !p4bin) || (!p3gin && p4bin)'
+.PARAM p2bin = '(p2gin && !p3bin) || (!p2gin && p3bin)'
+.PARAM p1bin = '(p1gin && !p2bin) || (!p1gin && p2bin)'
+
+.PARAM pdec = 'p6bin*32 + p5bin*16 + p4bin*8 + p3bin*4 + p2bin*2 + p1bin'
+.PARAM pdeccode = 'pdec + always_on'
+
+
+.PARAM pdecidrive = 'round(pdeccode*Idrive/Idrivebase)'
+.PARAM pdecubound ='if(pdecidrive>totalslices) then (totalslices) else (pdecidrive)'
+.PARAM pdeclbound = 'if(pdecubound<10) then (0) else (pdecubound - always_on)'
+.PARAM pdecout = 'if (efuseset==1) then (nom_25_1.8_50_pslices) else (pdeclbound)'
+
+.PARAM p1div = 'pdecout/2'
+.PARAM p2div = 'int(p1div)/2'
+.PARAM p3div = 'int(p2div)/2'
+.PARAM p4div = 'int(p3div)/2'
+.PARAM p5div = 'int(p4div)/2'
+.PARAM p6div = 'int(p5div)/2'
+
+.PARAM p6bout = 'round(p6div)-int(p6div)'
+.PARAM p5bout = 'round(p5div)-int(p5div)'
+.PARAM p4bout = 'round(p4div)-int(p4div)'
+.PARAM p3bout = 'round(p3div)-int(p3div)'
+.PARAM p2bout = 'round(p2div)-int(p2div)'
+.PARAM p1bout = 'round(p1div)-int(p1div)'
+
+.PARAM p6gout = 'if (p0==0) then (p6gin) else (p6bout)'
+.PARAM p5gout = 'if (p0==0) then (p5gin) else ((p5bout && !p6bout) || (!p5bout && p6bout))'
+.PARAM p4gout = 'if (p0==0) then (p4gin) else ((p4bout && !p5bout) || (!p4bout && p5bout))'
+.PARAM p3gout = 'if (p0==0) then (p3gin) else ((p3bout && !p4bout) || (!p3bout && p4bout))'
+.PARAM p2gout = 'if (p0==0) then (p2gin) else ((p2bout && !p3bout) || (!p2bout && p3bout))'
+.PARAM p1gout = 'if (p0==0) then (p1gin) else ((p1bout && !p2bout) || (!p1bout && p2bout))'
+*********************************************************************************************************************
+
+
+
+*** Processing for N-Slices *****************************************************************************************
+.PARAM n6bin = 'n6gin'
+.PARAM n5bin = '(n5gin && !n6bin) || (!n5gin && n6bin)'
+.PARAM n4bin = '(n4gin && !n5bin) || (!n4gin && n5bin)'
+.PARAM n3bin = '(n3gin && !n4bin) || (!n3gin && n4bin)'
+.PARAM n2bin = '(n2gin && !n3bin) || (!n2gin && n3bin)'
+.PARAM n1bin = '(n1gin && !n2bin) || (!n1gin && n2bin)'
+
+.PARAM ndec = 'n6bin*32 + n5bin*16 + n4bin*8 + n3bin*4 + n2bin*2 + n1bin'
+.PARAM ndeccode = 'ndec + always_on'
+
+
+.PARAM ndecidrive = 'round(ndeccode*Idrive/Idrivebase)'
+.PARAM ndecubound ='if(ndecidrive>totalslices) then (totalslices) else (ndecidrive)'
+.PARAM ndeclbound = 'if(ndecubound<always_on) then (0) else (ndecubound - always_on)'
+.PARAM ndecodt = 'if((odt1==1)&&(gz==1)) then (ndeclbound+1) else (ndeclbound)'
+.PARAM ndecout = 'if (efuseset==1) then (nom_25_1.8_50_nslices) else (ndecodt)'
+
+.PARAM n1div = 'ndecout/2'
+.PARAM n2div = 'int(n1div)/2'
+.PARAM n3div = 'int(n2div)/2'
+.PARAM n4div = 'int(n3div)/2'
+.PARAM n5div = 'int(n4div)/2'
+.PARAM n6div = 'int(n5div)/2'
+
+.PARAM n6bout = 'round(n6div)-int(n6div)'
+.PARAM n5bout = 'round(n5div)-int(n5div)'
+.PARAM n4bout = 'round(n4div)-int(n4div)'
+.PARAM n3bout = 'round(n3div)-int(n3div)'
+.PARAM n2bout = 'round(n2div)-int(n2div)'
+.PARAM n1bout = 'round(n1div)-int(n1div)'
+
+.PARAM n6gout = 'if (n0==0) then (n6gin) else (n6bout)'
+.PARAM n5gout = 'if (n0==0) then (n5gin) else ((n5bout && !n6bout) || (!n5bout && n6bout))'
+.PARAM n4gout = 'if (n0==0) then (n4gin) else ((n4bout && !n5bout) || (!n4bout && n5bout))'
+.PARAM n3gout = 'if (n0==0) then (n3gin) else ((n3bout && !n4bout) || (!n3bout && n4bout))'
+.PARAM n2gout = 'if (n0==0) then (n2gin) else ((n2bout && !n3bout) || (!n2bout && n3bout))'
+.PARAM n1gout = 'if (n0==0) then (n1gin) else ((n1bout && !n2bout) || (!n1bout && n2bout))'
+*********************************************************************************************************************
+
+
+
+
+*** Instantiating Sub-Circuit to mimic Actual Code Converter ********************************************************
+.subckt BCSHTLTCSCDVPBFZ_CODE_CALC EFUSESET GZ I0 I1 I2 N0 N1 N1G N2 N2G N3 N3G N4 N4G N5 N5G N6 N6G ODT1 P0 P1 P1G P2 P2G P3 P3G P4 P4G P5 P5G P6 P6G VBBNW VDD VSS
+vP6G P6G 0 'p6gout*pvdd'
+vP5G P5G 0 'p5gout*pvdd'
+vP4G P4G 0 'p4gout*pvdd'
+vP3G P3G 0 'p3gout*pvdd'
+vP2G P2G 0 'p2gout*pvdd'
+vP1G P1G 0 'p1gout*pvdd'
+
+vN6G N6G 0 'n6gout*pvdd'
+vN5G N5G 0 'n5gout*pvdd'
+vN4G N4G 0 'n4gout*pvdd'
+vN3G N3G 0 'n3gout*pvdd'
+vN2G N2G 0 'n2gout*pvdd'
+vN1G N1G 0 'n1gout*pvdd'
+
+cVDD VDD 0 1f
+cVBBNW VBBNW 0 1f
+cVSS VSS 0 1f
+
+cEFUSESET EFUSESET 0 1f
+cODT1 ODT1 0 1f
+cGZ GZ  0 1f
+
+cI2 I2 0 1f
+cI1 I1 0 1f
+cI0 I0 0 1f
+
+cP0 P0 0 1f
+cN0 N0 0 1f
+
+cP1 P1 0 1f
+cP2 P2 0 1f
+cP3 P3 0 1f
+cP4 P4 0 1f
+cP5 P5 0 1f
+cP6 P6 0 1f
+
+cN1 N1 0 1f
+cN2 N2 0 1f
+cN3 N3 0 1f
+cN4 N4 0 1f
+cN5 N5 0 1f
+cN6 N6 0 1f
+.ends BCSHTLTCSCDVPBFZ_CODE_CALC
+*********************************************************************************************************************

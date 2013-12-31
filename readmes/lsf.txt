@@ -1,0 +1,17 @@
+=============
+LSF : Syntax
+=============
+Note : P-Q-R-S and J
+
+bsub -P P0:IO_10015123 -q short -R ws40 -sp 100 -J 
+
+bsub -P P0:IO_10015123 -q normal -R ws40 -sp 70 -J Jitter  /apps/ame/bin/spice3 jitter.deck &
+bsub -P P0:IO_10015123 -q gui -R ws40 -sp 70 -I -J Scope  /apps/ame/bin/tiscope &
+
+
+
+Kill all jobs sharing a common feature, say name
+	bj | perl -ane 'print $F[-1] if/<regexp>/' | xargs -p -n1 bkill
+
+The above command finds all jobs which match the regular expression and prompts to kill
+Note that this requires the custom made bj command

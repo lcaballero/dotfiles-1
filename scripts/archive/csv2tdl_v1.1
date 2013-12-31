@@ -1,0 +1,137 @@
+#!/usr/bin/perl  
+
+#***************************************************************************************************
+#
+# Creates TDL file from CSV file 
+# 
+# SYNTAX : csv2tdl -i <input filename> [-o <output filename>] [-p <pattern>]
+#
+# Created by : Kartik Shenoy (a0393831)
+#
+# Changelog
+#
+# 2009-12-21 (v 1.0)
+#   - Created
+#
+# 2009-12-22 (v 1.1)
+#	- Added support for selective pin-name and state printing by specifying a
+#     Perl-compatible regexp pattern
+#
+#***************************************************************************************************
+
+
+## Pragmas
+use strict;
+use diagnostics;
+use Getopt::Long;
+
+
+## Variable Declaration
+my $fin;
+my $fout;
+my $pattern;
+my $verbose;
+
+
+## Command-line parameter handling
+GetOptions(
+	'ifile|i=s' => \$fin,
+	'ofile|o=s' => \$fout,
+	'pattern|p:s' => \$pattern,
+	'verbose|v' => \$verbose,
+);
+
+defined($fin) || die "Input file not specified";
+open FIN, "<$fin" || die "ERROR : Specified input file doesn't exist. Terminating";
+
+unless(defined($fout) && ($fout ne ""){
+	$fout = $fin;
+	$fout =~ s/\.csv$//;
+	warn "WARNING : Output file not specified. Writing tdl to $fout.tdl";
+}else{
+	$fout =~ s/\.tdl$//;
+}
+open FOUT, ">${fout}.tdl" || die "Unable to open ${fout}.tdl";
+
+
+## Setting regexp to accept everything by default unless defined
+my $regexp=$pattern||'.*';
+
+
+print FOUT '
+
+ TDL_VERSION = "ASIC_TDL_91 6.1";
+
+
+ ASIC_TITLE = " LIBRARY_TYPE = sr70,
+					CUSTOMER = TI,
+			  TI_PART_NUMBER = F781779,
+			PATTERN_SET_NAME = IO75_LCOL_DCPA_0000,
+			PATTERN_SET_TYPE = DC_PARA,
+	 PATTERN_SET_DESCRIPTION = Tdl Created using TdlGen-11.11.32,
+					REVISION = 1.01,
+						DATE = 04/03/2009 ";
+
+
+(*$                                  TDLGEN version 11.11.32          *)
+(*$SIMULATION FILE (NOM): ../vcd/IO75_LCOL_DCPA_0000.vcd              *)
+(*$    TEMPLATE TDL FILE: /data/testchip1/MTC72_PBIST_TDL_HANDOFF_PHASE2/IO75/tdlgen/IO75_template_dcpa_lcol.tdl *)
+(*$             TDL FILE: /data/testchip1/MTC72_PBIST_TDL_HANDOFF_PHASE2/IO75/tdlgen/tdls/IO75_LCOL_DCPA_0000.tdl *)
+(*$           ERROR FILE: /data/testchip1/MTC72_PBIST_TDL_HANDOFF_PHASE2/IO75/tdlgen/tdls/tdlgen.pattern.err *)
+(*$                 DATE: 04/03/2009 13:58:48                         *)
+(*$               TESTER: VLCT                                        *)
+(*$          TI_DIVISION: ASIC                                        *)
+CONNECT P,
+	VAR = (';
+
+{
+
+	$\="\n";
+
+	## Printing pins from the full list depending on regexp pattern
+	chomp($_=<FIN>);
+	my @pins_all = split(/,/);
+	my %pins_all;
+	my @pos;
+	foreach my $i (0..$#pins_all){
+		$pins_all{$pins_all[$i]}=$i;
+		push(@pos,$i) if($pins_all[$i]=~/$regexp/);
+	}
+
+	my @pins_sel=@pins_all[@pos];
+	print "@pins_sel" if($verbose);
+
+	$_=join(',',@pins_sel);
+
+	s/,$//;
+	s/,/",\n\t\t\t"/g;
+	print FOUT " \"$_\" ),\n";
+
+
+	## Printing States selectively depending on regexp pattern
+	my $line="";
+	my $repeat=0;
+	my @state_sel;
+	while(<FIN>){
+		unless($_ eq $line){
+			print "New Line detected" if($verbose);
+
+			unless($repeat==0){
+				print "Printing Repeat Factor $repeat" if($verbose);
+				print FOUT "RUNP FOR $repeat";
+				$repeat=0;
+			}
+
+			$line=$_;
+			@state_sel = (split(/,/))[@pos];
+			$_=join('',@state_sel);
+			print FOUT "SETR P:=T'$_';";
+
+		}else{
+			$repeat++;
+		}
+	}
+}
+
+close FIN;
+close FOUT;

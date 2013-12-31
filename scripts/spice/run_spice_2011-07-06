@@ -1,0 +1,83 @@
+#!/usr/bin/perl
+
+## Pragmas
+use strict;
+use Getopt::Long;
+
+use constant DEBUG => 0;
+
+
+## Command-line parameter handling
+GetOptions(
+	 "ifile|i:s" => \my $refdeck,
+	"config|c:s" => \my $config,
+	 "verbose|v" => \my $verbose,
+);
+
+
+## Variable Initialisation
+my $spicesim="/apps/ame/bin/hspice";
+#my $spicesim="/apps/ame/bin/spice3";
+
+defined($refdeck) || warn("  ERROR : Input file not specified. Please specify an input deck to use as template\n");
+die("ERROR : \'$refdeck\' not found. Terminating...\n") unless(-e $refdeck);
+$refdeck=~s/\.deck$//;
+
+defined($config) || die("  ERROR : Config file not specified. Please specify a config file to use\n");
+die("ERROR : \'$config\' not found. Terminating...\n") unless(-e $config);
+
+$verbose|=DEBUG;
+
+my $com;
+if(-e "command"){
+	warn("WARNING: Command file already exists. Appending to it...\n");
+	open($com,">>","command");
+	chomp($_=`date`);
+	print $com "\n####################################################################################################\n\n# Added on ".$_;
+}else{
+	open($com,">","command");
+}
+
+my $currdeck;
+
+my $cfg_type;
+if(system("\\head -1 $config | \\grep -P \'^#\' > /dev/null")){
+    system("/sp/gateway/kartik/bin/configpp -i $config -o $config.cfg") and die "  ERROR : Specified config file not recognizable as a cut-config file. Unable to convert it to cut-config file using configpp\n";
+    $config.=".cfg";
+}
+
+open(my $cfg,"<",$config) or die "ERROR: Specified config file \'$config\' doesn\'t exist\n";
+
+my @arr_tags;
+my @arr_val;
+my $flag;
+
+while(<$cfg>){
+    chomp;
+
+    if(/^#/){
+    # Extracts tags from cut-config file
+        print "Identified config file as a cut-config file\n\n" if($verbose);
+        $flag=s/^#//;
+        @arr_tags=split(/,/);
+        print "  Reference Deck : $refdeck.deck\n  Config file : $cfg\n\n" if($verbose);
+
+    }elsif($flag){
+        @arr_val=split(/,/);
+        s/,/_/g;s/_$//;
+        $currdeck=$refdeck."_".$_.".deck";
+        system("/bin/cp -f $refdeck.deck $currdeck");
+        print "Creating $currdeck\n" if($verbose); 
+
+        foreach my $i (0..$#arr_tags){
+            print "  Replacing $arr_tags[$i] with $arr_val[$i]" if($verbose);
+            system("/bin/sed -i 's/<$arr_tags[$i]>/$arr_val[$i]/' $currdeck");
+        }
+
+        print $com "/usr/local/lsf/bin/bsub -P P0:IO_10015123 -q regress -R ws40 -sp 100 -J ${refdeck}_$_ -o ${currdeck}.lsf.out $spicesim $currdeck\n";
+        
+    }
+}
+
+close $cfg;
+close $com;

@@ -1,0 +1,146 @@
+# Print the type of device for HSPICE netlist. Works only for physical M,C and rupoly_m
+    perl -aF/\\s+/ -lne 'if(/^XM/){print $F[5]}elsif(/^XR/){print $F[4]}elsif(/^XC/){print $F[3]}' <netlist> | sort -u
+
+
+# Match and extract matches
+    @matches = $str_to_match =~ /<pattern>/
+
+
+# Print ASCII value of any character
+    $num=ord($char)
+    perl -le 'print ord($char)'
+    perl -le 'printf("%x",ord($char))';
+
+
+# Print character from ASCII value
+    $char=chr($num)
+    perl -le 'print chr($num)'
+    perl -le 'printf("%c",$num)'
+
+
+# Assign and substitute in same line or substitute and save to another variable
+    ($b=$a)=~s/.../.../
+
+
+# Multiple substitutions on $var in same line
+    s/.../.../, s/.../.../, s/.../.../ for $var;
+
+
+# Convert hspice mt0 file into a more readable format
+    perl -lne 'if(/^ \w+/){@a=(@a,split(/\s+/))};if(/^\s+-?\d/){@v=(@v,split(/\s+/))};END{for(1..$#a){\!$a[$_]||print "$a[$_] = $v[$_]"}}'
+# '.OPTION MEASFORM=2' achieves the same thing
+
+
+# Find a particular quantity and print it. Similar to grep but the advantage here is that printing can be selective and formatted
+    perl -lne 'print "<desired saved result variables>" if/regexp/' <>
+
+
+# Grep command in unix
+    perl -ne 'print if/<regexp>/' <>
+
+
+# Kill all jobs sharing a common feature, say name
+    bj | perl -alne 'print $F[-1] if/<regexp>/' | xargs -p -n1 'bkill -J'
+    bj | perl -alne 'print $F[0] if/LVDS/' | xargs -n1 bkill
+# The above command finds all jobs which match the regular expression and prompts to kill.
+# Note that this requires the custom made bj command
+
+
+# Find the width of a particular Xtor and print the Xtor name and width
+    perl -lne 'if(/^(XM\S+).*BIAS1/){$f=1;$M=$1}elsif($f&&/^\+/){$f=1}else{$f=0};print "$M => $1"if($f&&/\b(w=\S+)/)' <>
+
+
+# Find particular Xtor and print all it's params
+    perl -lne '$f=/^XM\S+.*BIAS1/||$f&&/^\+/;print if($f)' <>
+
+
+# Join Element parameters by joining lines and removing +
+    perl -lne 'if(/^[wstxcrliv]/i){print $L;$L=$_}else{s/^\+//;$L.=$_};END{print $L}' <>
+
+
+# Print all after condition is met
+    perl -ne '$f=/<regexp>/|$f;print if $f' <>
+
+
+# In place edit, use -i.bak :
+# Remove all lines from file from regexp1 to regexp2
+    perl -i[.bak] -ne 'print unless /<regexp1>/../<regexp2>/' <>
+
+
+# Print all lines from file from regexp1 to regexp2
+    perl -i[.bak] -ne 'print if /<regexp1>/../<regexp2>/' <>
+    perl -ne '$f=/<regexp1>/|$f;if($f){print;exit if/<regexp2>/}' <>
+
+
+# useful at end of "find foo -print"
+    perl -nle unlink
+
+
+# Add first and penultimate columns
+    perl -lane 'print $F[0] + $F[-2]'
+
+
+# Print lines 15 to 17
+    perl -ne 'print if 15 .. 17' *.pod
+
+
+# In-place edit of *.c files changing all foo to bar
+    perl -p -i.bak -e 's/\bfoo\b/bar/g' *.c
+
+
+# Command-line that prints the first 50 lines (cheaply)
+    perl -pe 'exit if $. > 50' f1 f2 f3 ...
+
+
+# Delete first 10 lines
+    perl -i.old -ne 'print unless 1 .. 10' foo.txt
+
+
+# Change all the isolated oldvar occurrences to newvar
+    perl -i.old -pe 's{\boldvar\b}{newvar}g' *.[chy]
+
+
+# Command-line that reverses the whole file by lines
+    perl -e 'print reverse <>' file1 file2 file3 ....
+
+
+# Find palindromes
+    perl -lne 'print if $_ eq reverse' /usr/dict/words
+
+
+# Command-line that reverse all the bytes in a file
+    perl -0777e 'print scalar reverse <>' f1 f2 f3 ...
+
+
+# Command-line that reverses the whole file by paragraphs
+    perl -00 -e 'print reverse <>' file1 file2 file3 ....
+
+
+# Increment all numbers found in these files
+    perl i.tiny -pe 's/(\d+)/ 1 + $1 /ge' file1 file2 ....
+
+
+# Command-line that shows each line with its characters backwards
+    perl -nle 'print scalar reverse $_' file1 file2 file3 ....
+
+
+# Binary edit (careful!)
+    perl -i.bak -pe 's/Mozilla/Slopoke/g' /usr/local/bin/netscape
+
+
+# Look for dup words
+    perl -0777 -ne 'print "$.: doubled $_\n" while /\b(\w+)\b\s+\b\1\b/gi'
+
+
+# Command-line that prints the last 50 lines (expensively)
+    perl -e '@lines = <>; print @lines[ $#lines .. $#lines-50' f1 f2 f3 ...
+
+
+# One-liner to check if number is Prime
+    perl -le '$_="1"x<>;/^1?$|^(11+?)\1+$/||print "Prime"'
+
+
+# Search for number, increment it
+    s/(\d+)/$1+1/ge
+# Search for number, increment it and prepend it with "0x"
+    s/(\d+)/"0x".($1+1)/ge

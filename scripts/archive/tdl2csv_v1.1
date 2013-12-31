@@ -1,0 +1,145 @@
+#!/usr/bin/perl -l  
+
+#***************************************************************************************************
+#
+# TDL Parser, creates CSV file from input TDL pattern file
+# 
+# SYNTAX : tdl2csv -i <input filename> [-o <output filename>] [-p <regexp pattern>]
+#
+# Created by : Kartik Shenoy (a0393831)
+#
+# Changelog
+#
+# 2009-12-18 (v 1.0)
+#   - Created
+#
+# 2009-12-23 (v 1.1)
+#	- Added support for selective pin-name and state printing by specifying a
+#     Perl-compatible regular expression
+#
+#***************************************************************************************************
+
+
+## Pragmas
+use strict;
+use diagnostics;
+use Getopt::Long;
+
+
+## Variable Declaration
+my $fin;
+my $fout;
+my $pattern;
+my $verbose;
+
+
+## Command-line parameter handling
+GetOptions(
+	"ifile|i=s" => \$fin,
+	"ofile|o:s" => \$fout,
+	"pattern|p:s" => \$pattern,
+	"verbose|v" => \$verbose,
+);
+
+defined($fin) || die "Input file not specified";
+open FIN, "<$fin" || die "ERROR : Specified input file doesn't exist. Terminating";
+
+unless(defined($fout) && ($fout ne "")){
+	$fout = $fin;
+	$fout =~ s/\.tdl$//;
+	warn "WARNING : Output file not specified. Writing tdl to $fout.csv";
+}else{
+	$fout =~ s/\.csv$//;
+}
+open FOUT, ">${fout}.csv" || die "Unable to open ${fout}.csv";
+
+
+## Regexp to accept everything by default unless defined
+my $regexp=$pattern||'.*';
+
+
+my $flag=0;
+my @pins_all;
+## Merging input streams as it's spread over multiple lines;
+while(<FIN>){
+	
+	# Move through input file till VAR is encountered
+	next unless(/^\s*VAR/||$flag);
+
+	# Set flag to indicate that loop should read lines from now on
+	$flag=1;
+
+	# Remove all junk characters and split about commas
+	s/^.*?"//;
+	s/[\"\s]//g;
+	if(s/\),\s*$//){
+		push(@pins_all,(split(/,/)));
+		last;
+	}else{
+		push(@pins_all,(split(/,/)));
+	}
+}
+print "List of all pins :\n@pins_all\n" if($verbose);
+
+
+my @pins;
+my @pos;
+# Reordering pins only if regexp pattern is specified
+if (defined($pattern)){
+
+    my @pins_sel;
+    my @pos_sel;
+
+    # Separating pins into matched and unmatched arrays
+    foreach my $i (0..$#pins_all){
+        if($pins_all[$i]=~/$regexp/i){
+            push(@pins_sel,$pins_all[$i]);
+            push(@pos_sel,$i);
+        }else{
+            push(@pins,$pins_all[$i]);
+            push(@pos,$i);
+        }
+    }
+    @pins = (@pins_sel,@pins);
+    @pos = (@pos_sel,@pos);
+    print "List of reordered pins :\n@pins\n" if ($verbose);
+    print "List of reordered pin positions :\n@pos" if ($verbose);
+
+}else{
+    @pins = @pins_all;
+    @pos = (0 .. $#pins_all);
+    print "Not reordering pins as no pattern specified";
+}
+
+
+{
+	$/=";";
+    $"=",";
+
+	my $repeat=1;
+	my @states;
+	while(<FIN>){
+		s/[_\n]//g;
+		
+		# This if condition identifies the states
+		if(/SETR P:=T\'([01YZLHM]*)/){
+			$_ = $1;
+			@states=(split(//))[@pos];
+
+			print "\nState : @states" if($verbose);
+			print FOUT "@states";
+		}
+
+		# This if condition identifies the repeat factor
+		if(/RUNP FOR (\d*)/){
+			$repeat=$1;
+			print "Repeats $repeat times" if($verbose);
+			for(my $i=0;$i++<$repeat;){
+				print FOUT "@states";
+			}
+		}
+	}
+}
+
+close(FIN);
+close(FOUT);

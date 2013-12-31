@@ -1,0 +1,117 @@
+#!/usr/bin/perl -l
+#==============================================================================#
+#                                                                              #
+#  Script to add subcircuit definitions to HSPICE netlists                     #
+#                                                                              #
+#  Required:                                                                   #
+#   - Input Netlist file                                                       #
+#   - File specifying pin order of subcircuit definition                       #
+#                                                                              #
+#  SYNTAX:                                                                     #
+#  hsp_addpinlist -i <input netlist> -p <pin-order file> [-o <output netlist]  #
+#                                                                              #
+#  Pin-order file should contain only the following                            #
+#  <cellname> <pins>                                                           #
+#                                                                              #
+#==============================================================================#
+
+
+## Pragmas
+use strict;
+use warnings;
+#use diagnostics;
+use Getopt::Long;
+
+
+# Command-line parameter handling
+GetOptions(
+	'ifile|i=s'    => \my $ifile,
+    'pinorder|p=s' => \my $pinorder,
+	'ofile|o=s'    => \my $ofile,
+	'verbose|v:i'  => \my $verbose,
+);
+
+
+## File Handling
+$ifile||=$ARGV[0] unless defined $ifile;
+defined($ifile) or die("ERROR: Input file not specified.\n");
+die("ERROR : $ifile not found.\n") unless(-e $ifile);
+open(my $fin,"<",$ifile) or die("ERROR: Unable to open $ifile for reading.\n");
+
+$pinorder||=$ARGV[1];
+defined($pinorder) or die("ERROR: Pin-order file not specified.\n");
+die("ERROR : $pinorder not found.\n") unless(-e $pinorder);
+open(my $pin,"<",$pinorder) or die("ERROR: Unable to open $pinorder for reading.\n");
+
+$ofile||=$ARGV[2] unless defined $ofile;
+my $flag_bak;
+unless(defined $ofile){
+    warn("INFO: Output file not specified. Modifying the input file in situ after backing it up.\n");
+    #!(system "\\cp $ifile $ifile.bak") or warn("WARNING: Unable to copy file.\n");
+    $ofile=$ifile."_out";
+    $flag_bak=1;
+}
+open(my $fout,">",$ofile) or die("ERROR: Unable to open $ofile for writing.\n");
+
+my $pinlist=<$pin>;
+LoopPIN:while(<$pin>){
+    if(/^\s*\+/){
+        s/^\s*\+//;
+        $pinlist.=$_;
+    }
+}
+$pinlist=~s/\n//g;
+$pinlist=~/^(\w+)/;
+my $cellname=$1;
+
+
+{
+# Reading Input File
+my $flag_ends=0;
+my $flag_done=0;
+my $flag_opts=0;
+
+LoopFIN:while(<$fin>){
+    chomp;
+
+    warn "WARNING: Identified top-level cellname doesn't match with cellname $cellname specified in pin-order file" if((/Design\s+cell\s+name:\s+(\w+)/) and ($1 ne $cellname)); 
+
+    if(/^.subckt\s+$cellname /){
+        if(/^.subckt\s+$pinlist/){
+            close $ofile;
+            system("\\rm $ofile");
+            die("ERROR: Subcircuit definition present. Rolling back all changes made...\n");
+        }else{
+            warn("WARNING: Subcircuit definition present in the input netlist is different from that specified in pin-order file.\n         Replacing definition present in netlist with the one specified in the pin-order file...\n");
+            s/.*// if $flag_done;
+            $flag_done=s/.*/.subckt $pinlist/ unless $flag_done;
+        }
+    }
+    
+    next if(/^\.TEMP/i or /^\.LIB/i);
+    $flag_opts = (/^\s*\+/ and $flag_opts);
+    if(/^\.OPTION/i or $flag_opts){
+        $flag_opts=1;
+        next;
+    }
+
+    $flag_done=s/.*/.subckt $pinlist/ if(/^\s*$/ and !$flag_done);
+
+    $flag_ends = /^.ends\s*$cellname\s*$/;
+
+    print $fout $_;
+}
+print $fout ".ends $cellname" unless($flag_ends);
+
+}
+
+if($flag_bak){
+    system("\\mv $ifile $ifile.bak");
+    system("\\mv $ofile $ifile");
+}
+
+close $fin;
+close $pin;
+close $fout;
+
+exit 0;

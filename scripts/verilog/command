@@ -1,0 +1,6 @@
+Compile:-
+\rm -rf INCA_libs && /apps/ame/bin/ncverilog -c -y ./verilog_models/ ./io71_shtl2.v +libext+.v -l io71_shtl2.v.log +define+TI_functiononly +ncaccess+rw
+\rm -rf INCA_libs && /apps/ame/bin/ncverilog -c -y ./ -y ./verilog_models/ ./io71_shtl2_tb.v +libext+.v -l ./io71_shtl2_tb.v.log +define+TI_functiononly +ncaccess+rw
+
+Simulate:-
+\rm -rf INCA_libs && /apps/ame/bin/ncverilog +gui -s -y ./ -y ./verilog_models/ +libext+.v ./io71_shtl2_tb.v -l io71_shtl2_tb.v.log +define+TI_functiononly +ncaccess+rw

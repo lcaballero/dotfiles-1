@@ -1,0 +1,140 @@
+#!/usr/local/bin/tcsh
+#===================================================================================================
+#
+# SYNTAX:
+#   chktdl [-all] [-simout] [-runsim] [-syntax]
+#
+# DESCRIPTION:
+#   Script to verify TDL syntax and functionality
+#   chktdl accepts the following options
+#     -simout : generates verilog testbench
+#     -runsim : runs the generated testbench and compares the simulated value with expected value
+#     -syntax : performs only syntax checking
+#     -all    : run all 3 checkers
+#   Not specifying any switch will default to running all the checkers
+#
+# REQUIRED:
+#   Set the values of $tdl, $module and $DFTMpath inside "chktdl"
+#   Ensure that all verilog models are placed in a subdirectory called "verilog_models"
+#
+# CHANGELOG:
+#   2011-05-31 : Created by Kartik Shenoy (a0393831)
+#
+#===================================================================================================
+
+
+set tdl    = 'func_io85.tdl'
+set module = 'io85_diffio'
+
+
+# Note: At time of writing of this, using higher version of DFTM toolkit
+#       resulted in error said to be caused due to Segmentation Violation
+if ( ! $?DFTMpath ) then
+    setenv DFTMpath '/apps/chipcreate/dftm_toolkit/v7.1.0/'
+else if ( $DFTMpath == '' ) then
+    setenv DFTMpath '/apps/chipcreate/dftm_toolkit/v7.1.0/'
+else
+    echo "  INFO: Using pre-set environment variable DFTMpath=$DFTMpath"
+endif
+
+
+set filename = `basename ${tdl} .tdl`
+
+set simout = 0
+set runsim = 0
+set syntax = 0
+
+if ( $#argv == 0 ) then
+    set simout = 1
+    set runsim = 1
+    set syntax = 1
+else
+    foreach i ( $argv )
+        switch ( $i )
+        case '-simout':
+            set simout = 1
+            breaksw
+        case '-runsim':
+            set runsim = 1
+            breaksw
+        case '-syntax':
+            set syntax = 1
+            breaksw
+        case '-all':
+        default:
+            set simout = 1
+            set runsim = 1
+            set syntax = 1
+        endsw
+    end
+endif
+
+
+if ( $simout ) then
+    echo "  INFO: Running simout to verify TDL and generate the Verilog Testbench"
+
+    $DFTMpath/bin.linux24/simout \
+        -topBlock ${module} \
+        -tdl ${tdl} \
+        -tbFix ${filename} \
+        -err ${filename}.simout.log \
+        -simulator vcs \
+        -tester FUSION \
+        -testDataFile /apps/pd/6.0.0/pyramid_6.0.0/data/data.test/test.data \
+        -testerDataFile /apps/pd/6.0.0/pyramid_6.0.0/data/data.test/tester.data \
+        -testerLbeDataFile /apps/pd/6.0.0/pyramid_6.0.0/data/data.test/tester.lbe.data \
+        -dumpVcd \
+        -noNetlist \
+        -misCompare 0 \
+#       -outDir ./work \
+        -finish
+    
+#   Edit dumpvars statement to print all nodes in VCD instead of just top-level ones
+    perl -i -lne 'BEGIN{$f=0};if($f||=/\$dumpvars/){$x.=$_};if($f&&/\);/){$f=0;$_=$x;s/(?<=\$dumpvars).*?;/;/};print unless $f' tb_${filename}.v
+
+endif
+
+
+if ( $runsim ) then
+    echo "  INFO: Simulating generated Verilog Testbench using VCS"
+
+    perl -lpe "next if /^\/\//; s/<tbfix>/${filename}/" $DFTMpath/data/data.simout/templates/vcs.tab > vcs.tab
+    if ( ! $?VCS_HOME ) then
+        setenv VCS_HOME '/apps/synopsys/vcs/2010.06-SP1/'
+    else if ( $VCS_HOME == '' ) then
+        setenv VCS_HOME '/apps/synopsys/vcs/2010.06-SP1/'
+    else
+        echo "  INFO: Using pre-set environment variable VCS_HOME='$VCS_HOME'"
+    endif
+
+    /apps/synopsys/vcs/2010.06-SP1/bin/vcs tb_${filename}.v \
+        -y ./verilog_models +libext+.v \
+        -P vcs.tab $DFTMpath/data/data.simout/libraries/TI_PLI_vcs_verilog_tdlread_linux24.so \
+        -R \
+#       -gui -debug \
+        -Mupdate +warn=noTFIPC \
+        -negdelay \
+        -sdfretain \
+        +v2k +access+r +define+TI_functiononly +sdfverbose +neg_tchk +compsdf \
+        +overlap +transport_int_delays +transport_path_delays +multisource_int_delays +plusarg_save \
+        +sdf_nocheck_celltype +pulse_int_e/0 +pulse_int_r/0 +pulse_e/0 +pulse_r/0 +vcs+lic+wait \
+# Following commented options are obsolete \
+#       +mhdlsdf +tchk+edge+match \
+        -ld g++ \
+        -o /tmp/${filename}.tdl.out \
+        -l ./${filename}.tdl.runsim.log
+endif
+# vcs above, generates an object file (${filename}.out) with the -o switch which by default is discarded
+# To run this file, use
+#   ./${filename}.out +vcs+lic+wait
+
+
+if ( $syntax ) then
+    echo "  INFO: Running TDL Checker to check TDL Syntax"
+
+    $DFTMpath/bin.linux24/tdlchkr \
+        -syntax \
+        -tdl ${tdl} \
+        -err ${filename}.tdl.syntax.log \
+        -nq
+endif

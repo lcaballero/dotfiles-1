@@ -1,0 +1,58 @@
+#!/usr/bin/perl -l
+
+## Pragmas
+use strict;
+#use diagnostics;
+use Getopt::Long;
+
+use constant DEBUG => 0;
+
+
+## Variable Declaration
+my $ifile;
+my $verbose;
+my $work;
+my $spicesim="hspice";
+
+
+## Command-line parameter handling
+GetOptions(
+	"ifile|i:s" => \$ifile,
+	"verbose|v" => \$verbose,
+	"work|w:s"  => \$work,
+);
+
+
+## Variable Initialisation
+$verbose|=DEBUG;
+
+$ifile||=$ARGV[0];
+die("ERROR: Input file not specified. Terminating...\n") unless defined($ifile);
+die("ERROR : $ifile not found. Terminating...\n") unless(-e $ifile);
+
+open(DBG, "<$ifile") or die "Unable to open $ifile";
+
+$work||=$ARGV[1];
+warn("WARN : Working directory not specified. Using waveforms by default\n") unless defined($work);
+$work||="waveforms";
+system("mkdir $work");
+
+my $ptv;
+my $file;
+while(chomp($_=<DBG>)){
+	next if(/^-+$/ || /RerunNo/);
+	
+	($ptv,$file) = /^(\S+)\s+(\S+).*?(\w+)\s*$/;
+	if($3=~/Pass/i){
+        my $ext="pun" if($spicesim eq "tispice");
+        my $ext="tr0" if($spicesim eq "hspice");
+        $ptv=~s/__+/_/g;
+        $ptv .= ".$ext";
+        $file =~ s/lsf.out/$ext/;
+        system("cp $file ./$work/$ptv");
+	}else{
+		print "$file has failed. Skipping...";
+	}
+	print "$file ==> $ptv" if $verbose;
+}
+close DBG;

@@ -1,0 +1,42 @@
+#!/usr/bin/perl -l
+# 
+# This script generates the rerun file using the parameters specified below
+# 
+# Process = strong snnp snwp nnsp nom nnwp wnsp wnnp weak weak_eol snwp_eol
+# Temp = -40 25 125
+#
+# Technology : GS40
+# VDDS = 2.97 3.3 3.63
+# VDD = 1.35 1.5 1.65
+# 
+# Technology : GS50
+# VDD = 1.08 1.2 1.32
+#
+
+use strict;
+
+open FOUT, ">rerun_file_all";
+
+
+my @process_list = qw(strong snnp snwp nnsp nom nnwp wnsp wnnp weak weak_eol snwp_eol);
+my @vdds_list = qw(0.9 1.1 1.21);
+my @vdd_list = qw(0.747 1.26);
+my @temp_list = qw(-40 25 125);
+
+my $count = 0;
+
+foreach my $process (@process_list){
+	foreach my $vdds (@vdds_list){
+		foreach my $vdd (@vdd_list){
+			foreach my $temp (@temp_list){
+				$count++;
+				print FOUT ".RERUN $count : ${process}_${vdds}_${temp}";
+				print FOUT ".INC /proj/gateway/products/gs70/spice_models/archive/2009.08.31.inline/models_strong NOPRINT";
+				print FOUT ".PARAM vdds = $vdds";
+				print FOUT ".PARAM vdd = $vdd";
+				print FOUT ".TEMP $temp";
+				print FOUT ".END\n\n";				
+			}
+		}
+	}
+}			

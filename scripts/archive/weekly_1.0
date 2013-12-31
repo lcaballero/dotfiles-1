@@ -1,0 +1,40 @@
+#!/usr/local/bin/tcsh
+
+set weekday = `date +%u`
+set monthday = `date +%d`
+if ($weekday > 4) then
+	set thu      = `echo "11 - $weekday + $monthday" | bc`
+#	set thu_prev = `echo "4 - $weekday + $monthday" | bc`
+else
+	set thu = `echo "4 - $weekday + $monthday" | bc`
+#	set thu_prev = `echo "-3 - $weekday + $monthday" | bc`
+endif
+set date = ${thu}`date +_%b_%Y`
+
+if (! -f ~/weekly/${date}) then
+echo "Weekly for week of ${date} \
+##########################################################################\
+o \
+o \
+\
+\
+Next Week: \
+---------- \
+o \
+\
+\
+Others/In Pipeline: \
+------------------  \
+o \
+\
+\
+Issues: \
+------- \
+o Nil \
+\
+\
+Leave Plans: \
+------------- " > ~/weekly/${date}
+endif
+
+n ~/weekly/${date}

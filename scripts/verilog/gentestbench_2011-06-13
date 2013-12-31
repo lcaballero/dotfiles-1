@@ -1,0 +1,407 @@
+#!/usr/bin/perl
+#==================================================================================================#
+#                                                                                                  #
+# DESCRIPTION:                                                                                     #
+#   Script to generate verilog testbench from input template file                                  #
+#                                                                                                  #
+# SYNTAX:                                                                                          #
+#   gentestbench [-i] <template> [-y] <libdir> [[-o] <testbench>]                                  #
+#                                                                                                  #
+# REQUIRED:                                                                                        #
+#   Template file containing signal levels at different times                                      #
+#                                                                                                  #
+# CHANGELOG:                                                                                       #
+# Created by Somu Ghosh (a0393049)                                                                 #
+#                                                                                                  #
+# 2010-04-13 : Kartik Shenoy (a0393831)                                                            #
+#   - Template file can accept input pins with levels L,H,Y which are converted to 0,1,X in        #
+#     verilog testbench                                                                            #
+#   - Template file can accept output pins with level M which is converted to X in the verilog     #
+#     verilog testbench                                                                            #
+#                                                                                                  #
+# 2011-02-11 : Kartik Shenoy (a0393831)                                                            #
+#   - Added support for inout pins                                                                 #
+#   - Signal levels L,H,Y should be used only to signify input and 0,1,M,X,Z only for output       #
+#                                                                                                  #
+# 2011-06-13 : Kartik Shenoy (a0393831)                                                            #
+#   - Changed the inputs required in Template File. pin_order, input_pins, output_pins, inout_pins #
+#     shouldn't be specified. This info will be automatically picked up from the model file        #
+#                                                                                                  #
+#==================================================================================================#
+
+## Modules ========================================================================================#
+
+use strict;
+use warnings;
+#use diagnostics;
+use Getopt::Long;
+use Data::Dumper;
+
+use constant DEBUG => 0;
+
+
+## Command-line parameter handling ================================================================#
+
+GetOptions(
+            'i=s' => \my $template,
+            'y=s' => \my $libdir,
+            'o=s' => \my $testbench,
+	'verbose|v:i' => \my $verbose,
+);
+
+
+## File Handling ==================================================================================#
+
+$template||=$ARGV[0] unless defined $template;
+defined($template) or die("  ERROR : Specified template file not specified. Usage $0 [-i] <template> [-y] <libdir> -o <testbench>\n");
+die("  ERROR : $template not found.\n") unless(-e $template);
+open(my $tpl,"<",$template) or die("  ERROR : Unable to open $template for reading.\n");
+
+$libdir||=$ARGV[1];
+defined($libdir) or die("  ERROR : Library directory not specified. Usage $0 [-i] <template> [-y] <libdir> -o <testbench>\n");
+die("  ERROR : $libdir not found.\n") unless(-e $libdir);
+
+$testbench||=$ARGV[2] unless defined $testbench;
+unless(defined $testbench){
+    ($testbench) = $template =~ /(.*?)(?:\.tpl)?$/;
+    $testbench =~ s/\.v$//;
+    $testbench .= "_tb";
+    warn("  INFO  : Output testbench not specified. Writing the output to ${testbench}.v\n");
+}
+open(my $vtb,">","${testbench}.v") or die("  ERROR : Unable to open ${testbench}.v for writing.\n");
+
+$verbose|=DEBUG;
+
+
+## ================================================================================================#
+
+my @keywords=qw(verilog_model timescale timestep waitstep);
+my (%template,%pinlist);
+my (@pinlist,@input_pins,@output_pins,@inout_pins);
+my $simbits=0;
+
+
+## Read Template and Parse Values =================================================================#
+
+while(<$tpl>){
+	chomp; s/[\n\t\f\s]//g;
+	next unless $_; next if /^#/;
+	
+	my @fields=split(/:/);
+	if($#fields==1){
+        unless(grep(/$fields[0]/,@keywords)){
+            die "  ERROR : Illegal pin name $fields[0] found in $template\n" unless($fields[0] =~ /^[A-Za-z]+\w*$/);
+            if($fields[1] =~ /^[10LHXYZMC]*$/i){
+                $simbits = (length($fields[1]) > $simbits ? length($fields[1]) : $simbits);
+            }else{
+                die " ERROR  : Illegal signal levels for pin $fields[0] on line no. $.\n";
+            }
+        }
+        $template{$fields[0]}=$fields[1];
+	}else{
+		warn "  WARN  : Illegal Statement $_ at line no. $.. Ignoring...\n";
+	}
+}
+
+
+## Verifying Inputs ===============================================================================#
+
+die " ERROR : Module name not specified. Module name is required to obtain pin information\n" unless(defined $template{verilog_model});
+
+
+# Check verilog model file
+if(defined $template{verilog_model}){
+
+    if(open(my $vlg, "$libdir/$template{verilog_model}.v")){
+
+        my ($pin,$flag_comment);
+        while(<$vlg>){
+            chomp;
+
+        # Removing Comments
+            s[/\*.*?\*/][]g;
+            s[//.*][]g;
+            if(m[/\*]){
+                $flag_comment=1;
+                s[/\*.*][];
+            }elsif($flag_comment){
+                if(s[.*\*/][]){
+                    $flag_comment=0;
+                }else{
+                    next;
+                }
+            }
+            next unless $_;
+
+        # Identifying pin list
+            if(/^\s*module/ and (@pinlist = /(\w+)/g)){
+                shift @pinlist;
+                unless($pinlist[0] eq $template{verilog_model}){
+                    print "  INFO  : Module name $pinlist[0] different from that specified in template file - $template{verilog_model}. Using $pinlist[0] for testbench creation.\n";
+                }
+                $template{verilog_model} = shift @pinlist;
+                print "\n  Module: $template{verilog_model}\n  Pins  : @pinlist\n\n" if($verbose);
+                @_=@pinlist;
+            }
+
+        # Getting pin directions
+            if(($pin) = /^\s*\binput\b\s+(\w+)/i){
+                die "  ERROR : Input port $pin does not exist in verilog module definition pin list\n" unless(grep(/\b$pin\b/,@pinlist));
+                die "  ERROR : Signal vector not specified for Input pin $pin\n" unless(defined $template{$1});
+
+                @_ = grep(!/\b$pin\b/,@_);
+                push(@input_pins,$pin);
+
+                $pinlist{$pin}=$template{$pin};
+                delete $template{$pin};
+                s/L/0/gi, s/H/1/gi, s/[MY]/X/gi for $pinlist{$pin};
+
+            }elsif(($pin) = /^\s*\boutput\b\s+(\w+)/i){
+                die "  ERROR : Output port $pin does not exist in verilog module definition pin list\n" unless exists $template{$pin};
+
+                @_ = grep(!/\b$pin\b/,@_);
+                push(@output_pins,$pin);
+
+                unless(defined $template{$pin}){
+                    warn "  WARN  : Signal vector not specified for Output pin $pin. Creating output pin defaulting to don't care...\n";
+                    $pinlist{$pin}="X";
+                }else{
+                    $pinlist{$pin}=$template{$pin};
+                    delete $template{$pin};
+                    s/L/0/gi, s/H/1/gi, s/[MY]/X/gi for $pinlist{$pin};
+                }
+
+            }elsif(($pin) = /^\s*\binout\b\s+(\w+)/i){
+                die "  ERROR : Inout port $pin does not exist in verilog module definition pin list\n" unless exists $template{$1};
+                die "  ERROR : Signal vector not specified for Inout pin $pin\n" unless(defined $template{$pin});
+                print "  INFO  : Inout pins have been specified. Please ensure that inputs are specified only as 'L,H,Y' and outputs as '0,1,X,Z,M'\n" if($#inout_pins==-1);
+
+                @_ = grep(!/\b$pin\b/,@_);
+                push(@inout_pins,$pin);
+
+                $pinlist{$pin}=$template{$pin};
+                delete $template{$pin};
+            }
+
+        }
+        close($vlg);
+        die "  ERROR : Direction has not been specified for the following pins: @_\n" if($#_ > -1); 
+
+    }else{
+        die "  ERROR  : Couldn't open $libdir/$template{verilog_model}.v for reading\n";
+    }
+}
+
+
+# Checking to see if extra signal vectors have been specified for pins not mentioned in pinlist and ignoring them
+map {warn "  WARN  : Extra signal $_ found. Ignoring...\n" unless(grep(/$_/,@keywords))} keys(%template);
+
+
+if(defined $template{timescale}){
+	unless($template{timescale} =~ /^\d+[fpnum]?s\/\d+[fpnum]?s$/){
+		warn "  WARN  : timescale ($template{timescale}) value not in correct format. Using default value 1ps/1ps\n";
+		$template{timescale}="1ps/1ps";
+	}
+}else{
+	warn "  WARN  : timescale value not specified. Using default value 1ps/1ps\n";
+	$template{timescale}="1ps/1ps";
+}
+
+if(defined $template{timestep}){
+	unless($template{timestep} =~ /^\d+$/){
+		warn "  WARN  : timestep value not in correct format. Using default value 10\n";
+		$template{timestep} = "10";
+	}
+}else{
+	warn "  WARN  : timestep value not specified. Using default value 10\n";
+	$template{timestep} = "10";
+}
+
+if(defined $template{waitstep}){
+	unless($template{waitstep} =~ /^\d+$/){
+		warn "  WARN  : waitstep value not in correct format. Using default value 10\n";
+		$template{waitstep} = "10";
+	}
+}else{
+	warn "  WARN  : waitstep value not specified. Using default value 10\n";
+	$template{waitstep} = "10";
+}
+
+$template{timescale}=~/^(\d+)(\w+)/;
+$_=$simbits*($template{timestep}+$template{waitstep})*$1;
+
+# Print Values Obtained
+print "\n  Following Data found in template\n";
+print "  ---------------------------------\n";
+print "  module         : " . $template{verilog_model} . "\n";
+print "  timescale      : " . $template{timescale} . "\n";
+print "  timestep       : " . $template{timestep} . "\n";
+print "  waitstep       : " . $template{waitstep} . "\n";
+print "\n  pinlist        : @pinlist\n\n" if($verbose);
+print "  input_pins     : @input_pins\n\n" if($verbose);
+print "  output_pins    : @output_pins\n\n" if($verbose);
+print "  inout_pins     : @inout_pins\n\n" if($verbose and $#inout_pins > -1);
+print "  Total Sim Time : " . "$simbits*($template{timestep}+$template{waitstep})*".(split(/\//,$template{timescale}))[0]." = $_$2\n";
+
+
+## Generate testbench =============================================================================#
+
+chomp(my $id=`whoami`);
+#my $name=(split(/\s+/,`de $id | grep "Common name"`))[4]." ".(split(/\s+/,`de $id | grep "Common name"`))[5];
+chomp(my $toc=`date`); 
+
+print $vtb "// Verilog Test Bench Setup created by gentestbench 
+// Created by: $id
+// Created on: $toc
+                                                           
+`timescale $template{timescale}
+                                                           
+module $testbench ()\; \n";
+
+# List of Input pins specified as reg
+my $pinalign = 0;
+print $vtb "\n// Input Pins\n";
+foreach my $pin (@input_pins){
+    print $vtb "reg $pin;\n";
+    $pinalign = length($pin) if($pinalign < length($pin));
+}
+
+# List of Output pins specified as wire
+print $vtb "\n// Output Pins\n";
+foreach my $pin (@output_pins){
+    print $vtb "wire $pin;\n";
+}
+
+# List of Inout pins specified as wire
+if($#inout_pins > -1){
+    print $vtb "\n// Inout Pins\n";
+    foreach my $pin (@inout_pins){
+        print $vtb "wire $pin;\n";
+    }
+}
+
+# Extra signal specified as reg for expected values of outputs
+print $vtb "\n\n// Expected Outputs - Internal nets\n";
+foreach my $pin (@output_pins){
+    print $vtb "reg ${pin}_expected;\n";
+    $pinalign = length($pin."_expected") if($pinalign < length($pin."_expected"));
+}
+
+# Extra signals specified as reg for expected values of inouts
+# Extra signals to specify direction of inout pins: 0 - Out, 1 - In
+if($#inout_pins > -1){
+    print $vtb "\n// Control for Inouts - Internal nets\n";
+    foreach my $pin (@inout_pins){
+        print $vtb "reg ${pin}_expected;\n";
+        print $vtb "reg ${pin}_dir;\n";
+        $pinalign = length($pin."_expected") if($pinalign < length($pin."_expected"));
+    }
+}
+
+$pinalign+=2;
+
+print $vtb "\ninteger failures=0,counter=0;\n";
+print $vtb "\n\ninitial \nbegin
+\t\$dumpfile\(\"${testbench}.vcd\"\);
+\t\$dumpvars\(0," . (split("/",$testbench))[-1] . "\);
+\t\$display();
+\n\t#0\t\t// Bit 0\n";
+
+for(my $simcount=0;$simcount < $simbits;$simcount++){
+    foreach my $pin (@input_pins){
+        next unless defined((split(//,$pinlist{$pin}))[$simcount]);
+        my $pinval = (split(//,$pinlist{$pin}))[$simcount];
+		printf $vtb "\t%-*s = %s\;\n",$pinalign,$pin,"1\'b$pinval" if($pinval=~/[01XZ]/i);
+    }
+    foreach my $pin (@output_pins){
+		next unless defined((split(//,$pinlist{$pin}))[$simcount]);
+		my $pinval = (split(//,$pinlist{$pin}))[$simcount];
+		printf $vtb "\t%-*s = %s\;\n",$pinalign,"${pin}_expected","1\'b$pinval" if($pinval=~/[01XZ]/i);
+    }
+
+    if($#inout_pins > -1){
+        foreach my $pin (@inout_pins){
+            next unless defined((split(//,$pinlist{$pin}))[$simcount]);
+            my $pinval = (split(//,$pinlist{$pin}))[$simcount];
+
+            # If L,H,Y is specified in signal vector for inout pin, treat it as input
+            if($pinval=~/[LHY]/i){
+                s/L/0/gi, s/H/1/gi, s/Y/X/gi for $pinval;
+                printf $vtb "\t%-*s = %s\;    // inout\n",$pinalign,"${pin}_expected","1\'b$pinval";
+                printf $vtb "\t%-*s = %s\;    // inout direction (0:Out, 1:In)\n",$pinalign,"${pin}_dir","1\'b1";
+            
+            # If 0,1,M,X,Z is specified in signal vector for inout pin, treat it as output
+            }elsif($pinval=~/[01XZM]/i){
+                s/M/X/gi for $pinval;
+                printf $vtb "\t%-*s = %s\;    // inout\n",$pinalign,"${pin}_expected","1\'b$pinval";
+                printf $vtb "\t%-*s = %s\;    // inout direction (0:Out, 1:In)\n",$pinalign,"${pin}_dir","1\'b0";
+            }
+        }
+    }
+
+	print $vtb "\t#$template{waitstep}\n\tcounter = counter + 1\;\n\tevaluate_testbench\;\n";
+	if($simcount < ($simbits -1)){
+        $_=$simcount+1;
+		print $vtb "\n\t#$template{timestep}\t\t// Bit $_\n";
+	}else{
+		print $vtb "\n\tterminate_testbench\;\n";
+	}
+}
+print $vtb "end\n\n";
+
+
+if($#inout_pins > -1){
+    # Mux the value of inout pins with Z, controlled by the <inout>_in pin;
+    # Give muxed value to DUT
+    foreach my $pin (@inout_pins){
+        print $vtb "assign $pin = ${pin}_dir ? ${pin}_expected : 1\'bZ;\n";
+    }
+}
+
+print $vtb "
+$template{verilog_model} $template{verilog_model}_dut (".join(',',@pinlist).")\;\n
+
+task terminate_testbench\;
+begin
+\t\$display\(\"Simulation found %0d failures\\n\", failures\)\;
+\t\$finish\;
+end
+endtask
+\n
+task evaluate_testbench;
+begin\n";
+
+print $vtb "// Outputs comparison\n";
+# Compare simulated output value with expected value
+foreach my $pin (@output_pins){
+#    print $vtb "\t\t\$strobe_compare(${pin}_expected,$pin);\n";
+	print $vtb "\tif \(${pin}_expected !== 1'bX\) begin\n";
+    print $vtb "\t\tif \(${pin}_expected !== $pin\) begin\n";
+    print $vtb "\t\t\tfailures = failures + 1;\n";
+    print $vtb "\t\t\$display\(\"Sim Failed for $pin in \%0d. Expected=\%d, Simulated=\%d\", counter,${pin}_expected,$pin)\;\n";
+    print $vtb "\t\tend\n";
+	print $vtb "\tend\n";
+}
+
+if($#inout_pins > -1){
+    # Compare simulated inout value with expected value if inout is treated as output
+    print $vtb "\n// Inouts comparison\n";
+    foreach my $pin (@inout_pins){
+        print $vtb "\tif ((${pin}_dir === 1'b0)&&(${pin}_expected !==1'bX)) begin\n";
+        print $vtb "\t\tif \(${pin}_expected !== $pin\) begin\n";
+        print $vtb "\t\t\tfailures = failures + 1;\n";
+        print $vtb "\t\t\$display\(\"Sim Failed for $pin in \%0d. Expected=\%d, Simulated=\%d\", counter,${pin}_expected,$pin)\;\n";
+        print $vtb "\t\tend\n";
+        print $vtb "\tend\n";
+    }
+}
+
+
+print $vtb "end\nendtask\nendmodule\n";
+close ($vtb);
+
+my $command = "\\rm -rf INCA_libs ; /apps/ame/bin/ncverilog ./${testbench}.v -y ./${libdir} +libext+.v -l ${testbench}.log +define+TI_functiononly +define+TI_pupdmodeled +nocopyright +access+r";
+print "\n  To verify your simulation execute\n    $command\n";
+
+print "\n  Simulate? (Yes/No) : "; chomp($_=<STDIN>);
+exec("$command") unless(/no?/i);

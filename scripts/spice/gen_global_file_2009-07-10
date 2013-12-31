@@ -1,0 +1,98 @@
+#!/usr/local/bin/perl
+# Script to generate Global SND Param file for Stat Sims
+#
+# Author  : Kartik Shenoy (a0393831)
+# Created : 10th July 2009
+#
+# NOTE    : For inline models only
+# SYNTAX  : gen_global_file <MMStat model file> <output file>
+#
+#
+use strict;
+
+use constant DEBUG => 1;
+
+if($#ARGV!=1){
+	print "Usage : $0 <MMStat model file> <output file>\n";
+	exit(1);
+}
+
+my $mpath=$ARGV[0];
+my $ofile=$ARGV[1];
+
+my @filelist;
+my %sectionlist;
+my %sndparamlist;
+
+if(!(-e "$mpath")){
+	print "ERROR >> Models file $mpath not found \n";
+	exit(1);
+}
+
+open(MFILE,"<$mpath") || die "ERROR >> Failed to open file $mpath\n";
+foreach my $line(<MFILE>){
+	next if($line=~/^\*/);
+	chomp($line);
+#	print "$line\n" if(DEBUG==1);
+
+	$line=~s/\s+/ /g;
+	if(($line=~/^\.inc/i)||($line=~/^\.lib/i)){
+		my $file=(split(' ',$line))[1];
+		$file=~s/ //g;
+		push(@filelist,$file);
+		($sectionlist{$file}) = $line =~ /section=(\S*)/;
+	}
+}
+close(MFILE);
+
+if($#filelist==-1){
+	print "No Valid spice models found in $mpath\n";
+	exit(1);
+}
+
+
+foreach my $file(@filelist){
+	chomp($file);
+	
+#	my $fname=(split('/',$file))[-1];
+
+	open(FILE,"<$file") || die "Failed to open file $file\n";
+#	print "Opening file : $file\n" if(DEBUG == 1);
+
+	my $sflag=0;
+	foreach my $line(<FILE>){
+		if(($line !~/^\.section $sectionlist{$file}\b/i)&&($sflag==0)){
+			next;
+		}elsif($sflag==0){
+#			printf("Found Section : %-20s File : %s\n",$sectionlist{$file},$file) if(DEBUG == 1);
+			$sflag=1;
+		}
+		
+		chomp($line);
+#		print "$line\n" if(DEBUG==1);
+		if ($line =~ /^.param.*=\s*'?(\w+_SND\w*)'?/i){
+#			print "$1\n" if(DEBUG==1);
+			if(exists $sndparamlist{$1}){
+#				print "Found $1\n" if(DEBUG==1);
+				$sndparamlist{$1} += 1;
+			}else{
+				$sndparamlist{$1} = 1;
+#				print "Creating $1 \n" if(exists($sndparamlist{$1})&&(DEBUG==1));
+			}
+		}
+		last if($line =~/^\.endsection $sectionlist{$file}/i);
+	}
+	close(FILE);
+
+}
+
+open(OFILE,">$ofile");
+print OFILE "* Global SND param file generated for \n";
+print OFILE "*\tModel : $mpath\n";
+print OFILE "*\tCreated on : \n\n";
+foreach my $i (keys(%sndparamlist)){
+	print OFILE "* Found $sndparamlist{$i} occurences of $i\n";
+	print OFILE ".PARAM $i = 'rnorm(1)*pGlobal'\n\n";
+}
+close(OFILE);
+

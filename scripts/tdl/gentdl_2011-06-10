@@ -1,0 +1,383 @@
+#!/usr/bin/perl
+#===================================================================================================
+#
+# DESCRIPTION:
+#   Script to generate verilog testbench from input template file
+#
+# SYNTAX:
+#   gentdl [-i] <template filename> [[-o] <tdl filename>] [[-t] <asic_title>]
+#   Not specifying the output tdl file name will dump the generated TDL to template.tdl
+#   Custom ASIC_TITLE statement can be specified using -t switch
+#
+# REQUIRED:
+#   Template file containing signal levels at different times
+#
+# CHANGELOG:
+#   2011-05-31 : Created by Kartik Shenoy (a0393831)
+#
+#===================================================================================================
+
+#===================================================================================================
+# Modules
+#
+use strict;
+use warnings;
+#use diagnostics;
+use Getopt::Long;
+
+use constant WIDTH=>80;
+
+
+
+
+
+#===================================================================================================
+# Command-line parameter handling
+#
+GetOptions(
+	  'input|i=s' => \my $template,
+	 'output|o=s' => \my $tdlname,
+#	'verbose|v:i' => \my $verbose,
+      'title|t=s' => \my $asictitle,
+);
+
+
+$template||=$ARGV[0] unless defined $template;
+defined($template) or die("  ERROR : Template file not specified. Usage $0 [-i] <template> [[-o] <tdl>]\n");
+die("  ERROR : $template not found.\n") unless(-e $template);
+open(my $tpl,"<",$template) or die("  ERROR : Unable to open $template for reading.\n");
+
+$tdlname||=$ARGV[1] unless defined $tdlname;
+unless(defined $tdlname){
+    ($tdlname) = $template =~ /(.*?)(?:\.tpl)?$/;
+    warn("  INFO  : Output tdl not specified. Writing the output to $tdlname.tdl\n");
+}
+open(my $tdl,">","${tdlname}.tdl") or die("  ERROR : Unable to open $tdlname.tdl for writing.\n");
+
+$asictitle||=$ARGV[2] unless defined $asictitle;
+open(my $head,"<",$asictitle) or warn("  WARN  : Unable to open asic_title header file. Using default values.\n") if(defined $asictitle);
+
+
+my @keywords=qw(pattern_set_name pattern_set_type pin_order input_pins output_pins inout_pins period input_offset output_offset inout_offset);
+
+my %templatehash;
+my %pin_list;
+my $simbits=0;
+
+
+
+
+
+#===================================================================================================
+# Parse Template and verify
+#
+while(<$tpl>){
+	chomp; s/[\n\t\f\s]//g;
+	next unless $_; next if /^#/;
+	
+	my @fields=split(/:/);
+	if($#fields==1){
+        if(grep(/$fields[0]/,@keywords)){
+            $templatehash{$fields[0]}=$fields[1];
+        }else{
+            
+            die "  ERROR : Illegal pin name $fields[0] found in $tpl. Pin name should contain at least one mandatory character (a-z,A-Z,_,\$)\n" unless($fields[0] =~ /[a-zA-Z.\$]/);
+            die "  ERROR : Illegal pin name $fields[0] found in $tpl. Pin name should be less than 1024 characters long\n" if(length $fields[0]>1024);
+            #die "  ERROR : Illegal pin name $fields[0] found in $tpl. Pin name shouldn't contain any spaces\n" if($fields[0] =~ /\s/);
+            #die "  ERROR : Illegal pin name $fields[0] found in $tpl. Pin name should contain only the following characters: a-z,A-Z,_,\$,0-9\n" unless($fields[0] =~ /[\w.\$]/);
+
+            if($fields[1] =~ /^[10LHXYZMC]*$/i){
+                $pin_list{$fields[0]}=uc($fields[1]);
+                $simbits = ( length($fields[1]) > $simbits ? length($fields[1]) : $simbits );
+            }else{
+                die "  ERROR : Illegal signal levels for pin $fields[0] on line no. $.\n";
+            }
+        }
+	}else{
+		warn "  WARN  : Illegal Statement $_ at line no. $.. Ignoring...\n";
+	}
+}
+die "  ERROR : pin_order not specified. Will Terminate Now\n"   unless $templatehash{pin_order};
+die "  ERROR : input_pins not specified. Will Terminate Now\n"  unless $templatehash{input_pins};
+die "  ERROR : output_pins not specified. Will Terminate Now\n" unless $templatehash{output_pins};
+
+unless(defined $asictitle){
+    unless(defined $templatehash{pattern_set_name}){
+        warn "  WARN  : pattern_set_name not specified. Using 'IO_TDL' by default\n";
+        $templatehash{pattern_set_name}="IO_TDL";
+    }else{
+        $templatehash{pattern_set_name}=uc($templatehash{pattern_set_name});
+    }
+    unless(defined $templatehash{pattern_set_type}){    
+        warn "  WARN  : pattern_set_type not specified. Using 'ANALOG_BIDI' by default\n";
+        $templatehash{pattern_set_type}="ANALOG_BIDI";
+    }else{
+        $templatehash{pattern_set_type}=uc($templatehash{pattern_set_type});
+    }
+}
+
+
+my @pin_order=split(/,/,$templatehash{pin_order});
+my @input_pins=split(/,/,$templatehash{input_pins});
+my @output_pins=split(/,/,$templatehash{output_pins});
+my @inout_pins;
+@inout_pins = split(/,/,$templatehash{inout_pins}) if(defined $templatehash{inout_pins});
+my @pin_dir;
+
+
+
+
+# Checking if all pins specified in pin_order are present in either of input_pins, output_pins or inout_pins
+foreach my $pin (@pin_order){
+    die "  ERROR : Illegal pin name $pin found in pin_order\n" unless($pin =~ /^[A-Za-z]+\w*$/);
+    if(grep(/$pin/,@input_pins)){
+        #print "    IN    : $pin\n";
+        if( $#pin_dir == -1  or  $pin_dir[-1] !~ /\bIN\b/){
+            push(@pin_dir,'IN 1');
+        }elsif( $pin_dir[-1]=~ /\bIN\s*(\d+)/){
+            my $var=$1+1;
+            $pin_dir[-1]="IN $var";
+        }
+    }elsif(grep(/$pin/,@output_pins)){
+        #print "    OUT   : $pin\n";
+        if( $#pin_dir == -1  or  $pin_dir[-1] !~ /\bOUT\b/){
+            push(@pin_dir,'OUT 1');
+        }elsif( $pin_dir[-1]=~ /\bOUT\s*(\d+)/){
+            my $var=$1+1;
+            $pin_dir[-1]="OUT $var";
+        }
+    }elsif(grep(/$pin/,@inout_pins)){
+        #print "    INOUT : $pin\n";
+        if( $#pin_dir == -1  or  $pin_dir[-1] !~ /\bINOUT\b/){
+            push(@pin_dir,'INOUT 1');
+        }elsif( $pin_dir[-1]=~ /\bINOUT\s*(\d+)/){
+            my $var=$1+1;
+            $pin_dir[-1]="INOUT $var";
+        }
+    }else{
+        die "  ERROR : $pin of pin_order not in INPUT/OUTPUT/INOUT. Exiting...\n";
+    }
+}
+#print "  @pin_dir\n";
+
+# Checking if all pins specified in input_pins are present in pin_order
+# Checking if signal vectors have been specified for the input pin
+foreach my $pin (@input_pins){
+    grep(/$pin/,@pin_order) or die "  ERROR : Input pin $pin not found in pin_order.\n";
+    die "  ERROR : Illegal pin name $pin found in input_pins.\n" unless($pin =~ /^[A-Za-z]+\w*$/);
+    die "  ERROR : No Signal Specified for Input pin $pin\n" unless(defined $pin_list{$pin});
+}
+
+# Checking if all pins specified in output_pins are present in pin_order
+# If no signal values are specified for output pin, making it X and comparison won't be done
+foreach my $pin (@output_pins){
+    grep(/$pin/,@pin_order) or die "  ERROR : Output pin $pin not found in pin_order.\n";
+    die "  ERROR : Illegal pin name $pin found in output_pins\n" unless($pin =~ /^[A-Za-z]+\w*$/);
+    warn "  WARN  : No Signal Specified for OutPut pin $pin. Creating output pin defaulting to don't care...\n" unless defined $pin_list{$pin};
+}
+
+# Checking if all pins specified in inout_pins are present in pin_order
+# Checking if signal vectors have been specified for the inout pin
+if(defined $templatehash{inout_pins} and $templatehash{inout_pins}!~/^\s*$/){
+    @inout_pins=split(/,/,$templatehash{inout_pins});
+    print "  INFO  : inout_pins have been specified. Please ensure that inputs are specified only as 'L,H,Y' and outputs as '0,1,X,Z,M'.\n";
+    foreach my $pin (@inout_pins){
+        grep(/$pin/,@pin_order) or die "  ERROR : Inout pin $pin not found in pin_order.\n";
+        die "  ERROR : Illegal pin name $pin found in inout_pins\n" unless($pin =~ /^[A-Za-z]+\w*$/);
+        die "  ERROR : No Signal Specified for Inout pin $pin\n" unless(defined $pin_list{$pin});
+    }
+}else{
+    $templatehash{inout_pins}="";
+}
+
+# Checking to see if extra signal vectors have been specified for pins not mentioned in pin_order and ignoring them
+foreach my $tmp (keys %pin_list){
+    warn "  WARN  : Ignoring extra signal definition for $tmp\n" unless(grep(/$tmp/,@pin_order));
+}
+
+
+
+# Validation of time variables such as period and input/output offsets
+if(defined $templatehash{period}){
+    $templatehash{period} =~ s/s$//i;
+	unless($templatehash{period} =~ /^\d+(?:\.\d+)?[fpnum]$/i){
+		warn "  WARN  : Period ($templatehash{period}) value not in correct format. Using default value of 100NS\n";
+		$templatehash{period}="100NS";
+	}else{
+        $templatehash{period}=uc($templatehash{period})."S";
+    }
+}else{
+	warn "  WARN  : Period value not specified. Using default value of 100NS\n";
+	$templatehash{period}="100NS";
+}
+
+if(defined $templatehash{input_offset}){
+    $templatehash{input_offset} =~ s/s$//i;
+	unless($templatehash{input_offset} =~ /^\d+(?:\.\d+)?[fpnum]$/i){
+		warn "  WARN  : Input offset ($templatehash{period}) value not in correct format. Using default value of 15NS\n";
+		$templatehash{input_offset}="15NS";
+	}else{
+        $templatehash{input_offset}=uc($templatehash{input_offset})."S";
+    }
+}else{
+	warn "  WARN  : Input offset value not specified. Using default value of 15NS\n";
+	$templatehash{input_offset}="15NS";
+}
+
+if(defined $templatehash{output_offset}){
+    $templatehash{output_offset} =~ s/s$//i;
+	unless($templatehash{output_offset} =~ /^\d+(?:\.\d+)?[fpnum]$/i){
+		warn "  WARN  : Output offset ($templatehash{period}) value not in correct format. Using default value of 85NS\n";
+		$templatehash{output_offset}="85NS";
+	}else{
+        $templatehash{output_offset}=uc($templatehash{output_offset})."S";
+    }
+}else{
+	warn "  WARN  : Output offset value not specified. Using default value of 85NS\n";
+	$templatehash{output_offset}="85NS";
+}
+
+
+
+# Print Values Obtained
+print "\n  Following Data found in template\n";
+print "  ---------------------------------\n";
+$templatehash{period}=~/^(\d+(?:\.\d+)?)(\w+)/;
+print "  Total Sim Time : $simbits*$templatehash{period} = ".$simbits*$1."$2\n";
+
+
+
+
+#===================================================================================================
+# Generate TDL
+#
+
+# TDL Header
+chomp(my $id=`whoami`);
+chomp(my $toc=`date`);
+
+print $tdl "\nTDL_VERSION = \"ASIC_TDL_91 7.1\";\n\n";
+
+if(defined $asictitle){
+    while(<$head>){
+        print $tdl $_;
+    }
+    close $head;
+}else{
+print $tdl "
+ASIC_TITLE = \" 
+               LIBRARY_TYPE = SR80,
+                   CUSTOMER = Texas Instruments,
+             TI_PART_NUMBER = NO_PART,
+           PATTERN_SET_NAME = $templatehash{pattern_set_name},
+           PATTERN_SET_TYPE = $templatehash{pattern_set_type}, 
+    PATTERN_SET_DESCRIPTION = TDL Created using gentdl,
+                   REVISION = 1.00,
+";
+
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+$year += 1900;
+my @month_abbr = qw( Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec );
+print $tdl "                       DATE = $mday-$month_abbr[$mon]-$year
+\";\n\n";
+
+}
+
+# Pin-list
+print $tdl "
+CONNECT P,
+    VAR = (\n";
+print $tdl "        \"$_\",\n" foreach(@pin_order[0 .. $#pin_order-1]);
+print $tdl "        \"$pin_order[-1]\"\n    ),
+    DEFPIN = (\n";
+print $tdl "        $_,\n" foreach(@pin_dir[0 .. $#pin_dir-1]);
+print $tdl "        $pin_dir[-1]\n    );
+
+PERIOD = $templatehash{period};
+
+DELAY
+    VAR = (\n";
+print $tdl "        \"$_\",\n" foreach(@inout_pins,@input_pins[0 .. $#input_pins-1]);
+print $tdl "        \"$input_pins[-1]\"\n    ),
+    OFFSET = $templatehash{input_offset};
+    
+STROBE
+    VAR = (\n";
+print $tdl "        \"$_\",\n" foreach(@inout_pins,@output_pins[0 .. $#output_pins-1]);
+print $tdl "        \"$output_pins[-1]\"\n    ),
+    OFFSET = $templatehash{output_offset};
+    
+";
+
+print $tdl "(* Pin positions"." "x(WIDTH-18)."*)\n";
+for(my $i=0; $i<=$#pin_order; $i++){
+    my $pos=(7+$i)%(WIDTH-6);
+    my $blank="(* "." "x$pos."."." "x(WIDTH-6-1-$pos)." *)";
+    #print $blank,$/;
+
+    my @pin=split(//,$pin_order[$i]);
+    my @name=split(//,$blank);
+
+    my $k=3;
+    for(my $j=0; $j<=$#pin; $j++,$k++){
+        $k+=2 if($name[$k]   eq ".");
+        $k+=3 if($name[$k+1] eq ".");
+        if($name[$k+1] eq "*"){
+            push(@name,"\n",split(//,$blank));
+            $k+=7;
+        }elsif($name[$k] eq "*"){
+            push(@name,"\n",split(//,$blank));
+            $k+=6;
+        }
+        $k+=2 if($name[$k]   eq ".");
+        $k+=3 if($name[$k+1] eq ".");
+
+        $name[$k]=$pin[$j];
+    }
+
+    print $tdl @name,"\n";
+}
+print $tdl "(*"." "x(WIDTH-4)."*)\n";
+    
+
+my $setr_prev="";
+my $runp=0;
+my $simindex=$simbits-1;
+foreach my $time (0..$simindex){
+    my $setr="SETR P:=T'";
+    foreach my $pin (@pin_order){
+        $setr.='______' if(length($setr) % WIDTH == WIDTH-3);
+        $setr.= (defined((split(//,$pin_list{$pin}))[$time]) ? (split(//,$pin_list{$pin}))[$time] : "." );
+    }
+
+    if($setr eq $setr_prev){
+        $runp++;
+    }else{
+        my $setnum=$time-1;
+
+        if($time and $runp){
+            print $tdl "RUNP FOR $runp;"." "x(WIDTH-10-length($runp)-length("(* $simindex *)"))."(* "." "x(length($simindex)-length($setnum))."$setnum *)\n";
+        }elsif($time){
+            print $tdl " "x(WIDTH-length("(* $simindex *)"))."(* "." "x(length($simindex)-length($setnum))."$setnum *)\n";
+        }
+
+        $setr_prev=$setr;
+        $runp=0;
+
+        $setr.='\';';
+        $setr =~ s/______/___\n___/g;
+
+        print $tdl "$setr\n";
+    }
+}
+if($runp){
+    print $tdl "RUNP FOR $runp;"." "x(WIDTH-10-length($runp)-length("(* $simindex *)"))."(* $simindex *)\n";
+}else{
+    print $tdl " "x(WIDTH-length("(* $simindex *)"))."(* $simindex *)\n";
+}
+print $tdl "END;";
+
+
+
+close $tpl;
+close $tdl;
