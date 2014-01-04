@@ -340,6 +340,6 @@ function preprompt_sjlmod {
   PS2="${prc_user_symbol}${pr_user_symbol}${prc_norm} "
 
   # Evaluate dynamic variables ( Not required for prompt )
-  declare -F dyn_vars && dyn_vars > /dev/null
+  declare -F dyn_vars > /dev/null && dyn_vars > /dev/null
 }
 PROMPT_COMMAND=preprompt_sjlmod
