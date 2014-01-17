@@ -158,8 +158,8 @@ export TERM=xterm-256color
 #export EDITOR=`v | sed -e 's/^alias v=//'`
 export EDITOR='vim -u NONE'
 export P4EDITOR=$EDITOR
-export PAGER=/usr/bin/less
-export MANPATH=.~/local/man:/usr/local/man:/usr/man:/tool/pandora/man:/proj/lsf/6.2/source/man
+export PAGER='less -r'
+export MANPATH=.~/local/man:$MANPATH
 export LD_LIBRARY_PATH=~/local/lib:$LD_LIBRARY_PATH
 export PATH=~/bin:~/local/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
 export TZ=US/Mountain

@@ -240,8 +240,8 @@ function preprompt_sjlmod {
   [ -n "$as" ] && pr_pwd=${pr_pwd/#$as/\~aspen}
 
   # Force time to US Mountain Time (we do this here as well as in .bashrc as sourcing some env files overwrites this)
-  local pr_time="$(TZ=US/Mountain date +%I:%M%P\ %b\ %d,\ %a)"
-  #local pr_time="$( date +%I:%M%P\ %b\ %d,\ %a)"
+  local pr_time="$(TZ=US/Mountain date +%I:%M%P\ %b\ %d,\ %a) "
+  #local pr_time="$( date +%I:%M%P\ %b\ %d,\ %a) "
   local pr_user="$(whoami) "
   local pr_user_host_sep="@ "
   local pr_pwd_sep="in "

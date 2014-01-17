@@ -4,32 +4,6 @@
 #typeset -A lsfjobs
 
 
-# Functions pertaining to AMD Projects
-unset -f build_model
-function build_model(){
-  \cp $asks/amdmsg_config.yaml .
-  build -model $1
-}
-
-unset -f build_clean_build
-function build_clean_build(){
-  build -clean -model $1 && build_model $1
-}
-
-unset -f mkwa_as
-function mkwa_as(){
-  if (( $#==0 )); then
-    echo p4_mkwa -codeline aspen
-    p4_mkwa -codeline aspen
-  else
-    [[ $1 == "-configuration_id" ]] && shift;
-    config_id=${1/#aspen\/aspen_trunk/}
-    config_id=${config_id/#@/}
-    echo p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
-    p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
-  fi
-}
-
 # Human-readable du sorted by size
 unset -f duf
 function duf {

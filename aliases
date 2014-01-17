@@ -58,8 +58,8 @@ fi
 alias ls='ls -FLH --color=always'
 alias l=ls
 alias ll='ls -lh'
-alias la='ls -a'
-alias lla='ll -a'
+alias la='ls -A'
+alias lla='ll -A'
 alias all=lla
 alias lal=lla
 alias ltr='ll -tr'
@@ -127,23 +127,38 @@ alias du1='du -kh --max-depth=1'
 alias space=du1
 alias spc=space
 
+#=================
+# Search related
+#
 alias f=find
-alias fn='find -name'
-alias f.='find -maxdepth 1'
-alias f.n='find -maxdepth 1 -name'
+alias fn='f -name'
+alias f.='f -maxdepth 1'
+alias f.n='f -maxdepth 1 -name'
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 alias g='grep -sP --color=always'
 alias grepi='grep -i'
+#alias pgrep='/bin/ps -aef | grep -i'
+# If Ack exists use it!!
+if hash ack 2> /dev/null; then
+  alias acki='ack -i'
+  alias a='ack --color'
+  alias ai='a -i'
+  alias av='a -v'
+  alias ackc='a --type=cpp'
+  alias ackcc='a --type=cpp --nohh'
+  alias ackch='a --type=hh'
+  alias g='a'
+  alias f='a -fuG'
+  alias f.='a -fun'
+  alias f.n='a -funG'
+fi
 alias gi='g -i'
 alias gv='g -v'
 alias gerr='gi ERR -C5'
-alias pgrep='/bin/ps -aef | grep -i'
-alias a='ack'
-alias ai='ack -i'
 
 alias C=cat
-alias L=less
+alias L='less -r'
 alias H=head
 alias T='tail -n 50'
 if [[ $MYSHELL =~ "zsh" ]]; then
@@ -234,6 +249,7 @@ if [[ $MYSHELL =~ "zsh" ]]; then
   hash -d zsh="$HOME/Dropbox/Softwares/Linux/zsh"
   hash -d bash="$HOME/Dropbox/Softwares/Linux/bash"
 fi
+alias path='readlink -f'
 
 
 #==============
@@ -250,6 +266,7 @@ alias apt-aurem='sudo apt-get autoremove'
 #
 alias pf='p4w'
 alias pfu='pf update_env'
+alias pful='pf update_env @latest'
 alias pfa='pf add'
 alias pfd='pf diff'
 alias pfe='pf edit'
@@ -285,9 +302,6 @@ alias gS='git status'
 #========
 # Tools
 #
-alias ack='ack-grep'
-alias ackc='ack-grep --type=cpp'
-alias ackch='ack-grep --type=hh'
 alias tags='ctags -R -f .tags --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q .'
 alias vs='vncserver'
 alias vk='vncserver -kill'
