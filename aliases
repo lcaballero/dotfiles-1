@@ -138,7 +138,7 @@ alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
 alias g='grep -sP --color=always'
 alias grepi='grep -i'
-#alias pgrep='/bin/ps -aef | grep -i'
+alias pgrep='/bin/ps -a | grep -i -e PID -e'
 # If Ack exists use it!!
 if hash ack 2> /dev/null; then
   alias acki='ack -i'
