@@ -4,11 +4,27 @@
 #typeset -A lsfjobs
 
 
-# Human-readable du sorted by size
+# Human-readable du sorted by size ( DEPRECATED. Use du -h | sort -h )
 unset -f duf
+#function duf {
+#  depth=$1
+#  shift
+#  command du -k --max-depth=${depth} "$@" | sort -n | while read size fname; do for unit in K M G T P E Z Y; do if [ $size -lt 1024 ]; then printf " %4d%sB\t  %s\n" ${size} ${unit} ${fname}; break; fi; size=$((size/1024)); done; done
+#}
 function duf {
-  command du -k "$@" | sort -n | while read size fname; do for unit in K M G T P E Z Y; do if [ $size -lt 1024 ]; then printf " %4d%sB\t  %s\n" ${size} ${unit} ${fname}; break; fi; size=$((size/1024)); done; done
+  dir="."
+  depth=""
+  if (( $# > 0 )); then
+    dir=$1
+  fi
+  if (( $# > 1 )); then
+    depth="-d "$2
+  fi
+
+  du -kh $dir $depth 2> /dev/null | sort -h
 }
+unset -f du1
+function du1() { duf $1 1; }
 
 
 # DIRSTACK                                                                                         {{{1

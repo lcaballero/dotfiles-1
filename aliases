@@ -1,9 +1,9 @@
-#!/bin/bash -a
+#!/bin/bash
 #=========
 # Aliases
 #=========
 # Identify the current shell
-MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' ))
+MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' | sed 's/-//g' ))
 
 #=================================
 # Global aliases ( Zsh specific )
@@ -122,9 +122,7 @@ else
 fi
 alias ln='ln -svi'
 alias df='df -h'
-alias du='du -kh'
-alias du1='du -kh --max-depth=1'
-alias space=du1
+alias space='du1 .'
 alias spc=space
 
 #=================
