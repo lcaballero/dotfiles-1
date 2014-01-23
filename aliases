@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -a
 #=========
 # Aliases
 #=========
@@ -212,17 +212,17 @@ alias readme='v ~/Dropbox/Softwares/Linux/readmes/README.toc'
 # Shell config
 #
 if [[ $MYSHELL =~ "bash" ]]; then
-  alias edrc='v ~/.bashrc'
-  alias edf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
+  alias esr='v ~/.bashrc'
+  alias esf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
   alias src='. ~/.bashrc && echo Sourced ~/.bashrc'
 fi
 if [[ $MYSHELL =~ "zsh" ]]; then
-  alias edrc='v ~/.zshrc'
-  alias edf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
+  alias esr='v ~/.zshrc'
+  alias esf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
   alias src='. ~/.zshrc && echo Sourced ~/.zshrc'
 fi
 alias s=src
-alias eda='v ~/Dropbox/Softwares/Linux/aliases'
+alias esa='v ~/Dropbox/Softwares/Linux/aliases'
 alias sra='. ~/Dropbox/Softwares/Linux/aliases'
 
 

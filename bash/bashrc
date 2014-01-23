@@ -91,10 +91,6 @@ complete -f -o default -X '!*.vv' vv
 #===================================================================================================
 # External Customisations
 #==========================
-if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
-    . /etc/bash_completion
-fi
-
 #if [ -x /usr/bin/dircolors ]; then
 #    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
 #fi
@@ -102,15 +98,19 @@ fi
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 
-if [ -f ~/Dropbox/Softwares/Linux/bash/bash_func ]; then
-  #echo "  Sourcing bash_func ..."
-  . ~/Dropbox/Softwares/Linux/bash/bash_func
-  #echo "  ... done"
-fi
-
 if [ -f ~/Dropbox/Softwares/Linux/aliases ]; then
   #echo "  Sourcing aliases ..."
   . ~/Dropbox/Softwares/Linux/aliases
+  #echo "  ... done"
+fi
+
+if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
+    . /etc/bash_completion
+fi
+
+if [ -f ~/Dropbox/Softwares/Linux/bash/bash_func ]; then
+  #echo "  Sourcing bash_func ..."
+  . ~/Dropbox/Softwares/Linux/bash/bash_func
   #echo "  ... done"
 fi
 
@@ -154,26 +154,30 @@ alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo
 
 # Set terminal to mimic titeInhibit = true
 export TERM=xterm-256color
+# Show timestamps in history
+export HISTTIMEFORMAT="%F %T "
 #export LESS="-icuf -P?f%f:stdin. [%T] (?pB%pB\%:byte %bB.)"
 #export EDITOR=`v | sed -e 's/^alias v=//'`
 export EDITOR='vim -u NONE'
-export P4EDITOR=$EDITOR
 export PAGER='less -r'
 export MANPATH=.~/local/man:$MANPATH
 export LD_LIBRARY_PATH=~/local/lib:$LD_LIBRARY_PATH
 export PATH=~/bin:~/local/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
 export TZ=US/Mountain
-# Show timestamps in history
-export HISTTIMEFORMAT="%F %T "
 export LANG=en_US.UTF-8
+#export MYCPU_TERM=/usr/bin/gnome-terminal
+# Ack
 #export ACK_OPTIONS='--color-filename=COLOR --color-match=COLOR --color-lineno=COLOR --type-add verilog:ext:.sv,.svh,.v'
 export ACK_OPTIONS='--type-set verilog=.sv,.svh,.v'
-#export MYCPU_TERM=/usr/bin/gnome-terminal
+# Perforce
+export P4EDITOR=$EDITOR
+export P4DIFF=`which meld`
+export P4MERGE="meld --diff %b %1 --diff %b %2 --diff %2 %b %1 %r"
 
 
 #===================================================================================================
 # TMUX
-#========================
+#=======
 if [ -f ~/Dropbox/Softwares/Linux/tmux/tmux_completion_bash.sh ]; then
   . ~/Dropbox/Softwares/Linux/tmux/tmux_completion_bash.sh
 fi
