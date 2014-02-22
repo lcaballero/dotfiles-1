@@ -2,6 +2,12 @@
 root = /home/ks/Dropbox/Softwares/Vim
 root = /mnt/cifs/amd/svdc/Dropbox/Softwares/Vim
 
+#          Causes Unison to double-check, at the end of update detection,
+#          that PATH exists and abort if it does not. This is useful when
+#          Unison is used to synchronize removable media. This preference
+#          can be given more than once.
+#mountpoint = /mnt/cifs/amd/svdc/Dropbox/Softwares/Vim
+
 # Paths to synchronize
 #path = current
 #path = common
@@ -17,8 +23,9 @@ root = /mnt/cifs/amd/svdc/Dropbox/Softwares/Vim
 ignore = Path bundle
 ignore = Path junk
 ignore = Path .git
-ignore = Name *.tags
-ignore = Name *.netrwhist
+ignore = Name tags
+ignore = Name .tags
+ignore = Name .netrwhist
 
 #          When set to true, this flag causes the user interface to skip
 #          asking for confirmations on non-conflicting changes. (More
@@ -28,10 +35,16 @@ ignore = Name *.netrwhist
 #          directly to the next conflict.)
 auto=true
 
+#          The backups are stored locally creating a new folder for each
+#          version.
+backuplocation = local
+backupprefix = .unison/$VERSION.
+backupsuffix =
+
 #          When this is set to true, the user interface will ask no
 #          questions at all. Non-conflicting changes will be propagated;
 #          conflicts will be skipped.
-batch=true
+batch=false
 
 #          !When this is set to true, Unison will request an extra
 #          confirmation if it appears that the entire replica has been
@@ -69,7 +82,7 @@ group=true
 
 #          When this flag is set to true, the owner attributes of the
 #          files are synchronized. Whether the owner names or the owner
-#          identifiers are synchronizeddepends on the preference
+#          identifiers are synchronized depends on the preference
 #          extttnumerids.
 owner=true
 

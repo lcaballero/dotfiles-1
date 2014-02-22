@@ -4,27 +4,31 @@
 #typeset -A lsfjobs
 
 
-# Human-readable du sorted by size ( DEPRECATED. Use du -h | sort -h )
-unset -f duf
-#function duf {
-#  depth=$1
-#  shift
-#  command du -k --max-depth=${depth} "$@" | sort -n | while read size fname; do for unit in K M G T P E Z Y; do if [ $size -lt 1024 ]; then printf " %4d%sB\t  %s\n" ${size} ${unit} ${fname}; break; fi; size=$((size/1024)); done; done
-#}
-function duf {
+# Human-readable du sorted by size
+unset -f duh
+function duh {
+  depth="0"
   dir="."
-  depth=""
+  if (( $# > 0 )); then
+    depth=$1
+    shift
+  fi
   if (( $# > 0 )); then
     dir=$1
-  fi
-  if (( $# > 1 )); then
-    depth="-d "$2
+    shift
   fi
 
-  du -kh $dir $depth 2> /dev/null | sort -h
+  # Check to see if sort supports -h or not
+  echo "A" | sort -h &> /dev/null
+  if [[ $? ]]; then
+    # sort -h is not supported
+    command du -k --max-depth=$depth $dir | sort -n | while read size fname; do for unit in K M G T P E Z Y; do if [ $size -lt 1024 ]; then printf " %4d%sB\t  %s\n" ${size} ${unit} ${fname}; break; fi; size=$((size/1024)); done; done
+  else
+    # sort -h is supported
+    echo "du -kh --max-depth=$depth $dir 2> /dev/null | sort -h"
+    du -kh --max-depth=$depth $dir 2> /dev/null | sort -h
+  fi
 }
-unset -f du1
-function du1() { duf $1 1; }
 
 
 # DIRSTACK                                                                                                          {{{1
@@ -106,7 +110,8 @@ function popd  { command popd  $@ > /dev/null ; }
 # Emulate Zsh's behavior of pushd lifting the directory to tos instead of cycling the stack                         {{{1
 function zsh_cd {
   if (( $#==0 )); then
-    if [[ $REPO_PATH == "" ]]; then
+    # Check if $REPO_PATH has not been set (here we check that its length is zero)
+    if [[ -z $REPO_PATH ]]; then
       #echo "Forcing target dir to $HOME"
       dir=${HOME/%\//}
     else

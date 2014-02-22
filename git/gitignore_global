@@ -38,6 +38,11 @@ Icon?
 ehthumbs.db
 Thumbs.db
 
-# Vim Plugins ignore tags #
+# Backups #
+###########
+.unison/
+
+# Tags #
+########
 tags
 .tags

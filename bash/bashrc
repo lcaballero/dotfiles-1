@@ -98,12 +98,6 @@ complete -f -o default -X '!*.vv' vv
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 
-if [ -f ~/Dropbox/Softwares/Linux/aliases ]; then
-  #echo "  Sourcing aliases ..."
-  . ~/Dropbox/Softwares/Linux/aliases
-  #echo "  ... done"
-fi
-
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
@@ -118,6 +112,12 @@ if [ -f ~/Dropbox/Softwares/Linux/bash/bash_prompt ]; then
   #echo "  Sourcing bash_prompt ..."
   . ~/Dropbox/Softwares/Linux/bash/bash_prompt
   preprompt_sjlmod
+  #echo "  ... done"
+fi
+
+if [ -f ~/Dropbox/Softwares/Linux/aliases ]; then
+  #echo "  Sourcing aliases ..."
+  . ~/Dropbox/Softwares/Linux/aliases
   #echo "  ... done"
 fi
 

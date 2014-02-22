@@ -1,7 +1,8 @@
-#!/bin/bash -a
+#!/bin/bash
 #=========
 # Aliases
 #=========
+alias al=alias
 # Identify the current shell
 MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' | sed 's/-//g' ))
 
@@ -122,6 +123,9 @@ else
 fi
 alias ln='ln -svi'
 alias df='df -h'
+alias du1='duh 1'
+alias du2='duh 2'
+alias du3='duh 3'
 alias space='du1 .'
 alias spc=space
 
@@ -137,7 +141,8 @@ alias egrep='egrep --color=auto'
 alias g='grep -sP --color=always'
 alias grepi='grep -i'
 alias pgrep='/bin/ps -a | grep -i -e PID -e'
-# If Ack exists use it!!
+
+# If Ack exists, use it!!
 if hash ack 2> /dev/null; then
   alias acki='ack -i'
   alias a='ack --color'
@@ -146,10 +151,6 @@ if hash ack 2> /dev/null; then
   alias ackc='a --type=cpp'
   alias ackcc='a --type=cpp --nohh'
   alias ackch='a --type=hh'
-  alias g='a'
-  alias f='a -fuG'
-  alias f.='a -fun'
-  alias f.n='a -funG'
 fi
 alias gi='g -i'
 alias gv='g -v'
@@ -193,7 +194,7 @@ alias vvm='v ~/.vim/mappings.vim'
 alias vvf='v ~/.vim/functions.vim'
 alias vd='v -d'
 alias vu='v -u NONE -U NONE --noplugin -N'
-alias rvv='\rm -rf ~/.vim/views/*'
+alias rvv='\rm -rf ~/.vim/junk/views/*'
 
 
 #===============
@@ -263,17 +264,19 @@ alias apt-aurem='sudo apt-get autoremove'
 # Perforce Aliases
 #
 alias pf='p4w'
-alias pfu='pf update_env'
-alias pful='pf update_env @latest'
 alias pfa='pf add'
 alias pfd='pf diff'
 alias pfe='pf edit'
 alias pfh='pf help'
 alias pfo='pf opened'
 alias pfop="pfo | perl -pe 's/^.*?trunk\/|#.*$//g'"
-alias pfre='pf revert'
+alias pfrem='pf remove'
+alias pfres='pf resolve'
+alias pfrev='pf revert'
 alias pfs='pf submit'
-alias pfr='pf resolve'
+function pfu { pf update_env $* && ~/bin/make_tags; }
+#function pfu { pf update_env $* }
+alias pful='pfu @latest'
 
 
 #==============
@@ -300,7 +303,7 @@ alias gS='git status'
 #========
 # Tools
 #
-alias tags='ctags -R -f .tags --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q .'
+alias tags='ctags --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q *'
 alias vs='vncserver'
 alias vk='vncserver -kill'
 
@@ -332,6 +335,6 @@ fi
 #========================
 # Local machine aliases
 #
-if [ -f ~/.aliases ]; then
-  . ~/.aliases
+if [ -f ~/.myaliases ]; then
+  . ~/.myaliases
 fi

@@ -1,0 +1,115 @@
+#!/bin/bash
+# gentags v0.3 -- generate tags hierarchically using ctags for all subfolders
+#
+# Written by Hean Kuan Ong ( mysurface@gmail.com)
+# April 24, 2008
+#
+# Modified by Kartik Shenoy ( kartik.shenoy@amd.com )
+# January 27, 2014
+
+# INCLUDE specifies the directories to search
+# Check if $REPO_PATH has been set (here we check that its length is non-zero)
+if [[ ! -z $REPO_PATH ]]; then
+  INCLUDE=($REPO_PATH/libs/verif $REPO_PATH/ch/verif $REPO_PATH/ch/rtl/defines $REPO_PATH/import/avf)
+else
+  INCLUDE=(.)
+fi
+
+# IGNORE contains the directories to ignore in find statement
+# for more info, man find.
+IGNORE=" ! -wholename *.svn* ! -wholename *.git* ! -wholename .*log* ! -wholename .*Log* "
+
+# Location of the ctags binary to use
+CTAGS=/tool/pandora64/latest/bin/ctags
+
+helpme() {
+  echo "gentags v0.3"
+  echo "USAGE: gentags [OPTION]"
+  echo ""
+  echo "OPTION:"
+  echo " --help    Display me"
+  #echo " --ask     Ask for confirmation for tags generation"
+  echo " --create  Create all tags files"
+  echo " --clean   Clean all the tags files"
+  echo " --find    Find all the tags files"
+  #echo " --info    Simple steps for vim user"
+  echo " --test    Dry run. Shows the list of target tags directories but doesn't generate tags"
+  echo "   <dir>   CD to the dir and generate tags recursively"
+  echo ""
+  echo "If no option is provided, then tags will be generated recursively in PWD"
+  exit 0
+}
+
+#ask() {
+#  read -p "$CTAGS * $1  [y/n] " ANS
+#  if [[ $ANS = "y" || $ANS = "Y" ]]; then
+#    gentags $1
+#  fi
+#}
+
+#info() {
+#  echo ""
+#  echo "run 'gentags --init' without quotes at your base project folder"
+#  echo "paste the lines below to your ~/.vimrc"
+#  echo ":nmap ,t :!(cd %:p:h;ctags *)&"
+#  echo ":set tags=./tags,./../tags,./../../tags,./../../../tags,tags"
+#  echo ""
+#}
+
+if (( $#==0 )); then
+  option=$PWD
+else
+  option=$1
+fi
+
+case "$option" in
+  --help | -h)
+    helpme
+    ;;
+
+  #--ask)
+  #  $CTAGS --file-scope=no -R
+  #  find ${INCLUDE[@]} -type d $IGNORE -exec $0 --ask2 {} \;
+  #  ;;
+
+  #--ask2)
+  #  ask $2
+  #  ;;
+
+  #--info)
+  #  info
+  #  ;;
+
+  --create)
+    echo "Creating tags..."
+    #$CTAGS --file-scope=no -R
+    find ${INCLUDE[@]} -type f \( -iname "*.h" -or -iname "*.cc" \) > $REPO_PATH/tags.filelist
+    # Follow symlinks for generates files
+    find ${TAG_DIRS[@]} -type l \( -iname "*.h" -or -iname "*.cc" \) -exec readlink '{}' \; >> $REPO_PATH/tags.filelist
+    $CTAGS --file-scope=no --languages=c++ --c++-kinds=+p --fields=+Sail --extra=+q -L $REPO_PATH/tags.filelist
+    # Create tags within subdirectories
+    find ${INCLUDE[@]} -type d $IGNORE -exec $0 --create2 {} \;
+    ;;
+
+  --create2)
+    cd $2
+    echo "Creating ${2}/tags"
+    $CTAGS --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q *
+    ;;
+
+  --clean)
+    find ${INCLUDE[@]} -name "tags" -exec rm -v {} \;
+    ;;
+
+  --find)
+    find ${INCLUDE[@]} -name "tags"
+    ;;
+
+  --test)
+    find ${INCLUDE[@]} -type d $IGNORE
+    ;;
+
+  *)
+    # Generate tags recursively
+    cd $option && find * -type d -prune -print | $CTAGS -R --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q *
+esac

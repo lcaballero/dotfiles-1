@@ -101,7 +101,7 @@ xterm*termName:                         xterm-256color
 xterm*boldMode:                         false
 !xterm*faceName:                        xft:Dejavu Sans Mono:pixelsize=11.5
 xterm*faceName:                         Ubuntu Mono
-xterm*faceSize:                         11
+xterm*faceSize:                         9
 !xterm*font:                            -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
 !xterm*boldFont:                        -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
 !http://invisible-island.net/xterm/xterm.faq.html#tiny_menus
