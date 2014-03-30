@@ -97,7 +97,7 @@ xterm*scrollBar:                        false
 xterm*borderWidth:                      0
 xterm*toolBar:                          true
 xterm*utf8:                             2
-xterm*termName:                         xterm-256color
+xterm*termName:                         screen-256color
 xterm*boldMode:                         false
 !xterm*faceName:                        xft:Dejavu Sans Mono:pixelsize=11.5
 xterm*faceName:                         Ubuntu Mono derivative Powerline

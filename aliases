@@ -236,8 +236,14 @@ alias so=source
 alias sco='. command'
 alias psmall="perl -lne 'BEGIN{"'$s=<>};$s=$_ if $_<$s;END{print "$s"}'"'"
 alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
+
+
+#==============
 # FuzzyFinder
+#
 bind '"\C-f": "fzf\n"'
+# fzf - Ignore .gitignore contents etc. by filtering through ag
+#bind '"\C-f": "ag -l -g \"\" | fzf\n"'
 
 
 #============
