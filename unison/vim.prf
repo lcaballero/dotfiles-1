@@ -44,7 +44,7 @@ backupsuffix =
 #          When this is set to true, the user interface will ask no
 #          questions at all. Non-conflicting changes will be propagated;
 #          conflicts will be skipped.
-batch=false
+batch=true
 
 #          !When this is set to true, Unison will request an extra
 #          confirmation if it appears that the entire replica has been

@@ -361,6 +361,19 @@ lc(){ echo $* |/usr/bin/tr "[A-Z]" "[a-z]"; }
 uc(){ echo $* |/usr/bin/tr "[a-z]" "[A-Z]"; }
 
 
+unset -f dec2hex
+function dec2hex() {
+  echo "obase=16; $@" | command bc
+}
+alias d2h='dec2hex'
+
+unset -f hex2dec
+function hex2dec() {
+  echo "ibase=16; $@" | command bc
+}
+alias h2d='hex2dec'
+
+
 # Implemented in PERL
 #function br(){
   ## Description: Parse the input command to identify the model and then build it and execute the input command

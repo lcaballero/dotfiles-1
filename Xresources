@@ -100,7 +100,7 @@ xterm*utf8:                             2
 xterm*termName:                         xterm-256color
 xterm*boldMode:                         false
 !xterm*faceName:                        xft:Dejavu Sans Mono:pixelsize=11.5
-xterm*faceName:                         Ubuntu Mono
+xterm*faceName:                         Ubuntu Mono derivative Powerline
 xterm*faceSize:                         9
 !xterm*font:                            -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
 !xterm*boldFont:                        -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*

@@ -151,7 +151,7 @@ alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo
 #===================================================================================================
 # Environment Variables
 #========================
-
+umask 002
 # Set terminal to mimic titeInhibit = true
 export TERM=xterm-256color
 # Show timestamps in history
@@ -172,7 +172,7 @@ export ACK_OPTIONS='--type-set verilog=.sv,.svh,.v'
 # Perforce
 export P4EDITOR=$EDITOR
 export P4DIFF=`which meld`
-export P4MERGE="meld --diff %b %1 --diff %b %2 --diff %2 %b %1 %r"
+export P4MERGE="meld --diff %b %1 --diff %b %2 --diff %2 %r %1"
 
 
 #===================================================================================================
@@ -184,3 +184,12 @@ fi
 #if [ -f ~/Dropbox/Softwares/Linux/tmux/tmux_scripts_bash.sh ]; then
   #. ~/Dropbox/Softwares/Linux/tmux/tmux_scripts_bash.sh
 #fi
+#if [[ ! $TERM =~ screen ]]; then
+#  exec tmux
+#fi
+
+
+#===================================================================================================
+# FZF
+#======
+source ~/.fzf.bash

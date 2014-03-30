@@ -1,5 +1,5 @@
 [user]
-  name = KS
+	name = Kartik Shenoy
   email = theresmorethanoneway@gmail.com
 
 [core]
@@ -25,3 +25,5 @@
   conflictstyle = diff3
 [mergetool "meld"]
   cmd = meld --diff $BASE $LOCAL --diff $BASE $REMOTE --diff $LOCAL $BASE $REMOTE $MERGED
+[credential]
+	helper = cache --timeout=3600

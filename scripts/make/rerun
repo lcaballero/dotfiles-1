@@ -23,18 +23,20 @@
 =head1 OPTIONS
 
   -a, --add       Add any options to the CMD. Can be specified multiple times
-                  Overrides --remove
+                  Overrides --delete
   -b, --build     Build model before running
   -c, --clean     Clean model and rebuild before running
-                  Implies --build
+                  Implies --build unless --norun is specified
       --cmd       Provide the cmd directly to clean up and run.
                   Overrides --file
+  -d, --delete    Delete any options from the CMD. Can be specified multiple times
   -f, --file      Name of file to pick up the run_job command from
                   Defaults to ./sim.out or ./summary.rj
       --lsf       Use LSF. LSF is not used by default
       --nolsf     Do not use LSF
   -m, --model     Use the specified model instead of the one obtained from the run_job command
-  -r, --remove    Remove any options from the CMD. Can be specified multiple times
+  -r, --run       Execute the run_job (Enabled by default)
+      --norun     Do not execute the run_job
   -t, --test      Test run. Just print the command to execute but don't run it
   -v, --verbose   Verbose mode. Print values of all arguments
   -w, --wtf       Run WhyTheFail upon build failure (Enabled by default)
@@ -55,17 +57,18 @@ use Pod::Usage;
 Getopt::Long::Configure("bundling");
 #Getopt::Long::Configure("pass_through");
 
-# Default values for options
+# Default values for options ===========================================================================================
 my %opts = (
   'add'     => "",
   'build'   => 0,
   'clean'   => 0,
   'cmd'     => "",
+  'delete'  => "",
   'file'    => "sim.out",
   'lsf'     => 0,
   'model'   => "",
   'noyaml'  => 0,
-  'remove'  => "",
+  'run'     => 1,
   'test'    => 0,
   'verbose' => 0,
   'wtf'     => 1,
@@ -77,19 +80,23 @@ GetOptions(
   \%opts,
   'add|a=s',
   'build|b',
-  'clean|c'     => sub { $opts{'build'} ||= $opts{$_[0]} = $_[1]; },
+  'clean|c',
   'cmd=s',
+  'delete|d=s',
   'file|f:s',
   'help|h|?'    => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
   'lsf!',
   'model|m=s',
   'noyaml'      => sub { $opts{'yaml'} = "" },
-  'remove|r=s',
+  'run|r!',
   'test|t',
   'verbose|v!',
   'wtf|w!',
   'y|yaml:s',
 ) or pod2usage( -verbose => 1 ) && exit;
+
+# Clean && Run ==> Build
+$opts{'build'} ||= $opts{'clean'} && $opts{'run'};
 
 print "INFO: Ignoring extra arguments '@ARGV'\n" if ( $#ARGV >= 0 );
 
@@ -99,17 +106,25 @@ if ( $opts{'verbose'} ){
   print "build  : $opts{'build'}\n";
   print "clean  : $opts{'clean'}\n";
   print "cmd    : $opts{'cmd'}\n"   unless ( $opts{'cmd'}   eq "" );
+  print "delete : $opts{'delete'}\n";
   print "file   : $opts{'file'}\n"  if     ( $opts{'cmd'}   eq "" );
   print "lsf    : $opts{'lsf'}\n";
   print "model  : $opts{'model'}\n" if     ( $opts{'model'} ne "" );
-  print "remove : $opts{'remove'}\n";
+  print "run    : $opts{'run'}\n";
   print "test   : $opts{'test'}\n";
   print "yaml   : $opts{'yaml'}\n";
   print "\n";
 }
 
-# Get the run_job command from the file
-if ( $opts{'cmd'} eq "" ){
+# Get the run_job command from the file ================================================================================
+if (  (  !$opts{'run'}
+      && ( $opts{'model'} eq "" )
+      && ( $opts{'cmd'}   eq "" )
+      )
+   || (  $opts{'run'}
+      && ( $opts{'cmd'} eq "" )
+      )
+   ){
   print "Command not specified. Obtaining it from $opts{'file'}...\n" if $opts{'verbose'};
   ( -e $opts{'file'} ) or pod2usage({ -verbose => 1, -message => "ERROR: File not found: $opts{'file'}\n"});
   # Stop searching after 1st match
@@ -118,7 +133,7 @@ if ( $opts{'cmd'} eq "" ){
 }
 chomp( $opts{'cmd'} );
 
-# Get the model from the run_job command
+# Get the model from the run_job command ===============================================================================
 if ( $opts{'model'} eq "" ) {
   print "Model not specified. Obtaining it from the run_job command...\n" if $opts{'verbose'};
   ( $opts{'model'} ) = $opts{'cmd'} =~ /-model\s*(\w+)/;
@@ -134,51 +149,54 @@ if ( $opts{'yaml'} ne "" ){
   print  "Deleting amdmsg_config.yaml...\n";
   system '\rm amdmsg_config.yaml 2> /dev/null' unless $opts{'test'};
 }
-print "\n";
 
-# Remove junk arguments
-$opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
-$opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
-$opts{'cmd'} =~ s/-p crdb\s*//g;
-$opts{'cmd'} =~ s/-(?:no)?crdb\s*//g;
-$opts{'cmd'} =~ s/-o ""\s*//;
-$opts{'cmd'} =~ s/-(?:no)?delete//;
-$opts{'cmd'} =~ s/-gzip\s*//;
-$opts{'cmd'} =~ s/-test_id\s*\S+\s*//;
+# Build/Clean ==========================================================================================================
+my $cmd_build  = "build -clean -model $opts{'model'}" if $opts{'clean'};
+   $cmd_build .= " && " if ( $opts{'clean'} && $opts{'build'} );
+   $cmd_build .= "build -model $opts{'model'}" if $opts{'build'};
 
-my $cmd_build  = "build -clean -model $opts{'model'} && " if $opts{'clean'};
-   $cmd_build .= "build        -model $opts{'model'}"     if $opts{'build'};
-   $cmd_build .= " || WhyTheFail"                         if $opts{'wtf'};
-
-# Beautify :/
+# Beautify :P
 $cmd_build =~ s/^\s*|\s*$//g;
 $cmd_build =~ s/\s+/ /g;
 print "  $cmd_build\n" if ( $opts{'clean'} || $opts{'build'} );
 
-# Add/Remove options to the end of the CMD
-$opts{'cmd'} .= " -lsf" if $opts{'lsf'};
-if ( $opts{'remove'} ne "" ){
-  print "Removing option: '$opts{'remove'}'\n";
-  $opts{'cmd'} =~ s/$opts{'remove'}//;
-}
-if ( $opts{'add'} ne "" ){
-  print "Adding option: '$opts{'add'}'\n";
-  $opts{'cmd'} .= " " . $opts{'add'};
-}
+# Run Job ==============================================================================================================
+if ( $opts{'run'} ) {
+  # Remove junk arguments
+  $opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
+  $opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
+  $opts{'cmd'} =~ s/-p crdb\s*//g;
+  $opts{'cmd'} =~ s/-(?:no)?crdb\s*//g;
+  $opts{'cmd'} =~ s/-o ""\s*//;
+  $opts{'cmd'} =~ s/-(?:no)?delete//;
+  $opts{'cmd'} =~ s/-gzip\s*//;
+  $opts{'cmd'} =~ s/-test_id\s*\S+\s*//;
 
-# Beautify :/
-$opts{'cmd'} =~ s/^\s*|\s*$//g;
-$opts{'cmd'} =~ s/\s+/ /g;
-print "  $opts{'cmd'}\n\n";
-
-# Execute
-unless ( $opts{'test'} ) {
-  unless (  $opts{'build'}
-         && system qq($cmd_build)
-         ) {
-    # Execute the run_job command if
-    # * We don't have to build
-    # * Build completed successfully
-    exec qq($opts{'cmd'});
+  # Add/Delete options to/from the CMD
+  $opts{'cmd'} .= " -lsf" if $opts{'lsf'};
+  print "\n" if ( $opts{'delete'} || $opts{'add'} );
+  if ( $opts{'delete'} ne "" ){
+    print "Removing option: '$opts{'delete'}'\n";
+    $opts{'cmd'} =~ s/$opts{'delete'}//;
   }
+  if ( $opts{'add'} ne "" ){
+    print "Adding option: '$opts{'add'}'\n";
+    $opts{'cmd'} .= " " . $opts{'add'};
+  }
+
+  # Beautify :P
+  $opts{'cmd'} =~ s/^\s*|\s*$//g;
+  $opts{'cmd'} =~ s/\s+/ /g;
+  print "  $opts{'cmd'}\n";
+}
+
+# Execute ==============================================================================================================
+unless ( $opts{'test'} ) {
+  print "\n";
+  if (  $opts{'build'}
+     && system qq($cmd_build)
+     ) {
+    $opts{'wtf'} ? exec "WhyTheFail" : return 1;
+  }
+  exec qq($opts{'cmd'}) if $opts{'run'};
 }

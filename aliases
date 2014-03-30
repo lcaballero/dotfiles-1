@@ -2,7 +2,8 @@
 #=========
 # Aliases
 #=========
-alias al=alias
+# type is like 'alias' on steroids. Shows function contents too
+alias al=type
 # Identify the current shell
 MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' | sed 's/-//g' ))
 
@@ -189,9 +190,9 @@ function v { gvim $* 2> /dev/null; }
 alias vco='v command*'
 alias vd='v -d'
 alias vr='v run*'
-alias vvr='v ~/.vim/vimrc'
-alias vvm='v ~/.vim/mappings.vim'
-alias vvf='v ~/.vim/functions.vim'
+alias govv='v ~/.vim/vimrc'
+alias govm='v ~/.vim/mappings.vim'
+alias govf='v ~/.vim/functions.vim'
 alias vd='v -d'
 alias vu='v -u NONE -U NONE --noplugin -N'
 alias rvv='\rm -rf ~/.vim/junk/views/*'
@@ -213,17 +214,17 @@ alias readme='v ~/Dropbox/Softwares/Linux/readmes/README.toc'
 # Shell config
 #
 if [[ $MYSHELL =~ "bash" ]]; then
-  alias esr='v ~/.bashrc'
-  alias esf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
+  alias gosr='v ~/.bashrc'
+  alias gosf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
   alias src='. ~/.bashrc && echo Sourced ~/.bashrc'
 fi
 if [[ $MYSHELL =~ "zsh" ]]; then
-  alias esr='v ~/.zshrc'
-  alias esf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
+  alias gosr='v ~/.zshrc'
+  alias gosf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
   alias src='. ~/.zshrc && echo Sourced ~/.zshrc'
 fi
 alias s=src
-alias esa='v ~/Dropbox/Softwares/Linux/aliases'
+alias gosa='v ~/Dropbox/Softwares/Linux/aliases'
 alias sra='. ~/Dropbox/Softwares/Linux/aliases'
 
 
@@ -235,6 +236,8 @@ alias so=source
 alias sco='. command'
 alias psmall="perl -lne 'BEGIN{"'$s=<>};$s=$_ if $_<$s;END{print "$s"}'"'"
 alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
+# FuzzyFinder
+bind '"\C-f": "fzf\n"'
 
 
 #============
@@ -269,8 +272,8 @@ alias pfd='pf diff'
 alias pfe='pf edit'
 alias pfh='pf help'
 alias pfo='pf opened'
-alias pfop="pfo | perl -pe 's/^.*?trunk\/|#.*$//g'"
-alias pfrem='pf remove'
+alias pfop="pfo | perl -pe 's/^.*?trunk\/|#.*$/\$REPO_PATH/g'"
+#alias pfrem='pf remove'
 alias pfres='pf resolve'
 alias pfrev='pf revert'
 alias pfs='pf submit'
@@ -306,12 +309,6 @@ alias gS='git status'
 alias tags='ctags --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q *'
 alias vs='vncserver'
 alias vk='vncserver -kill'
-
-
-#=======
-# Misc
-#
-alias perr="perl -ne 'print if /^\s*error:/../:error/'"
 
 
 #============

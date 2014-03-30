@@ -236,6 +236,10 @@ function preprompt_sjlmod {
 
   # The info variables
   local pr_pwd=$PWD
+  #for k in "${!dir_alias[@]}"; do
+    #echo "$k => ${dir_alias[$k]}"
+    #echo ${pr_pwd/#$k/${dir_alias[$k]}}
+  #done
   pr_pwd=${pr_pwd/#$HOME/\~}
   [ -n "$as" ] && pr_pwd=${pr_pwd/#$as/\~aspen}
 
