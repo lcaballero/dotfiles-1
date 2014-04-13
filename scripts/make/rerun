@@ -22,29 +22,31 @@
 
 =head1 OPTIONS
 
-  -a, --add       Add any options to the CMD. Can be specified multiple times
-                  Overrides --delete
-  -b, --build     Build model before running
-  -c, --clean     Clean model and rebuild before running
-                  Implies --build unless --norun is specified
-      --cmd       Provide the cmd directly to clean up and run.
-                  Overrides --file
-  -d, --delete    Delete any options from the CMD. Can be specified multiple times
-  -f, --file      Name of file to pick up the run_job command from
-                  Defaults to ./sim.out or ./summary.rj
-      --lsf       Use LSF. LSF is not used by default
-      --nolsf     Do not use LSF
-  -m, --model     Use the specified model instead of the one obtained from the run_job command
-  -r, --run       Execute the run_job (Enabled by default)
-      --norun     Do not execute the run_job
-  -t, --test      Test run. Just print the command to execute but don't run it
-  -v, --verbose   Verbose mode. Print values of all arguments
-  -w, --wtf       Run WhyTheFail upon build failure (Enabled by default)
-      --nowtf     Do not run WhyTheFail if build fails
-  -y, --yaml      Enable logging via amdmsg_config.yaml (Enabled by default).
-                  The yaml file to be used can be specified as an optional argument.
-                  Defaults to /proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml
-      --noyaml    Disable logging (Delete amdmsg_config.yaml file)
+  -a, --add           Add any options to the CMD. Can be specified multiple times
+                      Overrides --delete
+  -b, --build         Build model before running
+  -c, --clean         Clean model and rebuild before running
+                      Implies --build unless --norun is specified
+  -C, --clean_all     Clean all models and rebuild before running
+                      Implies --build unless --norun is specified
+      --cmd           Provide the cmd directly to clean up and run.
+                      Overrides --file
+  -d, --delete        Delete any options from the CMD. Can be specified multiple times
+  -f, --file          Name of file to pick up the run_job command from
+                      Defaults to ./sim.out or ./summary.rj
+      --lsf           Use LSF. LSF is not used by default
+      --nolsf         Do not use LSF
+  -m, --model         Use the specified model instead of the one obtained from the run_job command
+  -r, --run           Execute the run_job (Enabled by default)
+      --norun         Do not execute the run_job
+  -t, --test          Test run. Just print the command to execute but don't run it
+  -v, --verbose       Verbose mode. Print values of all arguments
+  -w, --wtf           Run WhyTheFail upon build failure (Enabled by default)
+      --nowtf         Do not run WhyTheFail if build fails
+  -y, --yaml          Enable logging via amdmsg_config.yaml (Enabled by default).
+                      The yaml file to be used can be specified as an optional argument.
+                      Defaults to /proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml
+      --noyaml        Disable logging (Delete amdmsg_config.yaml file)
 
 =cut
 # }}}1
@@ -59,20 +61,21 @@ Getopt::Long::Configure("bundling");
 
 # Default values for options ===========================================================================================
 my %opts = (
-  'add'     => "",
-  'build'   => 0,
-  'clean'   => 0,
-  'cmd'     => "",
-  'delete'  => "",
-  'file'    => "sim.out",
-  'lsf'     => 0,
-  'model'   => "",
-  'noyaml'  => 0,
-  'run'     => 1,
-  'test'    => 0,
-  'verbose' => 0,
-  'wtf'     => 1,
-  'yaml'    => "/proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml",
+  'add'         => "",
+  'build'       => 0,
+  'clean'       => 0,
+  'clean_all'   => 0,
+  'cmd'         => "",
+  'delete'      => "",
+  'file'        => "sim.out",
+  'lsf'         => 0,
+  'model'       => "",
+  'noyaml'      => 0,
+  'run'         => 1,
+  'test'        => 0,
+  'verbose'     => 0,
+  'wtf'         => 1,
+  'yaml'        => "/proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml",
 );
 $opts{'file'} = "summary.rj" unless ( -e $opts{'file'} );
 
@@ -81,13 +84,14 @@ GetOptions(
   'add|a=s',
   'build|b',
   'clean|c',
+  'clean_all|C',  => sub { $opts{'clean'} = 0 },
   'cmd=s',
   'delete|d=s',
   'file|f:s',
-  'help|h|?'    => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
+  'help|h|?'      => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
   'lsf!',
   'model|m=s',
-  'noyaml'      => sub { $opts{'yaml'} = "" },
+  'noyaml'        => sub { $opts{'yaml'} = "" },
   'run|r!',
   'test|t',
   'verbose|v!',
@@ -96,23 +100,24 @@ GetOptions(
 ) or pod2usage( -verbose => 1 ) && exit;
 
 # Clean && Run ==> Build
-$opts{'build'} ||= $opts{'clean'} && $opts{'run'};
+$opts{'build'} ||= ( $opts{'clean'} || $opts{'clean_all'} ) && $opts{'run'};
 
 print "INFO: Ignoring extra arguments '@ARGV'\n" if ( $#ARGV >= 0 );
 
 # Dump the input arguments
 if ( $opts{'verbose'} ){
-  print "add    : $opts{'add'}\n";
-  print "build  : $opts{'build'}\n";
-  print "clean  : $opts{'clean'}\n";
-  print "cmd    : $opts{'cmd'}\n"   unless ( $opts{'cmd'}   eq "" );
-  print "delete : $opts{'delete'}\n";
-  print "file   : $opts{'file'}\n"  if     ( $opts{'cmd'}   eq "" );
-  print "lsf    : $opts{'lsf'}\n";
-  print "model  : $opts{'model'}\n" if     ( $opts{'model'} ne "" );
-  print "run    : $opts{'run'}\n";
-  print "test   : $opts{'test'}\n";
-  print "yaml   : $opts{'yaml'}\n";
+  print "add        : $opts{'add'}\n";
+  print "build      : $opts{'build'}\n";
+  print "clean      : $opts{'clean'}\n";
+  print "clean_all  : $opts{'clean_all'}\n";
+  print "cmd        : $opts{'cmd'}\n"   unless ( $opts{'cmd'}   eq "" );
+  print "delete     : $opts{'delete'}\n";
+  print "file       : $opts{'file'}\n"  if     ( $opts{'cmd'}   eq "" );
+  print "lsf        : $opts{'lsf'}\n";
+  print "model      : $opts{'model'}\n" if     ( $opts{'model'} ne "" );
+  print "run        : $opts{'run'}\n";
+  print "test       : $opts{'test'}\n";
+  print "yaml       : $opts{'yaml'}\n";
   print "\n";
 }
 
@@ -141,27 +146,36 @@ if ( $opts{'model'} eq "" ) {
 print "Model: '$opts{'model'}'\n\n" if $opts{'verbose'};
 $opts{'cmd'} =~ s/(-model)\s*\w+/$1 $opts{'model'}/;
 
+if ( $opts{'test'} ) {
+  print  "[ TEST RUN                    ]\n";
+}
+
 # Include/Exclude the amdmsg_config.yaml file
 if ( $opts{'yaml'} ne "" ){
-  print  "Copying amdmsg_config.yaml...\n";
+  print  "[ Copying amdmsg_config.yaml  ]\n";
   system '\cp ' . $opts{'yaml'} . ' .' unless $opts{'test'};
 } else {
-  print  "Deleting amdmsg_config.yaml...\n";
+  print  "[ Deleting amdmsg_config.yaml ]\n";
   system '\rm amdmsg_config.yaml 2> /dev/null' unless $opts{'test'};
 }
 
 # Build/Clean ==========================================================================================================
 my $cmd_build  = "build -clean -model $opts{'model'}" if $opts{'clean'};
+my $cmd_build  = "build -clean_all" if $opts{'clean_all'};
    $cmd_build .= " && " if ( $opts{'clean'} && $opts{'build'} );
    $cmd_build .= "build -model $opts{'model'}" if $opts{'build'};
 
 # Beautify :P
 $cmd_build =~ s/^\s*|\s*$//g;
 $cmd_build =~ s/\s+/ /g;
-print "  $cmd_build\n" if ( $opts{'clean'} || $opts{'build'} );
+if ( $opts{'clean'} || $opts{'build'} ) {
+  print "\n[ BUILD CMD                   ]\n";
+  print "    $cmd_build\n";
+}
 
 # Run Job ==============================================================================================================
 if ( $opts{'run'} ) {
+  print "\n[ RUN_JOB CMD                 ]\n";
   # Remove junk arguments
   $opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
   $opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
@@ -174,20 +188,19 @@ if ( $opts{'run'} ) {
 
   # Add/Delete options to/from the CMD
   $opts{'cmd'} .= " -lsf" if $opts{'lsf'};
-  print "\n" if ( $opts{'delete'} || $opts{'add'} );
   if ( $opts{'delete'} ne "" ){
-    print "Removing option: '$opts{'delete'}'\n";
+    print "    Removing option: '$opts{'delete'}'\n";
     $opts{'cmd'} =~ s/$opts{'delete'}//;
   }
   if ( $opts{'add'} ne "" ){
-    print "Adding option: '$opts{'add'}'\n";
+    print "    Adding option: '$opts{'add'}'\n";
     $opts{'cmd'} .= " " . $opts{'add'};
   }
 
   # Beautify :P
   $opts{'cmd'} =~ s/^\s*|\s*$//g;
   $opts{'cmd'} =~ s/\s+/ /g;
-  print "  $opts{'cmd'}\n";
+  print "    $opts{'cmd'}\n";
 }
 
 # Execute ==============================================================================================================

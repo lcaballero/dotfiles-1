@@ -139,23 +139,27 @@ alias f.='f -maxdepth 1'
 alias f.n='f -maxdepth 1 -name'
 alias fgrep='fgrep --color=auto'
 alias egrep='egrep --color=auto'
-alias g='grep -sP --color=always'
 alias grepi='grep -i'
 alias pgrep='/bin/ps -a | grep -i -e PID -e'
 
-# If Ack exists, use it!!
-if hash ack 2> /dev/null; then
-  alias acki='ack -i'
+alias g='grep -sP --color=always'
+alias gi='g -i'
+alias gv='g -v'
+alias gerr='gi ERR -C5'
+
+# If Ag/Pt/Ack exists, use it!!
+if hash ag 2> /dev/null; then
+  alias a='ag'
+elif hash pt 2> /dev/null; then
+  alias a='pt'
+elif hash ack 2> /dev/null; then
   alias a='ack --color'
-  alias ai='a -i'
-  alias av='a -v'
   alias ackc='a --type=cpp'
   alias ackcc='a --type=cpp --nohh'
   alias ackch='a --type=hh'
 fi
-alias gi='g -i'
-alias gv='g -v'
-alias gerr='gi ERR -C5'
+alias ai='a -i'
+alias av='a -v'
 
 alias C=cat
 alias L='less -r'

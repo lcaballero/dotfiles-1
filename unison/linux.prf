@@ -28,6 +28,7 @@ ignore = Name *.tags
 ignore = Name tags
 ignore = Name *.nfs*
 ignore = Name *history
+ignore = Name SyncToy*
 
 #          When set to true, this flag causes the user interface to skip
 #          asking for confirmations on non-conflicting changes. (More
