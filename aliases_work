@@ -1,0 +1,222 @@
+#!/tool/pandora/bin/bash -a
+
+#=======================================================================================================================
+# AMD Specific aliases
+#=======================
+# echo "Setting up user aliases"
+#if (!$?TERM) then
+#  setenv TERM xterm
+#endif
+
+# Define common ls versions
+#alias ltree='find \!* -type d'
+
+# If xterm, put cwd in title
+#setenv HOST `hostname`
+#alias xsettitle 'echo -n "]2;${HOST}:\!*"'
+#if ("$TERM" == "xterm") then
+#  alias precmd 'xsettitle $cwd; set prompt = "<%c> "'
+#else
+#  alias precmd 'set prompt = "<%c> "'
+#endif
+
+# Project Aliases
+alias as_bsub="lsf_bsub -Is -R 'rusage[mem=2000]' -q high -P aspen-ver"
+alias amdfind='find $REPO_PATH -path "$REPO_PATH/simenv/build" -prune -or -path "$REPO_PATH/.ccache" -prune -or -path "$REPO_PATH/.autoio_cache" -prune -or -path "$REPO_PATH/release_gate_run" -prune -or -print | grep'
+alias amdgrep='find $REPO_PATH -path "$REPO_PATH/simenv/build" -prune -or -path "$REPO_PATH/.ccache" -prune -or -path "$REPO_PATH/.autoio_cache" -prune -or -path "$REPO_PATH/release_gate_run" -prune -or -print | xargs grep'
+alias regr_dispatch='/proj/verif_release_ro/regr_control_tools/current/bin/regr_main.rb'
+alias regr_control='/proj/verif_release_ro/regr_control_tools/current/bin/regr_control.rb'
+
+# Building and Compiling
+alias cbi='. /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8'
+alias benv='bootenv'
+alias cbenv='cbi && benv && sra'
+alias mkv='mkverdi `perl -lne "if(/-model\s*\w+/){print $&;exit}" < sim.out` &'
+alias cid='cat $REPO_PATH/configuration_id'
+alias bj='lsf_bjobs -w | grep -v lsf_mycpu'
+alias bk='lsf_bkill'
+alias bq='lsf_bqueues'
+alias wtf='WhyTheFail'
+alias lmn='ljd -nomail -l'
+alias trapbug='s_trapbug -bug'
+
+# Misc
+#alias gvim='export LANG=en_US.UTF-8 && /tool/pandora64/.package/vim-7.4/bin/gvim --cmd "set lines=61 columns=316"'
+#alias vim='export LANG=en_US.UTF-8 && /tool/pandora64/.package/vim-7.4/bin/vim'
+alias gvim='/tool/pandora64/.package/vim-7.4/bin/gvim --cmd "set lines=61 columns=316"'
+alias vim='/tool/pandora64/.package/vim-7.4/bin/vim'
+alias ff='firefox'
+alias kv='kview'
+alias rr='~/bin/rerun'
+alias b='~/bin/rerun -b --norun -m'
+alias bc='~/bin/rerun -c --norun -m'
+alias bcb='~/bin/rerun -bc --norun -m'
+alias bca='build -clean_all'
+alias brr='~/bin/rerun -b'
+alias bcrr='~/bin/rerun -c'
+alias rgrr='~/bin/rerun -a "-p dsp_ch" -f'
+alias rg='release_gate'
+alias rgd='release_gate -donate -no_donate_clean'
+alias rgg='release_gate_gui'
+alias ctags='/tool/pandora64/latest/bin/ctags'
+alias perr="perl -ne 'print if /^\s*error:/../:error/'"
+#alias psig="perl -lne 'BEGIN{\$p="'""'"}if(/^  -+$/){print \$p};\$p=\$_'"
+unset -f psig
+function psig() {
+  perl -lne 'if(/^\s+-+$/../^\s*$/){if(/^\s+-+$/){$c=0;}elsif(/^\s*$/){print "  ($c) $s";}else{$c++;}}else{s/^\s+|\s+$//g;$s=$_}' $1
+}
+unset -f pww
+function pww() {
+  perl -lne 'if(/^\s*Working Dir: (\S+)/){$p=$1}if(/^\s+-+$/){print "\n$s\n$_"}else{$s=$_}if(/(?<=^  )Whacker\S+/){print "  $p/$&"}' $*
+}
+unset -f rgsig
+function rgsig() {
+  for i in `g FAIL release_gate_tmp/release_gate.log | colm -1`; do echo -e "\n$i"; psig $i; done
+}
+unset -f rgww
+function rgww() {
+  for i in `g FAIL release_gate_tmp/release_gate.log | colm -1`; do echo -e "\n$i"; pww $i; done
+}
+
+
+
+# Locations
+# Declaring these as environment variables instead of regular ones allows access from within vim
+export as='/proj/aspen_func_dev0/ASPEN'
+# If $REPO_PATH is set, expand ${...} to $REPO_PATH/ ( append trailing slash )
+# This allows us to use $rtl etc as an absolute path when $REPO_PATH is set but when
+# bootenv is not done, we can use it as a relative path
+export asks='/proj/aspen_func_dev0/ASPEN/kshenoy'
+export as1='/proj/aspen_func_dev0/ASPEN/kshenoy/as1'
+export as2='/proj/aspen_func_dev0/ASPEN/kshenoy/as2'
+export as3='/proj/aspen_func_dev0/ASPEN/kshenoy/as3'
+export as4='/proj/aspen_func_dev0/ASPEN/kshenoy/as4'
+export as5='/proj/aspen_func_dev0/ASPEN/kshenoy/as5'
+export as6='/proj/aspen_func_dev0/ASPEN/kshenoy/as6'
+export as7='/proj/aspen_func_dev0/ASPEN/kshenoy/as7'
+export as8='/proj/aspen_func_dev0/ASPEN/kshenoy/as8'
+export as9='/proj/aspen_func_dev0/ASPEN/kshenoy/as9'
+export ass0='/proj/aspen_func_gen_scratch0/ASPEN/kshenoy'
+export ass1='/proj/aspen_func_gen_scratch1/ASPEN/kshenoy'
+export ass2='/proj/aspen_func_gen_scratch2/ASPEN/kshenoy'
+
+# Dynamic variables ( Recomputed everytime path changes via preprompt or equivalent )
+function dyn_vars(){
+  export RP=${REPO_PATH+$REPO_PATH}
+  export sim=${REPO_PATH+$REPO_PATH/}'sim'
+  export r=${REPO_PATH+$REPO_PATH/}'ch/rtl'
+  export v=${REPO_PATH+$REPO_PATH/}'ch/verif'
+  export txn=${REPO_PATH+$REPO_PATH/}'ch/verif/txn'
+  export rl3=${REPO_PATH+$REPO_PATH/}'ch/rtl/l3'
+  export vl3=${REPO_PATH+$REPO_PATH/}'ch/verif/chk_l3'
+  export vl23=${REPO_PATH+$REPO_PATH/}'ch/verif/chk_l2l3'
+  export vlk=${REPO_PATH+$REPO_PATH/}'ch/verif/chk_lock'
+  export test=${REPO_PATH+$REPO_PATH/}'ch/tc/tb_ch'
+}
+dyn_vars
+
+# Hash of locations and their aliases. Used in prompt pwd display to show shorthand instead of whole path
+# ${!dir_alias[@]} gives a list of keys
+# ${dir_alias[@]}  gives a list of values
+# if [[ ${dir_alias[$as]} ]]; then echo "Found"; else echo "Not Found"; fi
+if [[ $MYSHELL == "bash" ]]; then
+  declare -A dir_alias=(
+    ['$HOME']='~'
+    ['$as']='~aspen'
+  )
+fi
+
+#=======================================================================================================================
+# Environment Variables
+#========================
+export LSB_DEFAULTPROJECT=aspen-ver
+export PATH=~/bin:~/local/bin:$PATH
+
+
+#=======================================================================================================================
+# Functions
+#============
+unset -f tel
+function tel(){ perl -aF/,/ -lne 'print "\nName: $F[1], $F[2]\nCube: $F[0]\nExt : $F[3]" if /'$1'/i' ~/tel.csv; }
+
+unset -f build_model
+function build_model(){
+  \cp $asks/amdmsg_config.yaml .
+  build -model $1
+}
+
+unset -f build_clean_build
+function build_clean_build(){
+  build -clean -model $1 && build_model $1
+}
+
+unset -f mkwa_as
+function mkwa_as(){
+  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8
+  if (( $#==0 )); then
+    echo p4_mkwa -codeline aspen
+    p4_mkwa -codeline aspen
+  else
+    [[ $1 == "-configuration_id" ]] && shift;
+    # Delete aspen/aspen_trunk from the front of $1
+    config_id=${1#aspen/aspen_trunk}
+    # Delete @ from the front of $1 (Same as above)
+    config_id=${config_id/#@/}
+    echo p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
+    p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
+  fi
+  # Create tags
+  #~/bin/gentags --create
+  ~/bin/make_tags
+
+  [ -f ~/Dropbox/Softwares/Linux/aliases ] && . ~/Dropbox/Softwares/Linux/aliases
+}
+
+unset -f dotty
+function dotty(){
+  for i in $*; do
+    dot -Tgif -o `basename $i .gv`.gif $i
+  done
+}
+unset -f dotkv
+function dotkv(){
+  for i in $*; do
+    dotty $i && kview `basename $i .gv`.gif &
+  done
+}
+
+unset -f ut
+function ut(){
+  model=${1%_unittest}_unittest
+  echo $REPO_PATH/build/${model}/${model}
+  $REPO_PATH/build/${model}/${model}
+}
+
+unset -f but
+function but(){
+  model=${1%_unittest}_unittest
+  echo build -model $model
+  build_model $model
+  if (( $? != 0 )); then return 1; fi
+  ut $model
+}
+
+unset -f pfrem
+function pfrem() {
+  scratch_dir=`command ls -l $1 | command grep build | colm -1 | command sed -e 's/build$//'`
+
+  #echo "p4w remove $1"
+  p4w remove $1
+  if (( $? != 0 )); then return 1; fi
+
+  echo
+  echo "Deleting workarea from scratch disk..."
+  echo "  command rm -rf $scratch_dir"
+  command rm -rf $scratch_dir
+}
+
+unset -f wtff
+function wtff() {
+  model=`basename ${1%_rg.build.log}`
+  wtf -m $model
+}

@@ -32,8 +32,11 @@
       --cmd           Provide the cmd directly to clean up and run.
                       Overrides --file
   -d, --delete        Delete any options from the CMD. Can be specified multiple times
+      --dsp           Enable displayer output (Enabled by default)
+      --nodsp         Disable displayer output
   -f, --file          Name of file to pick up the run_job command from
                       Defaults to ./sim.out or ./summary.rj
+                      When a jobspec file is specified, --noyaml is set by default
       --lsf           Use LSF. LSF is not used by default
       --nolsf         Do not use LSF
   -m, --model         Use the specified model instead of the one obtained from the run_job command
@@ -67,15 +70,16 @@ my %opts = (
   'clean_all'   => 0,
   'cmd'         => "",
   'delete'      => "",
+  'dsp'         => 1,
   'file'        => "sim.out",
   'lsf'         => 0,
   'model'       => "",
-  'noyaml'      => 0,
   'run'         => 1,
   'test'        => 0,
   'verbose'     => 0,
   'wtf'         => 1,
   'yaml'        => "/proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml",
+  'yaml_f'      => 0, # We use this option to identify when the --yaml option was specified
 );
 $opts{'file'} = "summary.rj" unless ( -e $opts{'file'} );
 
@@ -84,10 +88,11 @@ GetOptions(
   'add|a=s',
   'build|b',
   'clean|c',
-  'clean_all|C',  => sub { $opts{'clean'} = 0 },
+  'clean_all|C'   => sub { $opts{'clean_all'} = 1; $opts{'clean'} = 0; },
   'cmd=s',
   'delete|d=s',
-  'file|f:s',
+  'dsp!',
+  'file|f=s',
   'help|h|?'      => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
   'lsf!',
   'model|m=s',
@@ -96,22 +101,38 @@ GetOptions(
   'test|t',
   'verbose|v!',
   'wtf|w!',
-  'y|yaml:s',
+  'y|yaml:s'      => sub { $opts{'yaml_f'} = 1; $opts{'yaml'} = $_[1]; }
 ) or pod2usage( -verbose => 1 ) && exit;
 
-# Clean && Run ==> Build
+# Force options
+# |-------+--------+--------------------------------------------------|
+# | yaml  | yaml_f | Description                                      |
+# |-------+--------+--------------------------------------------------|
+# | !  "" |      X | The user forced the --noyaml option              |
+# | != "" |      0 | The user used neither option -> use all defaults |
+# | != "" |      1 | The user forced the --yaml option                |
+# |-------+--------+--------------------------------------------------|
 $opts{'build'} ||= ( $opts{'clean'} || $opts{'clean_all'} ) && $opts{'run'};
+if ( $opts{'file'} =~ /.xml$/ ) {
+  $opts{'ljd'} = 1;
+  $opts{'dsp'} = 0;
+  # Delete any amdmsg_config.yaml files when running a jobspec unless 'yaml' is explicitly specified
+  unless ( $opts{'yaml_f'} ) {
+    $opts{'yaml'} = "";
+  }
+}
 
 print "INFO: Ignoring extra arguments '@ARGV'\n" if ( $#ARGV >= 0 );
 
 # Dump the input arguments
 if ( $opts{'verbose'} ){
-  print "add        : $opts{'add'}\n";
+  print "add        : '$opts{'add'}'\n";
   print "build      : $opts{'build'}\n";
   print "clean      : $opts{'clean'}\n";
   print "clean_all  : $opts{'clean_all'}\n";
   print "cmd        : $opts{'cmd'}\n"   unless ( $opts{'cmd'}   eq "" );
-  print "delete     : $opts{'delete'}\n";
+  print "delete     : '$opts{'delete'}'\n";
+  print "dsp        : $opts{'dsp'}\n";
   print "file       : $opts{'file'}\n"  if     ( $opts{'cmd'}   eq "" );
   print "lsf        : $opts{'lsf'}\n";
   print "model      : $opts{'model'}\n" if     ( $opts{'model'} ne "" );
@@ -122,60 +143,78 @@ if ( $opts{'verbose'} ){
 }
 
 # Get the run_job command from the file ================================================================================
-if (  (  !$opts{'run'}
+if (  (  (  $opts{'build'}
+         || $opts{'clean'}
+         )
       && ( $opts{'model'} eq "" )
       && ( $opts{'cmd'}   eq "" )
       )
    || (  $opts{'run'}
       && ( $opts{'cmd'} eq "" )
       )
-   ){
-  print "Command not specified. Obtaining it from $opts{'file'}...\n" if $opts{'verbose'};
-  ( -e $opts{'file'} ) or pod2usage({ -verbose => 1, -message => "ERROR: File not found: $opts{'file'}\n"});
-  # Stop searching after 1st match
-  $opts{'cmd'} = `\\grep -s -m 1 run_job $opts{'file'}`;
-  ( $opts{'cmd'} eq "" ) and pod2usage({ -verbose => 1, -message => "ERROR: Unable to locate the run_job command in $opts{'file'}\n" });
+   ) {
+  if ( $opts{'ljd'} ) {
+    print "Provided file: $opts{'file'} is a jobspec file...\n" if $opts{'verbose'};
+    $opts{'cmd'} = "ljd -nomail -l $opts{'file'}";
+  } else {
+    print "Command not specified. Obtaining it from $opts{'file'}...\n" if $opts{'verbose'};
+    ( -e $opts{'file'} ) or pod2usage({ -verbose => 1, -message => "ERROR: File not found: $opts{'file'}\n"});
+    # Stop searching after 1st match
+    $opts{'cmd'} = `\\grep -s -m 1 run_job $opts{'file'}`;
+    ( $opts{'cmd'} eq "" ) and pod2usage({ -verbose => 1, -message => "ERROR: Unable to locate the run_job command in $opts{'file'}\n" });
+  }
 }
 chomp( $opts{'cmd'} );
 
 # Get the model from the run_job command ===============================================================================
 if ( $opts{'model'} eq "" ) {
-  print "Model not specified. Obtaining it from the run_job command...\n" if $opts{'verbose'};
-  ( $opts{'model'} ) = $opts{'cmd'} =~ /-model\s*(\w+)/;
+  if ( $opts{'ljd'} ) {
+    print "Model not specified. Obtaining it from the jobspec file...\n" if $opts{'verbose'};
+    ( $opts{'model'} ) = `\\grep -s -m 1 model $opts{'file'}` =~ /<model>([^<]+)<\/model>/;
+  } else {
+    print "Model not specified. Obtaining it from the run_job command...\n" if $opts{'verbose'};
+    ( $opts{'model'} ) = $opts{'cmd'} =~ /-model\s*(\w+)/;
+  }
 }
 print "Model: '$opts{'model'}'\n\n" if $opts{'verbose'};
 $opts{'cmd'} =~ s/(-model)\s*\w+/$1 $opts{'model'}/;
 
 if ( $opts{'test'} ) {
-  print  "[ TEST RUN                    ]\n";
+  print  "[ TEST RUN ]\n\n";
 }
 
 # Include/Exclude the amdmsg_config.yaml file
 if ( $opts{'yaml'} ne "" ){
-  print  "[ Copying amdmsg_config.yaml  ]\n";
-  system '\cp ' . $opts{'yaml'} . ' .' unless $opts{'test'};
+  # Copy only if the yaml does not exist and --yaml is not forced. Do not overwrite any existing yaml file
+  if (  $opts{'yaml_f'}
+     || !( -f "amdmsg_config.yaml" )
+     ) {
+    print  "[ Copying amdmsg_config.yaml ]\n\n";
+    system '\cp ' . $opts{'yaml'} . ' amdmsg_config.yaml' unless $opts{'test'};
+  }
 } else {
-  print  "[ Deleting amdmsg_config.yaml ]\n";
+  print  "[ Deleting amdmsg_config.yaml ]\n\n";
   system '\rm amdmsg_config.yaml 2> /dev/null' unless $opts{'test'};
 }
 
 # Build/Clean ==========================================================================================================
-my $cmd_build  = "build -clean -model $opts{'model'}" if $opts{'clean'};
-my $cmd_build  = "build -clean_all" if $opts{'clean_all'};
-   $cmd_build .= " && " if ( $opts{'clean'} && $opts{'build'} );
+my $cmd_build;
+   $cmd_build  = "build -clean -model $opts{'model'}" if $opts{'clean'};
+   $cmd_build  = "build -clean_all" if $opts{'clean_all'};
+   $cmd_build .= " && " if (( $opts{'clean'} || $opts{'clean_all'} ) && $opts{'build'} );
    $cmd_build .= "build -model $opts{'model'}" if $opts{'build'};
 
 # Beautify :P
 $cmd_build =~ s/^\s*|\s*$//g;
 $cmd_build =~ s/\s+/ /g;
-if ( $opts{'clean'} || $opts{'build'} ) {
-  print "\n[ BUILD CMD                   ]\n";
-  print "    $cmd_build\n";
+if ( $opts{'clean'} || $opts{'clean_all'} || $opts{'build'} ) {
+  print "[ BUILD CMD ]\n";
+  print "    $cmd_build\n\n";
 }
 
 # Run Job ==============================================================================================================
 if ( $opts{'run'} ) {
-  print "\n[ RUN_JOB CMD                 ]\n";
+  print "[ RUN_JOB CMD ]\n";
   # Remove junk arguments
   $opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
   $opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
@@ -190,11 +229,19 @@ if ( $opts{'run'} ) {
   $opts{'cmd'} .= " -lsf" if $opts{'lsf'};
   if ( $opts{'delete'} ne "" ){
     print "    Removing option: '$opts{'delete'}'\n";
-    $opts{'cmd'} =~ s/$opts{'delete'}//;
+    # We use \Q and \E to escape any special characters such as in '+DUMP'
+    $opts{'cmd'} =~ s/\Q$opts{'delete'}\E//;
   }
   if ( $opts{'add'} ne "" ){
     print "    Adding option: '$opts{'add'}'\n";
     $opts{'cmd'} .= " " . $opts{'add'};
+  }
+
+  # Include/Exclude displayer log
+  if ( $opts{'dsp'} ) {
+    $opts{'cmd'} .= " -p dsp_ch" unless ( $opts{'cmd'} =~ /dsp_ch/ );
+  } else {
+    $opts{'cmd'} =~ s/\s*-p\s+dsp_ch//;
   }
 
   # Beautify :P
@@ -209,7 +256,8 @@ unless ( $opts{'test'} ) {
   if (  $opts{'build'}
      && system qq($cmd_build)
      ) {
-    $opts{'wtf'} ? exec "WhyTheFail" : return 1;
+    system "WhyTheFail" if $opts{'wtf'};
+    exit 1;
   }
   exec qq($opts{'cmd'}) if $opts{'run'};
 }

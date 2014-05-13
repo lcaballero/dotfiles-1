@@ -189,6 +189,7 @@ alias k9='kill -9'
 #=================
 # Editor aliases
 #
+unset -f v
 function v { gvim $* 2> /dev/null; }
 #alias v='gvim'
 alias vco='v command*'
@@ -196,7 +197,7 @@ alias vd='v -d'
 alias vr='v run*'
 alias govv='v ~/.vim/vimrc'
 alias govm='v ~/.vim/mappings.vim'
-alias govf='v ~/.vim/functions.vim'
+alias govf='v ~/.vim/autoload/myFunctions.vim'
 alias vd='v -d'
 alias vu='v -u NONE -U NONE --noplugin -N'
 alias rvv='\rm -rf ~/.vim/junk/views/*'
@@ -245,7 +246,7 @@ alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
 #==============
 # FuzzyFinder
 #
-bind '"\C-f": "fzf\n"'
+#bind '"\C-f": "fzf\n"'
 # fzf - Ignore .gitignore contents etc. by filtering through ag
 #bind '"\C-f": "ag -l -g \"\" | fzf\n"'
 
@@ -282,7 +283,7 @@ alias pfd='pf diff'
 alias pfe='pf edit'
 alias pfh='pf help'
 alias pfo='pf opened'
-alias pfop="pfo | perl -pe 's/^.*?trunk\/|#.*$/\$REPO_PATH/g'"
+alias pfop="pfo | perl -pe 's/^.*?\/(?=ch\/)|#.*$/\$REPO_PATH/g'"
 #alias pfrem='pf remove'
 alias pfres='pf resolve'
 alias pfrev='pf revert'

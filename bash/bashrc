@@ -164,7 +164,7 @@ export MANPATH=.~/local/man:$MANPATH
 export LD_LIBRARY_PATH=~/local/lib:$LD_LIBRARY_PATH
 export PATH=~/bin:~/local/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
 export TZ=US/Mountain
-export LANG=en_US.UTF-8
+#export LANG=en_US.UTF-8
 #export MYCPU_TERM=/usr/bin/gnome-terminal
 # Ack
 #export ACK_OPTIONS='--color-filename=COLOR --color-match=COLOR --color-lineno=COLOR --type-add verilog:ext:.sv,.svh,.v'

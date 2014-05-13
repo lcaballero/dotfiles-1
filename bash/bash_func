@@ -369,7 +369,7 @@ alias d2h='dec2hex'
 
 unset -f hex2dec
 function hex2dec() {
-  echo "ibase=16; $@" | command bc
+  echo "obase=10; ibase=16; $@" | command bc
 }
 alias h2d='hex2dec'
 
