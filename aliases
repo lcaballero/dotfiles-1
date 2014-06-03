@@ -7,6 +7,14 @@ alias al=type
 # Identify the current shell
 MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' | sed 's/-//g' ))
 
+
+#========================
+# Local machine aliases
+#
+if [ -f ~/.myaliases ]; then
+  . ~/.myaliases
+fi
+
 #=================================
 # Global aliases ( Zsh specific )
 #
@@ -337,12 +345,4 @@ else
   alias mcm='make clean; make'
   alias ma='make all'
   alias mi='make install'
-fi
-
-
-#========================
-# Local machine aliases
-#
-if [ -f ~/.myaliases ]; then
-  . ~/.myaliases
 fi

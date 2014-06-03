@@ -1,12 +1,13 @@
 # Roots of the synchronization
-root = /home/ks/Dropbox/Softwares/Vim
-root = /mnt/cifs/amd/svdc/Dropbox/Softwares/Vim
+#root = /proj/aspen_func_dev0/ASPEN/kshenoy
+#root = ssh://kshenoy@atlvgar01//proj/aspen_func_dev0/ASPEN/kshenoy
+#root = ssh://kshenoy@mhdcgar01//proj/aspen_func_dev0/ASPEN/kshenoy
 
 #          Causes Unison to double-check, at the end of update detection,
 #          that PATH exists and abort if it does not. This is useful when
 #          Unison is used to synchronize removable media. This preference
 #          can be given more than once.
-#mountpoint = /mnt/cifs/amd/svdc/Dropbox/Softwares/Vim
+#mountpoint = /mnt/cifs/amd/Dropbox/Softwares/Linux
 
 # Paths to synchronize
 #path = current
@@ -14,19 +15,18 @@ root = /mnt/cifs/amd/svdc/Dropbox/Softwares/Vim
 #path = .netscape/bookmarks.html
 
 # Some regexps specifying names and paths to ignore
-#ignore = Path stats    ## ignores /var/www/stats
-#ignore = Path stats/*  ## ignores /var/www/stats/*
-#ignore = Path */stats  ## ignores /var/www/somedir/stats, but not /var/www/a/b/c/stats
+#ignore = Path stats    ## ignores <root>/stats
+#ignore = Path stats/*  ## ignores <root>/stats/*
+#ignore = Path */stats  ## ignores <root>/somedir/stats, but not /var/www/a/b/c/stats
 #ignore = Name *stats   ## ignores all files/directories that end with "stats"
 #ignore = Name stats*   ## ignores all files/directories that begin with "stats"
 #ignore = Name *.tmp    ## ignores all files with the extension .tmp
-ignore = Path bundle
-ignore = Path junk
-ignore = Path .git
-ignore = Name tags
-ignore = Name .tags
-ignore = Name .netrwhist
-ignore = Name SyncToy*
+ignore = Path as1
+ignore = Path as2
+ignore = Path as3
+ignore = Path as4
+ignore = Path as5
+ignore = Path as6
 
 #          When set to true, this flag causes the user interface to skip
 #          asking for confirmations on non-conflicting changes. (More
@@ -83,7 +83,7 @@ group=false
 
 #          When this flag is set to true, the owner attributes of the
 #          files are synchronized. Whether the owner names or the owner
-#          identifiers are synchronized depends on the preference
+#          identifiers are synchronizeddepends on the preference
 #          extttnumerids.
 owner=false
 
@@ -106,6 +106,9 @@ prefer=newer
 #          directory modtimes) are propagated.
 times=false
 
-# permissions line is necessary for FAT filesystem on the memory stick to work
-# # otherwise you keep getting an error message
-perms = 0
+#          permissions line is necessary for FAT filesystem on the memory stick to work
+#          otherwise you keep getting an error message
+perms=0
+
+#          name of unison executable on remote server
+servercmd=/tool/pandora64/bin/unison

@@ -218,12 +218,13 @@ if ( $opts{'run'} ) {
   # Remove junk arguments
   $opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
   $opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
-  $opts{'cmd'} =~ s/-p crdb\s*//g;
+  $opts{'cmd'} =~ s/-p\s+crdb\s*//g;
   $opts{'cmd'} =~ s/-(?:no)?crdb\s*//g;
   $opts{'cmd'} =~ s/-o ""\s*//;
   $opts{'cmd'} =~ s/-(?:no)?delete//;
   $opts{'cmd'} =~ s/-gzip\s*//;
   $opts{'cmd'} =~ s/-test_id\s*\S+\s*//;
+  $opts{'cmd'} =~ s/-p\s+rg_dsp_ch\s*//;
 
   # Add/Delete options to/from the CMD
   $opts{'cmd'} .= " -lsf" if $opts{'lsf'};
@@ -239,9 +240,9 @@ if ( $opts{'run'} ) {
 
   # Include/Exclude displayer log
   if ( $opts{'dsp'} ) {
-    $opts{'cmd'} .= " -p dsp_ch" unless ( $opts{'cmd'} =~ /dsp_ch/ );
+    $opts{'cmd'} .= " -p dsp_ch" unless ( $opts{'cmd'} =~ /\bdsp_ch\b/ );
   } else {
-    $opts{'cmd'} =~ s/\s*-p\s+dsp_ch//;
+    $opts{'cmd'} =~ s/\s*-p\s+dsp_ch\b//;
   }
 
   # Beautify :P

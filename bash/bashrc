@@ -153,7 +153,7 @@ alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo
 #========================
 umask 002
 # Set terminal to mimic titeInhibit = true
-export TERM=screen-256color
+export TERM=xterm-256color
 # Show timestamps in history
 export HISTTIMEFORMAT="%F %T "
 #export LESS="-icuf -P?f%f:stdin. [%T] (?pB%pB\%:byte %bB.)"
