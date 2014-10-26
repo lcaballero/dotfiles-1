@@ -167,6 +167,20 @@ function zsh_cd {
 alias cd=zsh_cd
 
 
+# Intelligent .. {{{1
+function ..() {
+  if [ $1 -ge 0 2> /dev/null ]; then
+    levels=$1;
+  else
+    levels=1;
+  fi;
+
+  for (( i=0; i < $levels; i++ )); do
+    cd ..;
+  done;
+}
+
+
 # Function to convert tr0 to pun                                                                                    {{{1
 #function tr2pun(){
 #    for i in $*; do
@@ -363,13 +377,15 @@ uc(){ echo $* |/usr/bin/tr "[a-z]" "[A-Z]"; }
 
 unset -f dec2hex
 function dec2hex() {
-  echo "obase=16; $@" | command bc
+  hex=`echo "obase=16; ibase=10; $@" | command bc`
+  echo 0x$hex
 }
 alias d2h='dec2hex'
 
 unset -f hex2dec
 function hex2dec() {
-  echo "obase=10; ibase=16; $@" | command bc
+  dec=`uc $@`
+  echo "obase=10; ibase=16; ${dec#0X}" | command bc
 }
 alias h2d='hex2dec'
 

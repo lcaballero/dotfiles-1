@@ -1,5 +1,0 @@
-Grep command to print the results from a prt file
-    grep "SUMMARY for RERUN" -A10 iohiol.test.prt | grep -v "MAX|MIN"
-
-Grep command to identify run failures from an rpt file
-    grep -v "\d+\.\d+[um]\s+\d+\.\d+[um]" iohiol00.rpt

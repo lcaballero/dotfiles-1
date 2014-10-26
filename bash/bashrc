@@ -3,19 +3,11 @@
 # Kartik Shenoy (kartik.shenoy@amd.com)
 
 
-#===================================================================================================
-# Shell Configuration
+#=======================================================================================================================
+# SHELL CONFIGURATION
 #======================
+umask 002
 
-HISTCONTROL=ignoredups:ignorespace
-# Triggers too many Dropbox updates
-#if [ -f ~/Dropbox/Softwares/Linux/bash/bash_history ]; then
-#  HISTFILE=~/Dropbox/Softwares/Linux/bash/bash_history
-#fi
-HISTFILESIZE=5000
-# Ignore trivial one- and two-char commands
-HISTIGNORE=?:??
-HISTSIZE=5000
 # Append commands to histfile immediately and keep a copy forever
 #PROMPT_COMMAND='history -a; history -r; tail -1 ~/.bash_history >> ~/.bash_history_all'
 
@@ -33,6 +25,7 @@ shopt -s histappend histreedit histverify
 set +o nounset          # otherwise some completions will fail
 set -o noclobber
 #set -o vi
+set bell-style none
 
 complete -A hostname   rsh rcp telnet rlogin r ftp ping disk
 complete -A export     printenv
@@ -82,14 +75,15 @@ complete -f -o default -X '!*.vv' vv
 #complete -f -o default -X '!*.+(mp3|MP3)' mpg123 mpg321
 #complete -f -o default -X '!*.+(ogg|OGG)' ogg123
 
-# Default LS_COLORS
+# Default LS_COLORS (Disabled as I use dir_colors)
+#export CLICOLOR=1
 #export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:su=37;41:sg=30;43:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.flac=01;35:*.mp3=01;35:*.mpc=01;35:*.ogg=01;35:*.wav=01;35:'
 # Change the default directory color from dark blue to burnt orange
 #export LS_COLORS='no=00:fi=00:di=00;33:ln=01;36:pi=40;33:so=01;35:bd=40;33;01:cd=40;33;01:or=01;05;37;41:mi=01;05;37;41:ex=01;32:*.cmd=01;32:*.exe=01;32:*.com=01;32:*.btm=01;32:*.bat=01;32:*.sh=01;32:*.csh=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.bz=01;31:*.tz=01;31:*.rpm=01;31:*.cpio=01;31:*.jpg=01;35:*.gif=01;35:*.bmp=01;35:*.xbm=01;35:*.xpm=01;35:*.png=01;35:*.tif=01;35:'
 
 
-#===================================================================================================
-# External Customisations
+#=======================================================================================================================
+# EXTERNAL CUSTOMISATIONS
 #==========================
 #if [ -x /usr/bin/dircolors ]; then
 #    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
@@ -111,7 +105,7 @@ fi
 if [ -f ~/Dropbox/Softwares/Linux/bash/bash_prompt ]; then
   #echo "  Sourcing bash_prompt ..."
   . ~/Dropbox/Softwares/Linux/bash/bash_prompt
-  preprompt_sjlmod
+  setprompt
   #echo "  ... done"
 fi
 
@@ -122,8 +116,8 @@ if [ -f ~/Dropbox/Softwares/Linux/aliases ]; then
 fi
 
 
-#===================================================================================================
-# Misc Settings
+#=======================================================================================================================
+# MISC SETTINGS
 #================
 
 # Make less more friendly for non-text input files, see lesspipe(1)
@@ -147,35 +141,52 @@ fi
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
 
-
-#===================================================================================================
-# Environment Variables
+#=======================================================================================================================
+# ENVIRONMENT VARIABLES
 #========================
-umask 002
-# Set terminal to mimic titeInhibit = true
-export TERM=xterm-256color
+# History
+export HISTSIZE=16384
+export HISTFILESIZE=16384
 # Show timestamps in history
 export HISTTIMEFORMAT="%F %T "
-#export LESS="-icuf -P?f%f:stdin. [%T] (?pB%pB\%:byte %bB.)"
-#export EDITOR=`v | sed -e 's/^alias v=//'`
-export EDITOR='vim -u NONE'
-export PAGER='less -r'
+# Ignore duplicates and trivial one- and two-char commands
+export HISTCONTROL=ignoredups:ignorespace
+export HISTIGNORE=?:??
+
+## TERMINAL
+# Set terminal to mimic titeInhibit = true
+export TERM=xterm-256color
+export PATH=~/bin:~/local/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
 export MANPATH=.~/local/man:$MANPATH
 export LD_LIBRARY_PATH=~/local/lib:$LD_LIBRARY_PATH
-export PATH=~/bin:~/local/bin:/tool/pandora64/bin:/tool/pandora/bin:$PATH
+
+export PAGER='less -r'
+#export LESS="-icuf -P?f%f:stdin. [%T] (?pB%pB\%:byte %bB.)"
+export EDITOR=gvim
+
+#export GREP_OPTIONS="--color=auto"
+export GREP_COLOR=32
+
+# Ruby gem path
+if which ruby >/dev/null && which gem >/dev/null; then
+  PATH="$(ruby -rubygems -e 'puts Gem.user_dir')/bin":$PATH
+fi
+
 export TZ=US/Mountain
 #export LANG=en_US.UTF-8
 #export MYCPU_TERM=/usr/bin/gnome-terminal
+
 # Ack
 #export ACK_OPTIONS='--color-filename=COLOR --color-match=COLOR --color-lineno=COLOR --type-add verilog:ext:.sv,.svh,.v'
-export ACK_OPTIONS='--type-set verilog=.sv,.svh,.v'
+#export ACK_OPTIONS='--type-set verilog=.sv,.svh,.v'
+
 # Perforce
 export P4EDITOR=$EDITOR
-export P4DIFF=`which meld`
-export P4MERGE="meld --diff %b %1 --diff %b %2 --diff %2 %r %1"
+export P4DIFF='gvim --cmd "set lines=62 columns=314" -d'
+export P4MERGE=p4merge
 
 
-#===================================================================================================
+#=======================================================================================================================
 # TMUX
 #=======
 if [ -f ~/Dropbox/Softwares/Linux/tmux/tmux_completion_bash.sh ]; then
@@ -189,7 +200,7 @@ fi
 #fi
 
 
-#===================================================================================================
+#=======================================================================================================================
 # FZF
 #======
 if [ -f ~/.fzf.bash ]; then

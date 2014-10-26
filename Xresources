@@ -96,16 +96,16 @@ xterm*scrollBar:                        false
 !xterm*rightScrollBar:                  true
 xterm*borderWidth:                      0
 xterm*toolBar:                          true
-xterm*utf8:                             2
+xterm*utf8:                             0
 xterm*termName:                         xterm-256color
 xterm*boldMode:                         false
 !xterm*faceName:                        xft:Dejavu Sans Mono:pixelsize=11.5
 xterm*faceName:                         Ubuntu Mono derivative Powerline
-xterm*faceSize:                         10
+xterm*faceSize:                         9
 !xterm*font:                            -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
 !xterm*boldFont:                        -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
 !http://invisible-island.net/xterm/xterm.faq.html#tiny_menus
-xterm.VT100.geometry:                   279x69
+xterm.VT100.geometry:                   139x77
 xterm*saveLines:                        10000
 xterm*metaSendsEscape:                  true
 xterm*highlightSelection:               true

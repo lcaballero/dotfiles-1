@@ -55,8 +55,8 @@
 function setprompt {
   # This function should always point to whatever prompt is desired.
   # The desired function shouldn't be called directly as the chdir() function in bash_func only calls this function
-  preprompt_philmod
-  setprompt_philmod
+  preprompt_sjlmod
+  #setprompt_philmod
 }
 
 #===================================================================================================
@@ -240,8 +240,12 @@ function preprompt_sjlmod {
     #echo "$k => ${dir_alias[$k]}"
     #echo ${pr_pwd/#$k/${dir_alias[$k]}}
   #done
+  #for i in ${!dir_alias[@]}; do
+  #  [ -n "$i" ] && pr_pwd=${pr_pwd/#$i/${dir_alias[$i]}}
+  #done
   pr_pwd=${pr_pwd/#$HOME/\~}
-  [ -n "$as" ] && pr_pwd=${pr_pwd/#$as/\~aspen}
+  [ -n "$as0" ] && pr_pwd=${pr_pwd/#$as0/\~ASPEN0}
+  [ -n "$as1" ] && pr_pwd=${pr_pwd/#$as1/\~ASPEN1}
 
   # Force time to US Mountain Time (we do this here as well as in .bashrc as sourcing some env files overwrites this)
   local pr_time="$(TZ=US/Mountain date +%I:%M%P\ %b\ %d,\ %a) "

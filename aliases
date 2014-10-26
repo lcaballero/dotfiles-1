@@ -67,6 +67,7 @@ fi
 #
 alias ls='ls -FLH --color=always'
 alias l=ls
+alias l1='ls -1'
 alias ll='ls -lh'
 alias la='ls -A'
 alias lla='ll -A'
@@ -75,9 +76,7 @@ alias lal=lla
 alias ltr='ll -tr'
 if [[ $MYSHELL =~ "zsh" ]]; then
   alias ld='ls -d *(-/DN)'
-  alias \\ld='\ls -d *(-/DN)'
-fi
-if [[ $MYSHELL =~ "bash" ]]; then
+elif [[ $MYSHELL =~ "bash" ]]; then
   alias ld='\ls -F | grep "/"'
 fi
 
@@ -87,12 +86,12 @@ fi
 #
 alias mkdir='mkdir -p'
 alias md=mkdir
-alias cd..='..'
+#alias cd..='..'
 alias dirs='dirs -v'
-if [[ $MYSHELL =~ "bash" ]]; then
-  alias ..='cd ..'
-  alias ...='cd ../..'
-fi
+#if [[ $MYSHELL =~ "bash" ]]; then
+#  alias ..='cd ..'
+#  alias ...='cd ../..'
+#fi
 
 
 #==============
@@ -125,11 +124,8 @@ alias bv='bindkey -v'
 alias mv='mv -vi'
 alias cp='cp -vi'
 alias rm='rm -vi'
-if [[ $MYSHELL =~ "zsh" ]]; then
-  alias -g rd='rm -rvf'
-else
-  alias rd='rm -rvf'
-fi
+alias rd='rm -rvf'
+alias rdj='\rm -rf'
 alias ln='ln -svi'
 alias df='df -h'
 alias du1='duh 1'
@@ -153,18 +149,19 @@ alias pgrep='/bin/ps -a | grep -i -e PID -e'
 alias g='grep -sP --color=always'
 alias gi='g -i'
 alias gv='g -v'
-alias gerr='gi ERR -C5'
 
 # If Ag/Pt/Ack exists, use it!!
 if hash ag 2> /dev/null; then
   alias a='ag'
+  alias ach='ag -G "\.(c|cc|cpp|C|CC)$"'
+  alias ach='ag -G "\.h$"'
 elif hash pt 2> /dev/null; then
   alias a='pt'
 elif hash ack 2> /dev/null; then
   alias a='ack --color'
-  alias ackc='a --type=cpp'
-  alias ackcc='a --type=cpp --nohh'
-  alias ackch='a --type=hh'
+  alias ac='a --type=cpp'
+  alias acc='a --type=cpp --nohh'
+  alias ach='a --type=hh'
 fi
 alias ai='a -i'
 alias av='a -v'
@@ -204,9 +201,13 @@ alias vco='v command*'
 alias vd='v -d'
 alias vr='v run*'
 alias govv='v ~/.vim/vimrc'
+alias govb='v ~/.vim/bundle.vim'
+alias govg='v ~/.vim/gvimrc'
 alias govm='v ~/.vim/mappings.vim'
 alias govf='v ~/.vim/autoload/myFunctions.vim'
+alias gor='v ~/Dropbox/Softwares/Linux/readmes/README.toc'
 alias vd='v -d'
+alias vn='v -c "RecentNotes"'
 alias vu='v -u NONE -U NONE --noplugin -N'
 alias rvv='\rm -rf ~/.vim/junk/views/*'
 
@@ -230,14 +231,16 @@ if [[ $MYSHELL =~ "bash" ]]; then
   alias gosr='v ~/.bashrc'
   alias gosf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
   alias src='. ~/.bashrc && echo Sourced ~/.bashrc'
+  alias srp='. ~/Dropbox/Softwares/Linux/bash/bash_prompt'
 fi
 if [[ $MYSHELL =~ "zsh" ]]; then
   alias gosr='v ~/.zshrc'
   alias gosf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
   alias src='. ~/.zshrc && echo Sourced ~/.zshrc'
 fi
-alias s=src
 alias gosa='v ~/Dropbox/Softwares/Linux/aliases'
+alias gosw='v ~/Dropbox/Softwares/Linux/aliases_work'
+alias s=src
 alias sra='. ~/Dropbox/Softwares/Linux/aliases'
 
 
@@ -249,6 +252,7 @@ alias so=source
 alias sco='. command'
 alias psmall="perl -lne 'BEGIN{"'$s=<>};$s=$_ if $_<$s;END{print "$s"}'"'"
 alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
+alias par1="perl -pe 'exit if /^\s*$/'"
 
 
 #==============
@@ -295,6 +299,7 @@ alias pfop="pfo | perl -pe 's/^.*?\/(?=ch\/)|#.*$/\$REPO_PATH/g'"
 #alias pfrem='pf remove'
 alias pfres='pf resolve'
 alias pfrev='pf revert'
+alias pflog='pf filelog -stl'
 alias pfs='pf submit'
 function pfu { pf update_env $* && ~/bin/make_tags; }
 #function pfu { pf update_env $* }
@@ -320,6 +325,7 @@ alias gp='git pull'
 alias grst='git reset --hard HEAD'
 alias gs='git status -sb'
 alias gS='git status'
+alias gl='git lg'
 
 
 #========

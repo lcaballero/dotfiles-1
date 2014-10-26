@@ -34,7 +34,7 @@ ignore = Path Linux/fonts
 ignore = Path Linux/compiz
 ignore = Path Linux/unity
 ignore = Path Vim/bundle
-ignore = Path Vim/junk
+ignore = Path Vim/tmp
 
 #          When set to true, this flag causes the user interface to skip
 #          asking for confirmations on non-conflicting changes. (More

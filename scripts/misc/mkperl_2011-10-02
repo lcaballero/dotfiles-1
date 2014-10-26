@@ -1,4 +1,4 @@
-#!/usr/bin/zsh
+#!/bin/zsh
 # Script to make a perl template
 echo '#!/usr/bin/perl' > $1
 echo '#==============================================================================#' >> $1

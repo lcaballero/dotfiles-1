@@ -31,7 +31,7 @@ alias regr_control='/proj/verif_release_ro/regr_control_tools/current/bin/regr_c
 alias cbi='. /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8'
 alias benv='bootenv'
 alias cbenv='cbi && benv && sra'
-alias mkv='mkverdi `perl -lne "if(/-model\s*\w+/){print $&;exit}" < sim.out` &'
+alias mkv='mkverdi -nolsf `grep -Po "\-model\s*\S+" sim.out` -sswr $REPO_PATH/ch/verif/debug/l3s_req_q.rc'
 alias cid='cat $REPO_PATH/configuration_id'
 alias bj='lsf_bjobs -w | grep -v lsf_mycpu'
 alias bk='lsf_bkill'
@@ -43,8 +43,9 @@ alias trapbug='s_trapbug -bug'
 # Misc
 #alias gvim='export LANG=en_US.UTF-8 && /tool/pandora64/.package/vim-7.4/bin/gvim --cmd "set lines=61 columns=316"'
 #alias vim='export LANG=en_US.UTF-8 && /tool/pandora64/.package/vim-7.4/bin/vim'
-alias gvim='/tool/pandora64/.package/vim-7.4/bin/gvim --cmd "set lines=61 columns=316"'
-alias vim='/tool/pandora64/.package/vim-7.4/bin/vim'
+alias gvim='/tool/pandora64/.package/vim-7.4-a/bin/gvim --cmd "set lines=62 columns=316"'
+alias vim='/tool/pandora64/.package/vim-7.4-a/bin/vim'
+alias mutt='/tool/pandora/.package/mutt-1.5.16-d/bin/mutt'
 alias ff='firefox'
 alias kv='kview'
 alias rr='~/bin/rerun'
@@ -59,15 +60,11 @@ alias rg='release_gate'
 alias rgd='release_gate -donate -no_donate_clean'
 alias rgg='release_gate_gui'
 alias ctags='/tool/pandora64/latest/bin/ctags'
-alias perr="perl -ne 'print if /^\s*error:/../:error/'"
+alias perr="perl -ne 'print if /error:/../:error/;exit if /:error/'"
 #alias psig="perl -lne 'BEGIN{\$p="'""'"}if(/^  -+$/){print \$p};\$p=\$_'"
 unset -f psig
 function psig() {
   perl -lne 'if(/^\s+-+$/../^\s*$/){if(/^\s+-+$/){$c=0;}elsif(/^\s*$/){print "  ($c) $s";}else{$c++;}}else{s/^\s+|\s+$//g;$s=$_}' $1
-}
-unset -f pww
-function pww() {
-  perl -lne 'if(/^\s*Working Dir: (\S+)/){$p=$1}if(/^\s+-+$/){print "\n$s\n$_"}else{$s=$_}if(/(?<=^  )Whacker\S+/){print "  $p/$&"}' $*
 }
 unset -f rgsig
 function rgsig() {
@@ -77,25 +74,55 @@ unset -f rgww
 function rgww() {
   for i in `g FAIL release_gate_tmp/release_gate.log | colm -1`; do echo -e "\n$i"; pww $i; done
 }
+unset -f plastlock
+function plastlock() {
+  for i in $*; do
+    echo
+    echo $i:
+    perl -ne 'if(/BUS_LOCK|SYS_MGMT/){$p="";}$p.=$_;END{print $p;}' $i
+  done
+}
+unset -f vsig
+function vsig() {
+  file=`grep -Po -m1 '(?<=source\=)[^:]+' summary.rj`
+  file=`find $REPO_PATH -name $file -print -quit`
+  lnum=`grep -Po -m1 '(?<=source\=)[^:]+:\d+' summary.rj | cut -d: -f2`
+  v +$lnum $file
+}
+unset -f xt
+function xt() {
+  /usr/bin/xterm $* &
+}
+alias xt1='xt -geometry 139x77'
+alias xt2='xt -geometry 138x95'
+alias xt3='xt -geometry 142x106'
+alias res1='resize -s  77 139'
+alias res2='resize -s  95 138'
+alias res3='resize -s 106 142'
 
 
 
 # Locations
 # Declaring these as environment variables instead of regular ones allows access from within vim
-export as='/proj/aspen_func_dev0/ASPEN'
 # If $REPO_PATH is set, expand ${...} to $REPO_PATH/ ( append trailing slash )
 # This allows us to use $rtl etc as an absolute path when $REPO_PATH is set but when
 # bootenv is not done, we can use it as a relative path
-export asks='/proj/aspen_func_dev0/ASPEN/kshenoy'
-export as1='/proj/aspen_func_dev0/ASPEN/kshenoy/as1'
-export as2='/proj/aspen_func_dev0/ASPEN/kshenoy/as2'
-export as3='/proj/aspen_func_dev0/ASPEN/kshenoy/as3'
-export as4='/proj/aspen_func_dev0/ASPEN/kshenoy/as4'
-export as5='/proj/aspen_func_dev0/ASPEN/kshenoy/as5'
-export as6='/proj/aspen_func_dev0/ASPEN/kshenoy/as6'
-export as7='/proj/aspen_func_dev0/ASPEN/kshenoy/as7'
-export as8='/proj/aspen_func_dev0/ASPEN/kshenoy/as8'
-export as9='/proj/aspen_func_dev0/ASPEN/kshenoy/as9'
+export as0='/proj/aspen_func_dev0/ASPEN'
+export as0ks='/proj/aspen_func_dev0/ASPEN/kshenoy'
+export as01='/proj/aspen_func_dev0/ASPEN/kshenoy/as1'
+export as02='/proj/aspen_func_dev0/ASPEN/kshenoy/as2'
+export as03='/proj/aspen_func_dev0/ASPEN/kshenoy/as3'
+export as04='/proj/aspen_func_dev0/ASPEN/kshenoy/as4'
+export as05='/proj/aspen_func_dev0/ASPEN/kshenoy/as5'
+
+export as1='/proj/aspen_func_dev1/ASPEN'
+export as1ks='/proj/aspen_func_dev1/ASPEN/kshenoy'
+export as11='/proj/aspen_func_dev1/ASPEN/kshenoy/as1'
+export as12='/proj/aspen_func_dev1/ASPEN/kshenoy/as2'
+export as13='/proj/aspen_func_dev1/ASPEN/kshenoy/as3'
+export as14='/proj/aspen_func_dev1/ASPEN/kshenoy/as4'
+export as15='/proj/aspen_func_dev1/ASPEN/kshenoy/as5'
+
 export ass0='/proj/aspen_func_gen_scratch0/ASPEN/kshenoy'
 export ass1='/proj/aspen_func_gen_scratch1/ASPEN/kshenoy'
 export ass2='/proj/aspen_func_gen_scratch2/ASPEN/kshenoy'
@@ -122,7 +149,8 @@ dyn_vars
 if [[ $MYSHELL == "bash" ]]; then
   declare -A dir_alias=(
     ['$HOME']='~'
-    ['$as']='~aspen'
+    ['$as0']='~aspen0'
+    ['$as1']='~aspen1'
   )
 fi
 
@@ -185,20 +213,16 @@ function dotkv(){
   done
 }
 
-unset -f ut
-function ut(){
-  model=${1%_unittest}_unittest
-  echo $REPO_PATH/build/${model}/${model}
-  $REPO_PATH/build/${model}/${model}
-}
-
 unset -f but
 function but(){
   model=${1%_unittest}_unittest
   echo build -model $model
   build_model $model
-  if (( $? != 0 )); then return 1; fi
-  ut $model
+  if (( $? != 0 )); then WhyTheFail; return 1; fi
+
+  echo $REPO_PATH/build/${model}/${model}
+  ( $REPO_PATH/build/${model}/${model} | tee ${model}.log )
+  if (( $? != 0 )); then WhyTheFail; return 1; fi
 }
 
 unset -f pfrem
@@ -220,3 +244,30 @@ function wtff() {
   model=`basename ${1%_rg.build.log}`
   wtf -m $model
 }
+
+unset -f ljd_summary
+function ljd_summary() {
+  args=('.')
+  if (( $# > 0 )); then
+    args=$*
+  fi
+  command rm $$ &> /dev/null
+  for dir in ${args[@]}; do
+    total_runs=`command grep -c '/exec_dir' ${dir}/comms/gather.xml`
+    passed_runs=`command find ${dir} -name PASSED -printf '.' | wc -c`
+    failed_runs=`command find ${dir} -name FAILED -printf '.' | wc -c`
+    complete_runs=$(( passed_runs + failed_runs ))
+    pending_runs=$(( total_runs - complete_runs ))
+    pass_rate=0
+    if (( $complete_runs > 0 )); then
+      pass_rate=`echo "scale=1; $passed_runs*100/($complete_runs)" | command bc`
+    fi
+
+    echo "$dir  Total:$total_runs  Pass:$passed_runs  Fail:$failed_runs  Running:$pending_runs  Pass-rate:$pass_rate%" >> $$
+    #echo "Passed: $passed_runs/$total_runs ($pass_rate%), $pending_runs Running"
+    #echo "Passed: $passed_runs ($failed_runs) / $complete_runs ($pending_runs)  ($pass_rate%)"
+  done
+  /usr/bin/column -t $$
+  command rm $$ &> /dev/null
+}
+alias ljds=ljd_summary
