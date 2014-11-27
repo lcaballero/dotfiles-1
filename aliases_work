@@ -33,12 +33,17 @@ alias benv='bootenv'
 alias cbenv='cbi && benv && sra'
 alias mkv='mkverdi -nolsf `grep -Po "\-model\s*\S+" sim.out` -sswr $REPO_PATH/ch/verif/debug/l3s_req_q.rc'
 alias cid='cat $REPO_PATH/configuration_id'
-alias bj='lsf_bjobs -w | grep -v lsf_mycpu'
+alias bj='lsf_bjobs -w'
 alias bk='lsf_bkill'
 alias bq='lsf_bqueues'
 alias wtf='WhyTheFail'
 alias lmn='ljd -nomail -l'
 alias trapbug='s_trapbug -bug'
+function trapbug_rm() {
+ssh atlvsub01 xargs /home/ainfra/bin/rm_defunct_bug_data --bug_data_path /proj/aspen_bug_data/ASPEN --bug_dirs << BUGS
+$*
+BUGS
+}
 
 # Misc
 #alias gvim='export LANG=en_US.UTF-8 && /tool/pandora64/.package/vim-7.4/bin/gvim --cmd "set lines=61 columns=316"'
@@ -61,6 +66,7 @@ alias rgd='release_gate -donate -no_donate_clean'
 alias rgg='release_gate_gui'
 alias ctags='/tool/pandora64/latest/bin/ctags'
 alias perr="perl -ne 'print if /error:/../:error/;exit if /:error/'"
+alias b.='bucket .'
 #alias psig="perl -lne 'BEGIN{\$p="'""'"}if(/^  -+$/){print \$p};\$p=\$_'"
 unset -f psig
 function psig() {
@@ -97,7 +103,7 @@ alias xt1='xt -geometry 139x77'
 alias xt2='xt -geometry 138x95'
 alias xt3='xt -geometry 142x106'
 alias res1='resize -s  77 139'
-alias res2='resize -s  95 138'
+alias res2='resize -s  98 138'
 alias res3='resize -s 106 142'
 
 

@@ -1,0 +1,136 @@
+#!/bin/bash
+#
+# SYNTAX: run_batch <P4 dir> <Changelist>
+#   P4 Work area - The work area to run the sim in
+#   Changelist - The changelist to update to before running
+
+# Automatically exit script on error
+set -e
+
+function help_dump() {
+  echo "Usage:"
+  echo "    `basename $0` [OPTIONS]"
+  echo
+  echo "Options:"
+  echo "    -h    Print this help"
+  echo "    -c    Update to specified changelist before running"
+  echo "    -C    Do not perform update_env"
+  echo "          If neither -c nor -C are specified, defaults to @latest"
+  echo "    -d    Run the jobspec in the specified PERFORCE dir"
+  echo "    -D    Run the jobspec in the current \$REPO_PATH"
+  echo "          If both -d and -D are not specified, reverts to /proj/aspen_func_dev1/ASPEN/kshenoy/as3/error_log_regr"
+  echo "    -M    Do not send summary mails"
+  echo "    -s    Do not run, just summarize the results and send a mail"
+}
+
+# Defaults
+dir="/proj/aspen_func_dev1/ASPEN/kshenoy/as3/error_log_regr"
+upd_cl="@latest"
+summary=0
+verbose=1
+dir_set=0
+send_mail=1
+jobspec="/proj/aspen_func_dev0/ASPEN/kshenoy/jobspecs/error_logging.xml"
+models=( "tb_ch_4c4m" )
+
+while getopts ":c:Cd:DsMhv" opt; do
+  case $opt in
+    c)
+      upd_cl=${OPTARG}
+      ;;
+    C)
+      upd_cl=""
+      ;;
+    d)
+      dir=${OPTARG}
+      dir_set=1
+      ;;
+    D)
+      dir=$REPO_PATH
+      dir_set=1
+      ;;
+    M)
+      send_mail=0
+      ;;
+    s)
+      summary=1
+      ;;
+    h)
+      help_dump
+      exit
+      ;;
+    v)
+      verbose=1
+      ;;
+    :)
+      echo "  ERROR: Option -${OPTARG} requires an argument" >&2
+      exit 1
+      ;;
+    \?)
+      echo "  ERROR: Invalid option: -${OPTARG}" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Print the input options
+if (( $verbose > 0 )); then
+  echo "Work-area :  $dir"
+  echo "Update CL :  $upd_cl"
+  echo "Summarize :  $summary"
+  echo "Send Mail :  $send_mail"
+  echo
+fi
+
+
+if (( $summary == 0 )); then
+  if (( $send_mail == 1 )); then
+    echo $dir | mail -s "Starting L3 regressions `date +%-m/%-d`" kartik.shenoy@amd.com
+  fi
+
+  echo "cd ${dir}/sim"
+  cd ${dir}/sim
+  echo
+
+  # Bootenv if we're not in the $REPO_PATH
+  echo ". /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv"
+  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
+  echo
+
+  if [[ ! -z "$upd_cl" ]]; then
+    echo "p4w update_env ${upd_cl}"
+    p4w update_env ${upd_cl}
+    echo
+  fi
+fi
+
+cl=`grep -Po "(?<=aspen_trunk@)\d+" ${REPO_PATH}/configuration_id`
+echo "Changelist: aspen/aspen_trunk@${cl}"
+echo
+
+if (( $summary == 0 )); then
+  for model in ${models[*]}; do
+    /home/kshenoy/bin/rerun -b -f ${jobspec} -a "-d ${cl}_${model} -m 5" -m $model &
+  done
+  wait
+fi
+
+if [ -f ${dir}/sim/results.txt ]; then command rm ${dir}/sim/results.txt; fi
+for model in ${models[*]}; do
+  cd ${dir}/sim/${cl}_${model}
+  echo "Model: ${model}"                                             >> ${dir}/sim/results.txt
+  echo "Changelist: aspen/aspen_trunk@${cl}"                         >> ${dir}/sim/results.txt
+  echo "No. of runs: `command grep -c '/exec_dir' comms/gather.xml`" >> ${dir}/sim/results.txt
+  #grep -Po "(?<=Total Number of )Jobs.*" summary.ljd                >> ${dir}/sim/results.txt
+  echo                                                               >> ${dir}/sim/results.txt
+  /home/kshenoy/bin/bucket . | perl -pe 'exit if /^\s*$/'            >> ${dir}/sim/results.txt
+  echo                                                               >> ${dir}/sim/results.txt
+  echo                                                               >> ${dir}/sim/results.txt
+done
+
+if (( $send_mail == 1 )); then
+  mail -s "L3 regression status `date +%-m/%-d`" kartik.shenoy@amd.com < ${dir}/sim/results.txt
+else
+  command cat ${dir}/sim/results.txt
+fi
+command rm ${dir}/sim/results.txt

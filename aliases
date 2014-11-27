@@ -247,12 +247,14 @@ alias sra='. ~/Dropbox/Softwares/Linux/aliases'
 #=======
 # Misc
 #
+alias j='jobs'
 alias archdate='date +%Y-%m-%d'
 alias so=source
 alias sco='. command'
 alias psmall="perl -lne 'BEGIN{"'$s=<>};$s=$_ if $_<$s;END{print "$s"}'"'"
 alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
 alias par1="perl -pe 'exit if /^\s*$/'"
+alias get_bits='perl -e '"'"'$a=hex($ARGV[0]);$m=$ARGV[1];$l=(defined $ARGV[2]?$ARGV[2]:$m); printf "0x%x\n", (($a >> $l) & ((1 << ($m-$l+1)) - 1))'"'"''
 
 
 #==============

@@ -1,0 +1,60 @@
+!-------------------------------------------------------------------------------
+!
+!  X T E R M - Setting
+!
+!
+xterm*loginShell:                       true
+!xterm*background:                       grey5
+!xterm*foreground:                       grey95
+!xterm*cursorColor:                     darkorange1
+xterm*cursorBlink:                      true
+xterm*scrollBar:                        false
+!xterm*rightScrollBar:                  true
+xterm*borderWidth:                      0
+xterm*toolBar:                          true
+xterm*utf8:                             1
+xterm*termName:                         xterm-256color
+xterm*boldMode:                         false
+!xterm*faceName:                        xft:Dejavu Sans Mono:pixelsize=11.5
+xterm*faceName:                         Ubuntu Mono derivative Powerline
+xterm*faceSize:                         9
+!xterm*font:                            -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
+!xterm*boldFont:                        -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
+!http://invisible-island.net/xterm/xterm.faq.html#tiny_menus
+xterm.VT100.geometry:                   139x77
+xterm*saveLines:                        10000
+xterm*metaSendsEscape:                  true
+xterm*highlightSelection:               true
+xterm*trimSelection:                    true
+!xterm*rightbar:                         true
+xterm*cutNewline:                       false
+xterm*colorBDMode:                      true
+xterm*colorBD:                          khaki
+xterm*charClass: 3:48,35:48,37:48,43:48,45-47:48,64:48,95:48,126:48,35:48,58:48,63:48,61:48,44:48,38:48,59:48
+!xterm*charClass: 33:48,36-47:48,58-59:48,61:48,63-64:48,95:48,126:48
+
+!colors
+!black
+!xterm*color0:                           #171717
+!xterm*color8:                           #737373
+!red
+!xterm*color1:                           #FF5E5E
+!xterm*color9:                           #FF7878
+!green
+!xterm*color2:                           #9CE82B
+!xterm*color10:                          #9ACD32
+!yellow
+!xterm*color3:                           #F0E68C
+!xterm*color11:                          #EEE8AA
+!blue
+xterm*color4:                           #008AFF
+xterm*color12:                          #4F98FF
+!magenta
+!xterm*color5:                           #E88CFF
+!xterm*color13:                          #EDA6FF
+!cyan
+!xterm*color6:                           #87CEFA
+!xterm*color14:                          #B0E2FF
+!white
+!xterm*color7:                           #DCDCCC
+!xterm*color15:                          #FFFFFF

@@ -11,7 +11,7 @@ export CSCOPE_DB=$REPO_PATH/.cscope.out
 
 # Clean up temp files
 rm -f $TAGS_DB
-rm -f $CSCOPE_DB
+rm -f ${CSCOPE_DB}{, .in, .po}
 
 # Find files
 find ${TAG_DIRS[@]} -type f \( -iname "*.h" -or -iname "*.cc" \) >| $REPO_PATH/tags.filelist

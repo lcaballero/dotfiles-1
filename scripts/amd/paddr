@@ -1,0 +1,101 @@
+#!/tool/pandora64/bin/perl
+
+#=======================================================================================================================
+# Documentation                                                                                                     {{{1
+#
+=head1 NAME
+
+ paddr
+
+=head1 AUTHOR
+
+ Kartik Shenoy
+
+=head1 SYNOPSIS
+
+ paddr [OPTIONS] {address}
+
+=head1 DESCRIPTION
+
+ Dump all the tag, index, slice etc. information given a 64bit input address
+
+=head1 OPTIONS
+
+  -t, --test          Test run
+  -v, --verbose       Verbose mode. Print values of all arguments
+
+=cut
+# }}}1
+
+
+## Modules
+use Getopt::Long;
+use Pod::Usage;
+
+Getopt::Long::Configure("bundling");
+#Getopt::Long::Configure("pass_through");
+
+
+## Pragmas
+use strict;
+#use warnings;
+#use diagnostics;
+
+
+#=======================================================================================================================
+# Command-line parameter handling                                                                                   {{{1
+#
+my %opts = (
+  'test'    => 0,
+  'verbose' => 0,
+  'ifile'   => '',
+  'ofile'   => '',
+);
+
+GetOptions(
+  'help|h|?'   => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
+  'test|t',
+  'verbose|v!',
+) or pod2usage( -verbose => 1 ) && exit;
+
+# Dump the input arguments
+if ( $opts{'verbose'} ){
+  print "test       : $opts{'test'}\n";
+  print "\n";
+}
+
+
+#=======================================================================================================================
+# Main Code                                                                                                         {{{1
+#
+sub GetBits {
+  my $num    = $_[0];
+  my $msb    = $_[1];
+  my $lsb    = $_[2];
+  my $offset = 0;
+  $offset += $_[3] if defined($_[3]);
+
+  my $mask = (1 << ($msb - $lsb + 1)) - 1;
+  my $ret  = ((($num >> $lsb) & $mask) << $offset);
+}
+
+my $addr = hex($ARGV[0]);
+printf "  Addr[47:16] Tag             = 0x%x\n", GetBits($addr, 47, 16);
+printf "  Addr[17: 6] L3LogicalIndex  = 0x%x\n", GetBits($addr, 17,  6);
+printf "  Addr[ 7: 6] L3Slice         = 0x%x\n", GetBits($addr,  7,  6);
+printf "  Addr[17: 8] L3SliceIndex    = 0x%x\n", GetBits($addr, 17,  8);
+printf "  Addr[10: 8] L3TagBank       = 0x%x\n", GetBits($addr, 10,  8);
+printf "  Addr[17:11] L3TagBankIndex  = 0x%x\n", GetBits($addr, 17, 11);
+printf "  Addr[ 9: 8] L3DataBank      = 0x%x\n", GetBits($addr,  9,  8);
+printf "  Addr[17:10] L3DataBankIndex = 0x%x\n", GetBits($addr, 17, 10);
+printf "  Addr[15: 6] L2Index         = 0x%x\n", GetBits($addr, 15,  6);
+
+
+
+#=======================================================================================================================
+# Clean-up
+#
+#close $fin;
+#close $fout;
+
+exit 0;

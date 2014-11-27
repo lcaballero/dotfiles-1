@@ -1,0 +1,177 @@
+#!/bin/bash
+#
+# SYNTAX: run_batch <P4 dir> <Changelist>
+#   P4 Work area - The work area to run the sim in
+#   Changelist - The changelist to update to before running
+
+function help_dump() {
+  echo "Usage:"
+  echo "    `basename $0` [OPTIONS]"
+  echo
+  echo "Options:"
+  echo "    -h    Print this help"
+  echo "    -c    Update both Source and Target work-areas to the specified changelist before running"
+  echo "    -s    Use the specified dir as the Source work-area"
+  echo "    -t    Use the specified dir as the Target work-area instead of using \$REPO_PATH"
+  echo "    -n    Do not make any changes. Simply list the commands that will be run"
+}
+
+# Defaults
+src=""
+src_upd=0
+src_cl=0
+if [[ -z ${REPO_PATH} ]]; then targ=${PWD}; else targ=${REPO_PATH}; fi
+targ_create=0
+targ_upd=0
+targ_cl=0
+upd_cl=0
+summary=0
+verbose=1
+noexec=0
+
+echo
+while getopts ":c:s:t:nhv" opt; do
+  case $opt in
+    c)
+      upd_cl=${OPTARG}
+      ;;
+    s)
+      src=${OPTARG}
+      if [ ! -f ${src}/configuration_id ]; then
+        echo "ERROR: Source ($src) work-area is not a valid Perforce repository.";
+        exit 1;
+      fi
+      ;;
+    t)
+      targ=${OPTARG}
+      ;;
+    n)
+      noexec=1
+      ;;
+    h)
+      help_dump
+      exit
+      ;;
+    v)
+      verbose=1
+      ;;
+    :)
+      echo "ERROR: Option -${OPTARG} requires an argument" >&2
+      exit 1
+      ;;
+    \?)
+      echo "ERROR: Invalid option: -${OPTARG}" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Determine which CL to update to ______________________________________________________________________________________
+src_cl=`grep -Po "(?<=aspen_trunk@)\d+" ${src}/configuration_id`
+if [ -f ${targ}/configuration_id ]; then
+  targ_cl=`grep -Po "(?<=aspen_trunk@)\d+" ${targ}/configuration_id`
+else
+  echo "INFO: Target work-area is not a valid Perforce repository. Creating it...";
+  targ_create=1;
+fi
+
+if [[ ${upd_cl} < ${src_cl}  ]]; then upd_cl=${src_cl};  fi
+if [[ ${upd_cl} < ${targ_cl} ]]; then upd_cl=${targ_cl}; fi
+
+if [[ ${upd_cl} > ${src_cl}  ]]; then
+  src_upd=1
+  echo "INFO: Updating Source work-area to CL=${upd_cl}"
+fi
+if [[ ${upd_cl} > ${targ_cl} ]]; then
+  targ_upd=1
+  echo "INFO: Updating Target work-area to CL=${upd_cl}"
+fi
+
+# Print the input options ______________________________________________________________________________________________
+if (( $verbose > 0 )); then
+  echo
+  echo "Source        :  $src"
+  echo "Update Source :  $src_upd"
+  echo "Target        :  $targ"
+  echo "Create Target :  $targ_create"
+  echo "Update Target :  $targ_upd"
+  echo "Update CL ID  :  $upd_cl"
+  echo
+fi
+
+# Create/Update Target _________________________________________________________________________________________________
+if (( $targ_create > 0 )); then
+  if (( $verbose > 0 )); then
+    echo
+    echo "mkdir $targ && cd $targ"
+    echo ". /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash"
+    echo "p4_mkwa -configuration_id aspen/aspen_trunk@$upd_cl"
+  fi
+  if (( $noexec == 0 )); then
+    command mkdir -p $targ && command cd $targ
+    . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash
+    p4_mkwa -configuration_id aspen/aspen_trunk@$upd_cl
+  fi
+elif (( $targ_upd > 0 )); then
+  # Bootenv
+  if (( $verbose > 0 )); then
+    echo
+    echo "cd $targ"
+    echo ". /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv"
+    echo "p4w update_env @$upd_cl"
+  fi
+  if (( $noexec == 0 )); then
+    cd $targ
+    . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
+    p4w update_env @$upd_cl
+  fi
+fi
+
+# Source _______________________________________________________________________________________________________________
+if (( $verbose > 0 )); then
+  echo
+  echo "cd $src"
+  echo ". /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv"
+fi
+if (( $noexec == 0 )); then
+  cd $src
+  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
+fi
+
+if (( $src_upd > 0 )); then
+  if (( $verbose > 0 )); then
+    echo "p4w update_env @$upd_cl"
+  fi
+  if (( $noexec == 0 )); then
+    p4w update_env @$upd_cl
+  fi
+fi
+
+# Copy files opened in Source __________________________________________________________________________________________
+if (( $verbose > 0 )); then
+  echo "Creating list of files opened/edited in Source work-area..."
+fi
+if (( $noexec == 0 )); then
+  p4w opened | perl -pe 's/^.*?\/(?=ch\/)|#.*$/$REPO_PATH/g' >| ${targ}/$$
+fi
+
+# Target _______________________________________________________________________________________________________________
+if (( $verbose > 0 )); then
+  echo
+  echo "cd $targ"
+  echo ". /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv"
+  echo "Copying all opened/edited files from Source to Target..."
+fi
+if (( $noexec == 0 )); then
+  cd $targ
+  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
+  for i in $(cat ${targ}/$$); do
+    p4w edit $i
+    command cp ${src}/$i $i
+  done
+fi
+
+# Clean-up _____________________________________________________________________________________________________________
+if (( $noexec == 0 )); then
+  command rm $targ/$$ > /dev/null
+fi

@@ -1,0 +1,157 @@
+#!/usr/bin/perl
+
+#=======================================================================================================================
+# Documentation                                                                                                     {{{1
+#=======================================================================================================================
+=head1 NAME
+
+ rerun
+
+=head1 AUTHOR
+
+ Kartik Shenoy
+
+=head1 SYNOPSIS
+
+ rerun [OPTIONS]
+
+=head1 DESCRIPTION
+
+ Reruns the previous simulation according to the run_job command present
+ in sim.out or summary.rj file if no arguments are specified
+
+=head1 OPTIONS
+
+  -a, --add       Add any options to the CMD. Can be specified multiple times
+                  Overrides --remove
+  -b, --build     Build model before running
+  -c, --clean     Clean model and rebuild before running
+                  Implies --build
+      --cmd       Provide the cmd directly to clean up and run.
+                  Overrides --file
+  -f, --file      Name of file to pick up the run_job command from
+                  Defaults to ./sim.out or ./summary.rj
+      --log       Enable logging via amdmsg_config (Enabled by default)
+      --nolog     Disable logging (Delete amdmsg_config.yaml file)
+      --lsf       Use LSF. LSF is not used by default
+      --nolsf     Do not use LSF
+  -m, --model     Use the specified model instead of the one obtained from the run_job command
+  -r, --remove    Remove any options from the CMD. Can be specified multiple times
+  -t, --test      Test run. Just print the command to execute but don't run it
+  -v, --verbose   Verbose mode. Print values of all arguments
+
+=cut
+# }}}1
+
+use strict;
+#use diagnostics;
+use Getopt::Long;
+use Pod::Usage;
+
+Getopt::Long::Configure("bundling");
+#Getopt::Long::Configure("pass_through");
+
+# Default values for options
+my %opts = (
+  'build'   => 0,
+  'clean'   => 0,
+  'file'    => "sim.out",
+  'cmd'     => "",
+  'log'     => 1,
+  'lsf'     => 0,
+  'test'    => 0,
+  'add'     => "",
+  'model'   => "",
+  'remove'  => "",
+  'verbose' => 0,
+);
+$opts{'file'} = "summary.rj" unless ( -e $opts{'file'} );
+
+GetOptions(
+  \%opts,
+  'build|b',
+  'clean|c' =>
+    sub { $opts{'build'} ||= $opts{$_[0]} = $_[1]; },
+  'file|f:s',
+  'cmd=s',
+  'log!',
+  'lsf!',
+  'test|t',
+  'add|a=s',
+  'model|m=s',
+  'remove|r=s',
+  'help|h|?' => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
+  'verbose|v!',
+) or pod2usage( -verbose => 1 ) && exit;
+
+print "INFO: Ignoring extra arguments '@ARGV'\n" if ( $#ARGV >= 0 );
+
+if ( $opts{'verbose'} ){
+  print "build  : $opts{'build'}\n";
+  print "clean  : $opts{'clean'}\n";
+  print "file   : $opts{'file'}\n"  if     ( $opts{'cmd'} eq "" );
+  print "cmd    : $opts{'cmd'}\n"   unless ( $opts{'cmd'} eq "" );
+  print "log    : $opts{'log'}\n";
+  print "lsf    : $opts{'lsf'}\n";
+  print "test   : $opts{'test'}\n";
+  print "remove : $opts{'remove'}\n";
+  print "add    : $opts{'add'}\n";
+  print "model  : $opts{'model'}\n" if ( $opts{'model'} ne "" );
+}
+
+if ( $opts{'cmd'} eq "" ){
+  ( -e $opts{'file'} ) or pod2usage({ -verbose => 1, -message => "ERROR: File not found: $opts{'file'}\n"});
+  $opts{'cmd'} = `\\grep -s run_job $opts{'file'}`;
+  ( $opts{'cmd'} eq "" ) and pod2usage({ -verbose => 1, -message => "ERROR: Unable to locate the run_job command in $opts{'file'}\n" });
+}
+chomp( $opts{'cmd'} );
+
+if ( $opts{'model'} eq "" ) {
+  $opts{'model'} = $opts{'cmd'} =~ /-model\s*(\w+)/;
+}
+
+if ( $opts{'verbose'} ){
+  print "Model  : $opts{'model'}\n";
+  print "\n";
+}
+
+# Include/Exclude the amdmsg_config.yaml file
+if ( $opts{'log'} ){
+  print  "Copying amdmsg_config.yaml...\n";
+  system '\cp /proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml .' unless $opts{'test'};
+} else {
+  print  "Deleting amdmsg_config.yaml...\n";
+  system '\rm amdmsg_config.yaml 2> /dev/null' unless $opts{'test'};
+}
+
+# Remove junk arguments
+$opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
+$opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
+$opts{'cmd'} =~ s/-p crdb\s*//g;
+$opts{'cmd'} =~ s/-(?:no)?crdb\s*//g;
+$opts{'cmd'} =~ s/-o ""\s*//;
+$opts{'cmd'} =~ s/-(?:no)?delete//;
+$opts{'cmd'} =~ s/-gzip\s*//;
+$opts{'cmd'} =~ s/-test_id\s*\S+\s*//;
+
+$opts{'cmd'}  = "build -model $opts{'model'} && "        . $opts{'cmd'} if $opts{'build'};
+$opts{'cmd'}  = "build -clean -model $opts{'model'} && " . $opts{'cmd'} if $opts{'clean'};
+$opts{'cmd'} .= " -lsf" if $opts{'lsf'};
+
+# Add/Remove options to the end of the CMD
+if ( $opts{'remove'} ne "" ){
+  print "Removing option: '$opts{'remove'}'\n";
+  $opts{'cmd'} =~ s/$opts{'remove'}//;
+}
+if ( $opts{'add'} ne "" ){
+  print "Adding option: '$opts{'add'}'\n";
+  $opts{'cmd'} .= " " . $opts{'add'};
+}
+
+# Beautify : /
+$opts{'cmd'} =~ s/^\s*|\s*$//g;
+$opts{'cmd'} =~ s/\s+/ /g;
+print "  $opts{'cmd'}\n";
+
+# Execute
+exec qq($opts{'cmd'}) unless $opts{'test'};

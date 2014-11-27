@@ -1,0 +1,61 @@
+#!/bin/bash -e
+# -e option will exit the script if any simple command retuns a non-zero value
+
+# Description:
+# The script accepts 1 argument and performs 3 things.
+#  - It connects to the AMD VPN. The password must be provided as an argument to the script
+#  - It mounts the SVDC filesystem to /mnt/cifs/amd/svdc/
+#  - It launches rsync to sync up the 'vim' and 'linux' folders
+#
+# NOTE:
+# The rsync happens every 10 minutes repeating infinitely, till it is killed upon which the script will prompt if the VPN is to be disconnected
+
+if ! `ps -aef | grep -Piq '^root.*openconnect'`; then
+  if (( $#==0 )); then
+    echo "ERROR: Enter the password for the VPN connection"
+    exit
+  fi
+  echo "Connecting to VPN..."
+  echo -n $1 | sudo openconnect -u kshenoy --passwd-on-stdin https://svl-vpn.amd.com &
+  sleep 15
+else
+  echo "...connection already exists"
+fi
+
+#echo
+#echo "Mounting ATL filesystem..."
+#if ! mount | command grep -q amd; then
+#  sudo mount.cifs -o credentials=/home/ks/.smbcredentials,iocharset=utf8,uid=1000,gid=1000,file_mode=0644,dir_mode=0755 //atlvsmb1/kshenoy /mnt/cifs/amd
+#else
+#  echo "...mount already exists"
+#fi
+#if ! mount | command grep -q amd; then
+#  echo "ERROR: Unable to mount ATL filesystem"
+#  exit 1
+#fi
+
+vpn_disconnect() {
+  echo
+  read -p "Kill VPN connection? [y/n] " input
+  shopt -s nocasematch
+  case "$input" in
+    y|Y|Yes)
+      echo
+      #echo "Unmounting filesystem..."
+      #sudo umount /mtn/cifs/amd
+      echo "Closing VPN connection..."
+      sudo kill `/bin/ps -a | grep -Poi '^\s*\d+(?=.*openconnect)'`
+    ;;
+    * )
+    ;;
+  esac
+  exit 0
+}
+trap vpn_disconnect SIGINT SIGTERM
+
+#while mount | command grep -q amd; do
+while command pgrep -fl "openconnect" > /dev/null; do
+  amd_sync
+  echo "Sleep 10 mins..."
+  sleep 600
+done

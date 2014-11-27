@@ -15,6 +15,7 @@
 #path = .netscape/bookmarks.html
 path = Linux
 path = Vim
+path = Readmes
 
 # Some regexps specifying names and paths to ignore
 #ignore = Path stats    ## ignores <root>/stats

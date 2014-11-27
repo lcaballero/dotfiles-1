@@ -1,0 +1,21 @@
+#!/tool/pandora64/hdk-4.2.2/15/bin/perl -ln
+
+## Pragmas
+use warnings;
+use diagnostics;
+
+
+$w=$1 if(/^\s*Working Dir: (\S+)/);
+print "\n$s\n$_" if(/^\s+-+$/);
+$s=$_;
+
+if(/(?<=^  )Whacker\S+/){
+  $p="$w/$&";
+  $h{$p}=`grep -Poi -m1 "(?<=error: \\[ cycle\\=)\\d+" $p/sim.out`;
+}
+
+if(/^\s*$/){
+  chomp %h;
+  print "  <$h{$_}> $_" foreach sort{$h{$a}<=>$h{$b}}keys %h;
+  %h=();
+}

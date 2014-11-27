@@ -45,6 +45,8 @@
   -m, --model      Use the specified model instead of the one obtained from the run_job command
   -r, --run        Execute the run_job (Enabled by default)
       --norun      Do not execute the run_job
+      --remote     Run the run_job command remotely (Enabled by default)
+      --noremote   Run the run_job command locally
       --seed       Use the seed provided. If this option is not specified and no seed is present, 213471118 is used
       --noseed     Remove the seed.
   -t, --test       Test run. Just print the command to execute but don't run it
@@ -87,6 +89,7 @@ my %opts = (
   'lsf'         => 0,
   'model'       => "",
   'run'         => 1,
+  'remote'      => 1,
   'seed'        => 213471118,
   'seed_f'      => 0,
   'tags'        => 1,
@@ -116,6 +119,7 @@ GetOptions(
   'lsf!',
   'model|m=s',
   'run|r!',
+  'remote!',
   'seed=o'        => sub { $opts{'seed_f'} =  1; $opts{$_[0]} = $_[1]; },
   'noseed'        => sub { $opts{'seed_f'} = -1; },
   'tags!',
@@ -169,6 +173,7 @@ if ( $opts{'verbose'} ){
   print "lsf        : $opts{'lsf'}\n";
   print "model      : $opts{'model'}\n";
   print "run        : $opts{'run'}\n";
+  print "remote     : $opts{'remote'}\n";
   print "seed       : $opts{'seed'}\n";
   print "seed_f     : $opts{'seed_f'}\n";
   print "test       : $opts{'test'}\n";
@@ -364,6 +369,16 @@ if ( $opts{'run'} ) {
   if ($opts{'buildloc'} > 1) {
     $opts{'cmd'} =~ s/-buildloc\s*\S+\s*//;
     $opts{'cmd'} .= " -buildloc $opts{'builddir'}";
+  }
+
+  # Run the job remotely
+  if ($opts{'ljd'}){
+    $opts{'remote'} = 0;
+  }
+  if (!$opts{'remote'}) {
+    $opts{'cmd'} =~ s/run_remote//;
+  } elsif ($opts{'cmd'} !~ /^run_remote/) {
+    $opts{'cmd'} = 'run_remote ' . $opts{'cmd'};
   }
 
   # Beautify :P

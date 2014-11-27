@@ -1,0 +1,9 @@
+#!/bin/bash -e
+# -e option will exit the script if any simple command retuns a non-zero value
+
+echo
+echo "#===============================================================================================================#"
+echo "Syncing with ATL..."
+unison dotfiles /home/ks/Dropbox/Softwares ssh://kshenoy@atlgar-vdi1366//home/kshenoy/Dropbox/Softwares
+echo
+echo "...sync complete"
