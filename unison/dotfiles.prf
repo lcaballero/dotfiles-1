@@ -13,9 +13,10 @@
 #path = current
 #path = common
 #path = .netscape/bookmarks.html
-path = Linux
-path = Vim
-path = Readmes
+path = linux
+path = vim
+path = emacs
+path = readmes
 
 # Some regexps specifying names and paths to ignore
 #ignore = Path stats    ## ignores <root>/stats
@@ -31,11 +32,12 @@ ignore = Name *.nfs*
 ignore = Name .netrwhist
 ignore = Name *history
 ignore = Name SyncToy*
-ignore = Path Linux/fonts
-ignore = Path Linux/compiz
-ignore = Path Linux/unity
-ignore = Path Vim/bundle
-ignore = Path Vim/tmp
+ignore = Path linux/compiz
+ignore = Path linux/unity
+ignore = Path vim/bundle
+ignore = Path vim/tmp
+ignore = Path emacs/elpa
+ignore = Path emacs/auto-save-list
 
 #          When set to true, this flag causes the user interface to skip
 #          asking for confirmations on non-conflicting changes. (More
@@ -63,7 +65,7 @@ batch=true
 #          preference is used, the same confirmation will be requested for
 #          top-level paths. (At the moment, this flag only affects the
 #          text user interface.) See also the mountpoint preference.
-confirmbigdel=true
+confirmbigdel=false
 
 #          When this preference is set to true, Unison will use the
 #          modification time and length of a file as a `pseudo inode

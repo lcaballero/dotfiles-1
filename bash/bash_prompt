@@ -1,6 +1,6 @@
 #!/bin/bash -f
 #===================================================================================================
-# Helper                      {{{1
+# Helper                                                                                                            {{{1
 #===================================================================================================
 # Foreground/Background Color Codes
   # 30/40 : black
@@ -49,20 +49,14 @@
 # Syntax : %{$bg_bold[red]$fg[white]%}
 # normal=$terminfo[sgr0]
 
-#===================================================================================================
-# BASH Prompt
-#===================================================================================================
-function setprompt {
-  # This function should always point to whatever prompt is desired.
-  # The desired function shouldn't be called directly as the chdir() function in bash_func only calls this function
-  preprompt_sjlmod
-  #setprompt_philmod
-}
+# This should always point to whatever prompt is desired.
+PROMPT_COMMAND=_preprompt_sjlmod_
 
-#===================================================================================================
-# Mod of Phil's ZSH Prompt    {{{1
-#===================================================================================================
-function precmd {
+
+#=======================================================================================================================
+# Mod of Phil's ZSH Prompt                                                                                          {{{1
+#=======================================================================================================================
+precmd() {
   local TERMWIDTH
   (( TERMWIDTH = ${COLUMNS} - 1 ))
 
@@ -146,10 +140,10 @@ $PR_SHIFT_IN$PR_LLCORNER$PR_HBAR$PR_SHIFT_OUT\
 
 
 
-#===================================================================================================
-# Misc Prompts                {{{1
-#===================================================================================================
-function setprompt_misc() {
+#=======================================================================================================================
+# Misc Prompts                                                                                                      {{{1
+#=======================================================================================================================
+setprompt_misc() {
   setopt PROMPT_SUBST
   autoload colors zsh/terminfo
   if [[ "$terminfo[colors]" -ge 8 ]]; then
@@ -174,9 +168,9 @@ function setprompt_misc() {
 }
 
 
-#===================================================================================================
-# Mod of SJL's prompt         {{{1
-#===================================================================================================
+#=======================================================================================================================
+# Mod of SJL's prompt                                                                                               {{{1
+#=======================================================================================================================
 #
 #  SJL's Prompt
 #  Credit for ideas/info: Phil!'s ZSH Prompt, Bashish, TERMWIDE prompt
@@ -194,7 +188,7 @@ shopt -s checkwinsize
 
 ## This function is run at every prompt update, keeping our variables updated.
 ## Bash's PROMPT_COMMAND option handles this (see end of this function).
-function preprompt_sjlmod {
+_preprompt_sjlmod_() {
 
   # This has to be placed first
   local cmd_exit="$?"
@@ -243,9 +237,15 @@ function preprompt_sjlmod {
   #for i in ${!dir_alias[@]}; do
   #  [ -n "$i" ] && pr_pwd=${pr_pwd/#$i/${dir_alias[$i]}}
   #done
-  pr_pwd=${pr_pwd/#$HOME/\~}
-  [ -n "$as0" ] && pr_pwd=${pr_pwd/#$as0/\~ASPEN0}
-  [ -n "$as1" ] && pr_pwd=${pr_pwd/#$as1/\~ASPEN1}
+  if   [[(-n "$HOME"    ) && ("$pr_pwd" =~ ^"$HOME"    )]]; then pr_pwd=${pr_pwd/#$HOME/\~};
+  elif [[(-n "$as0ks/as") && ("$pr_pwd" =~ ^"$as0ks/as")]]; then pr_pwd=${pr_pwd/#"$as0ks/as"/\~AS0};
+  elif [[(-n "$as0"     ) && ("$pr_pwd" =~ ^"$as0"     )]]; then pr_pwd=${pr_pwd/#$as0/\~AS0};
+  elif [[(-n "$as1ks/as") && ("$pr_pwd" =~ ^"$as1ks/as")]]; then pr_pwd=${pr_pwd/#"$as1ks/as"/\~AS1};
+  elif [[(-n "$as1"     ) && ("$pr_pwd" =~ ^"$as1"     )]]; then pr_pwd=${pr_pwd/#$as1/\~AS1};
+  elif [[(-n "$ass0"    ) && ("$pr_pwd" =~ ^"$ass0"    )]]; then pr_pwd=${pr_pwd/#$ass0/\~ASS0};
+  elif [[(-n "$ass1"    ) && ("$pr_pwd" =~ ^"$ass1"    )]]; then pr_pwd=${pr_pwd/#$ass1/\~ASS1};
+  elif [[(-n "$ass2"    ) && ("$pr_pwd" =~ ^"$ass2"    )]]; then pr_pwd=${pr_pwd/#$ass2/\~ASS2};
+  fi
 
   # Force time to US Mountain Time (we do this here as well as in .bashrc as sourcing some env files overwrites this)
   local pr_time="$(TZ=US/Mountain date +%I:%M%P\ %b\ %d,\ %a) "
@@ -257,9 +257,9 @@ function preprompt_sjlmod {
 
   # VCS specific
   local pr_vcs=""
-  get_vcs_type pr_vcs_type
+  _get_vcs_type_ pr_vcs_type
   local pr_vcs_branch=""
-  get_vcs_branch pr_vcs_branch
+  _get_vcs_branch_ pr_vcs_branch
   local pr_vcs_sep=" on "
   local prc_vcs_branch=${prc_norm}
 
@@ -347,7 +347,59 @@ function preprompt_sjlmod {
 
   PS2="${prc_user_symbol}${pr_user_symbol}${prc_norm} "
 
-  # Evaluate dynamic variables ( Not required for prompt )
-  declare -F dyn_vars > /dev/null && dyn_vars > /dev/null
+  # Evaluate dynamic variables only if dyn_vars is defined (Not required for prompt)
+  declare -F dyn_vars &> /dev/null && dyn_vars
+
+  # Write to the history file immediately instead of waiting till the end of the session
+  history -a
 }
-PROMPT_COMMAND=preprompt_sjlmod
+
+
+_get_vcs_type_() {                                                                                                # {{{1
+  # Description: Check if specified directory is under a Version-controlled system
+  # Arguments: 1 - Variable to return VCS type
+  #            2 - Directory to check. If skipped, defaults to PWD
+
+  local cwd=$PWD
+  if (( $#>1 )); then
+    command cd $2
+  fi
+
+  if git rev-parse --git-dir > /dev/null 2>&1; then
+    # Check if PWD is under Git
+    eval "$1='git'"
+
+  elif hg status > /dev/null 2>&1; then
+    # Check if PWD is under Mercurial
+    eval "$1='hg'"
+
+  else
+    # No VCS. Return empty string
+    eval "$1=''"
+  fi
+
+  command cd $cwd
+}
+
+
+_get_vcs_branch_() {                                                                                              # {{{1
+  # Description: If PWD is under a VCS, return the branch. If not, return an empty string
+  # Arguments: 1 - The variable into which the branch name must be written
+
+  # Get VCS type
+  vcs_type=""
+  _get_vcs_type_ vcs_type
+
+  if [[ $vcs_type == "git" ]]; then
+    #echo "Detected git versioning scheme"
+    local ref=$(git symbolic-ref HEAD 2> /dev/null) || return
+    eval "$1=${ref#refs/heads/}"
+
+  elif [[ $vcs_type == "hg" ]]; then
+    #echo "Detected mercurial versioning scheme"
+    eval "$1=$(hg branch 2> /dev/null)"
+
+  else
+    eval "$1=''"
+  fi
+}

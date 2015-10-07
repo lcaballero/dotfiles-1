@@ -18,27 +18,47 @@
 =head1 DESCRIPTION
 
  Reruns the previous simulation according to the run_job command present
- in sim.out or summary.rj file if no arguments are specified
+ in tb_sim or sim.out or summary.rj file if no arguments are specified
 
 =head1 OPTIONS
 
-  -a, --add       Add any options to the CMD. Can be specified multiple times
-                  Overrides --remove
-  -b, --build     Build model before running
-  -c, --clean     Clean model and rebuild before running
-                  Implies --build
-      --cmd       Provide the cmd directly to clean up and run.
-                  Overrides --file
-  -f, --file      Name of file to pick up the run_job command from
-                  Defaults to ./sim.out or ./summary.rj
-      --log       Enable logging via amdmsg_config (Enabled by default)
-      --nolog     Disable logging (Delete amdmsg_config.yaml file)
-      --lsf       Use LSF. LSF is not used by default
-      --nolsf     Do not use LSF
-  -m, --model     Use the specified model instead of the one obtained from the run_job command
-  -r, --remove    Remove any options from the CMD. Can be specified multiple times
-  -t, --test      Test run. Just print the command to execute but don't run it
-  -v, --verbose   Verbose mode. Print values of all arguments
+  -a, --add        Add any options to the run_job command. Can be specified multiple times
+                   Overrides --delete
+  -b, --build      Build model before running
+      --buildloc   Build model locally in the specified path/Use the local build for the run_job command
+  -c, --clean      Clean model and rebuild before running
+                   Implies --build unless --norun is specified
+  -C, --clean_all  Clean all models and rebuild before running
+                   Implies --build unless --norun is specified
+      --cmd        Provide the cmd directly to clean up and run.
+                   Overrides --file
+  -d, --delete     Delete any options from the run_job command. Can be specified multiple times
+      --dsp        Enable displayer output (Enabled by default)
+      --nodsp      Disable displayer output
+  -f, --file       Name of file to pick up the run_job command from
+                   Defaults to tb_sim and failing that, to sim.out and summary.rj
+                   When a jobspec file is specified, --noyaml is set by default
+      --dump       Dump waves
+      --nodump     Do not dump waves. Defaults to this unless a value is forced
+      --lsf        Submit the job to LSF (Enabled by default)
+      --nolsf      Run the job locally
+  -m, --model      Use the specified model instead of the one obtained from the run_job command
+  -r, --run        Execute the run_job (Enabled by default)
+  -R, --norun      Do not execute the run_job
+      --remote     Run the run_job command remotely (Enabled by default)
+      --noremote   Run the run_job command locally
+      --seed       Use the seed provided. If this option is not specified and no seed is present, 213471118 is used
+      --noseed     Remove the seed.
+  -t, --test       Test run. Just print the command to execute but don't run it
+      --verbose    Verbose mode. Print values of all arguments
+  -v, --vericom    Build vericom target (Enabled by default)
+  -V, --novericom  Suppress -vericom build target
+  -w, --wtf        Run WhyTheFail upon build failure (Enabled by default)
+      --nowtf      Do not run WhyTheFail if build fails
+  -y, --yaml       Enable logging via amdmsg_config.yaml (Enabled by default).
+                   The yaml file to be used can be specified as an optional argument.
+                   Defaults to /proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml
+      --noyaml     Disable logging (Delete amdmsg_config.yaml file)
 
 =cut
 # }}}1
@@ -47,111 +67,399 @@ use strict;
 #use diagnostics;
 use Getopt::Long;
 use Pod::Usage;
+use Cwd;
+use Cwd 'abs_path';
+use File::Basename;
+
 
 Getopt::Long::Configure("bundling");
 #Getopt::Long::Configure("pass_through");
 
-# Default values for options
-my %opts = (
-  'build'   => 0,
-  'clean'   => 0,
-  'file'    => "sim.out",
-  'cmd'     => "",
-  'log'     => 1,
-  'lsf'     => 0,
-  'test'    => 0,
-  'add'     => "",
-  'model'   => "",
-  'remove'  => "",
-  'verbose' => 0,
+
+# Default values for options ===========================================================================================
+my %opts = (                                                                                                       # {{{
+  'add'         => "",
+  'build'       => 0,
+  'buildloc'    => 1,
+  'builddir'    => getcwd() . "/buildloc",
+  'clean'       => 0,
+  'clean_all'   => 0,
+  'cmd'         => "",
+  'delete'      => "",
+  'dsp'         => 1,
+  'file'        => "tb_sim",
+  'fsdb'        => -1,
+  'lsf'         => 0,
+  'model'       => "",
+  'run'         => 1,
+  'remote'      => 1,
+  'seed'        => 213471118,
+  'seed_f'      => 0,
+  'tags'        => 1,
+  'test'        => 0,
+  'verbose'     => 0,
+  'vericom'     => 1,
+  'wtf'         => 1,
+  'yaml'        => "/proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml",
+  'yaml_f'      => 0, # We use this option to identify when the --yaml option was specified
 );
+$opts{'file'} = "sim.out"    unless ( -e $opts{'file'} );
 $opts{'file'} = "summary.rj" unless ( -e $opts{'file'} );
 
-GetOptions(
+GetOptions(                                                                                                        # {{{
   \%opts,
-  'build|b',
-  'clean|c' =>
-    sub { $opts{'build'} ||= $opts{$_[0]} = $_[1]; },
-  'file|f:s',
-  'cmd=s',
-  'log!',
-  'lsf!',
-  'test|t',
   'add|a=s',
+  'build|b',
+  'buildloc:s'    => sub {  if ($_[1] ne "") {
+                              $opts{'buildloc'} = 3;
+                              $opts{'builddir'} = $_[1];
+                            } else {
+                              $opts{'buildloc'} = 2;
+                            }
+                         },
+  'nobuildloc'    => sub { $opts{'buildloc'} = 0; $opts{'builddir'} = ""; },
+  'clean|c',
+  'clean_all|C'   => sub { $opts{'clean_all'} = 1; $opts{'clean'} = 0; },
+  'cmd=s',
+  'delete|d=s',
+  'dsp!',
+  'file|f=s'      => sub { $opts{$_[0]} = abs_path( $_[1] ); },
+  'fsdb!',
+  'help|h|?'      => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
+  'lsf!',
   'model|m=s',
-  'remove|r=s',
-  'help|h|?' => sub { pod2usage( -verbose => 1, -exitval => 0 ); },
-  'verbose|v!',
+  'run|r!',
+  'remote!',
+  'seed=o'        => sub { $opts{'seed_f'} =  1; $opts{$_[0]} = $_[1]; },
+  'noseed'        => sub { $opts{'seed_f'} = -1; },
+  'tags!',
+  'test|t',
+  'verbose!',
+  'vericom|v'     => sub { $opts{'vericom'} = 1; },
+  'novericom|V'   => sub { $opts{'vericom'} = 0; },
+  'wtf|w!',
+  'y|yaml:s'      => sub { $opts{'yaml_f'} = 1; $opts{'yaml'} = $_[1]; },
+  'noyaml'        => sub { $opts{'yaml'} = "" }
 ) or pod2usage( -verbose => 1 ) && exit;
-
 print "INFO: Ignoring extra arguments '@ARGV'\n" if ( $#ARGV >= 0 );
 
-if ( $opts{'verbose'} ){
-  print "build  : $opts{'build'}\n";
-  print "clean  : $opts{'clean'}\n";
-  print "file   : $opts{'file'}\n"  if     ( $opts{'cmd'} eq "" );
-  print "cmd    : $opts{'cmd'}\n"   unless ( $opts{'cmd'} eq "" );
-  print "log    : $opts{'log'}\n";
-  print "lsf    : $opts{'lsf'}\n";
-  print "test   : $opts{'test'}\n";
-  print "remove : $opts{'remove'}\n";
-  print "add    : $opts{'add'}\n";
-  print "model  : $opts{'model'}\n" if ( $opts{'model'} ne "" );
+# Force options
+# |-------+--------+-------------------------------------------------------------------------------|
+# | yaml  | yaml_f | Description                                                                   |
+# |-------+--------+-------------------------------------------------------------------------------|
+# | == "" |      X | The user forced the --noyaml option. Delete the amdmsg_config.yaml file       |
+# | != "" |      1 | The user forced the --yaml option. Copy the amdmsg_config.yaml file specified |
+# | != "" |      0 | The user used neither option -> use all defaults                              |
+# |-------+--------+-------------------------------------------------------------------------------|
+
+# |----------+---------------------------------------------------------------------------------------------------|
+# | buildloc | Description                                                                                       |
+# |----------+---------------------------------------------------------------------------------------------------|
+# |    0     | User used the --nobuildloc option. Do not build locally.                                          |
+# |    1     | Neither --buildloc nor --nobuildloc was used. Follow previous run_job command                     |
+# |    2     | User used --buildloc option without any argument. Check the run_job command for -buildloc switch. |
+# |          | If it hasn't been specified, default to $PWD/buildloc                                             |
+# |    3     | User used --buildloc option with an argument. Use that to build locally                           |
+# |----------+---------------------------------------------------------------------------------------------------|
+
+
+# Check if bootenv has been done
+'ERROR: $REPO_PATH is not set\n' unless defined($ENV{'REPO_PATH'});
+
+print  "[ TEST RUN ]\n\n" if $opts{'test'};
+
+# Processing arguments
+$opts{'build'} ||= &get_build;
+
+# Dump the input arguments
+&print_opts if $opts{'verbose'};
+
+# Algo:-
+# 1. Identify source i.e. jobspec file, command-line --cmd or run_job file and set the CMD string
+# 2. Identify the model
+# 3. Enable/disable loggin via amdmsg_config.yaml
+# 4. Build the model
+# 5. Sanitize and construct the final CMD string
+
+# Identify the Source __________________________________________________________________________________________________
+# --cmd > ljd file | run_job file
+if ( $opts{'cmd'} eq "" ) {
+  if ( `grep -s jobspec $opts{'file'}` ) {
+    $opts{'ljd'} = 1;
+    $opts{'dsp'} = 0;
+    # Delete any amdmsg_config.yaml files when running a jobspec unless 'yaml' is explicitly specified
+    unless ( $opts{'yaml_f'} ) {
+      $opts{'yaml'} = "";
+    }
+    # Force build without --vericom option
+    $opts{'vericom'} = 0;
+  }
 }
 
-if ( $opts{'cmd'} eq "" ){
-  ( -e $opts{'file'} ) or pod2usage({ -verbose => 1, -message => "ERROR: File not found: $opts{'file'}\n"});
-  $opts{'cmd'} = `\\grep -s run_job $opts{'file'}`;
-  ( $opts{'cmd'} eq "" ) and pod2usage({ -verbose => 1, -message => "ERROR: Unable to locate the run_job command in $opts{'file'}\n" });
+if (  (  (  $opts{'build'}
+         || $opts{'clean'}
+         )
+      && ( $opts{'model'} eq "" )
+      && ( $opts{'cmd'}   eq "" )
+      )
+   || (  $opts{'run'}
+      && ( $opts{'cmd'} eq "" )
+      )
+   ) {
+  if ( $opts{'ljd'} ) {
+    print "Provided file: $opts{'file'} is a jobspec file...\n" if $opts{'verbose'};
+    $opts{'cmd'} = "ljd -nomail -l $opts{'file'}";
+  } else {
+    print "Command not specified. Obtaining it from $opts{'file'} ...\n" if $opts{'verbose'};
+    ( -e $opts{'file'} ) or pod2usage({ -verbose => 1, -message => "ERROR: File not found: $opts{'file'}\n"});
+    # Stop searching after 1st match
+    $opts{'cmd'} = `grep -s -m 1 run_job $opts{'file'}`;
+    ( $opts{'cmd'} eq "" ) and pod2usage({ -verbose => 1, -message => "ERROR: Unable to locate the run_job command in $opts{'file'}\n" });
+  }
 }
 chomp( $opts{'cmd'} );
 
-if ( $opts{'model'} eq "" ) {
-  $opts{'model'} = $opts{'cmd'} =~ /-model\s*(\w+)/;
-}
 
-if ( $opts{'verbose'} ){
-  print "Model  : $opts{'model'}\n";
-  print "\n";
+# Grab options from the run_job command ________________________________________________________________________________
+if ( $opts{'ljd'} ) {
+  ( my $ljd_model ) = `grep -s -m 1 model $opts{'file'}` =~ /<model>([^<]+)<\/model>/;
+  if ( $opts{'model'} eq "" ) {
+    print "Model not specified. Obtaining it from the jobspec file...\n" if $opts{'verbose'};
+    $opts{'model'}  = $ljd_model;
+  }
+  else {
+    # Model needs to be replaced. We have to reset the cmd
+    my $file_old = $opts{'file'};
+    $opts{'file'} = getcwd() . '/' . basename( $file_old, ".xml" ) . '_' . $opts{'model'} . '.xml';
+    system 'command sed "s/' . $ljd_model . '/' . $opts{'model'} . '/" ' . $file_old . '>| ' . $opts{'file'} unless $opts{'test'};
+    $opts{'cmd'} = "ljd -nomail -l $opts{'file'}";
+  }
 }
+if ( $opts{'model'} eq "" ) {
+  if ( !$opts{'ljd'} ) {
+    print "\nModel not specified. Obtaining it from the run_job command...\n" if $opts{'verbose'};
+    ( $opts{'model'} ) = $opts{'cmd'} =~ /-model\s*(\w+)/;
+  }
+}
+print "Model: '$opts{'model'}'\n\n" if $opts{'verbose'};
+$opts{'cmd'} =~ s/(-model)\s*\w+/$1 $opts{'model'}/;
 
 # Include/Exclude the amdmsg_config.yaml file
-if ( $opts{'log'} ){
-  print  "Copying amdmsg_config.yaml...\n";
-  system '\cp /proj/aspen_func_dev0/ASPEN/kshenoy/amdmsg_config.yaml .' unless $opts{'test'};
+if ( $opts{'yaml'} ne "" ){
+  # Copy only if the yaml does not exist and --yaml is not forced. Do not overwrite any existing yaml file
+  if (  $opts{'yaml_f'}
+     || !( -f "amdmsg_config.yaml" )
+     ) {
+    print  "[ COPYING amdmsg_config.yaml ]\n\n";
+    system '\cp ' . $opts{'yaml'} . ' amdmsg_config.yaml' unless $opts{'test'};
+  }
 } else {
-  print  "Deleting amdmsg_config.yaml...\n";
+  print  "[ DELETING amdmsg_config.yaml ]\n\n";
   system '\rm amdmsg_config.yaml 2> /dev/null' unless $opts{'test'};
 }
 
-# Remove junk arguments
-$opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
-$opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
-$opts{'cmd'} =~ s/-p crdb\s*//g;
-$opts{'cmd'} =~ s/-(?:no)?crdb\s*//g;
-$opts{'cmd'} =~ s/-o ""\s*//;
-$opts{'cmd'} =~ s/-(?:no)?delete//;
-$opts{'cmd'} =~ s/-gzip\s*//;
-$opts{'cmd'} =~ s/-test_id\s*\S+\s*//;
-
-$opts{'cmd'}  = "build -model $opts{'model'} && "        . $opts{'cmd'} if $opts{'build'};
-$opts{'cmd'}  = "build -clean -model $opts{'model'} && " . $opts{'cmd'} if $opts{'clean'};
-$opts{'cmd'} .= " -lsf" if $opts{'lsf'};
-
-# Add/Remove options to the end of the CMD
-if ( $opts{'remove'} ne "" ){
-  print "Removing option: '$opts{'remove'}'\n";
-  $opts{'cmd'} =~ s/$opts{'remove'}//;
-}
-if ( $opts{'add'} ne "" ){
-  print "Adding option: '$opts{'add'}'\n";
-  $opts{'cmd'} .= " " . $opts{'add'};
+# Build locally if --buildloc is specified. Check if run_job has the -buildloc option
+if (  ($opts{'buildloc'} == 1)
+   || ($opts{'buildloc'} == 2)
+   ) {
+  if ($opts{'cmd'} =~ /-buildloc\s*(\S+)/) {
+    $opts{'builddir'} = $1 if ($1 ne "");
+  } elsif ($opts{'buildloc'} == 1) {
+    # No -buildloc option found in the run_job command. Disable local build
+    $opts{'buildloc'} = 0;
+  }
 }
 
-# Beautify : /
-$opts{'cmd'} =~ s/^\s*|\s*$//g;
-$opts{'cmd'} =~ s/\s+/ /g;
-print "  $opts{'cmd'}\n";
 
-# Execute
-exec qq($opts{'cmd'}) unless $opts{'test'};
+# Build/Clean __________________________________________________________________________________________________________
+my $vericom_targ = ( $opts{'vericom'} ? " -vericom" : "" );
+my $cmd_build;
+   $cmd_build  = "build -clean -model $opts{'model'}" if $opts{'clean'};
+   $cmd_build  = "build -clean_all" if $opts{'clean_all'};
+   $cmd_build .= " && " if (( $opts{'clean'} || $opts{'clean_all'} ) && $opts{'build'} );
+   $cmd_build .= "build -model $opts{'model'} $vericom_targ" if $opts{'build'};
+$cmd_build .= " -buildloc $opts{'builddir'}" if $opts{'buildloc'};
+
+# Beautify :P
+$cmd_build =~ s/^\s*|\s*$//g;
+$cmd_build =~ s/\s+/ /g;
+if ( $opts{'clean'} || $opts{'clean_all'} || $opts{'build'} ) {
+  print "[ BUILD CMD ]\n";
+  print "    $cmd_build\n\n";
+}
+
+
+# Run Job ______________________________________________________________________________________________________________
+if ( $opts{'run'} ) {
+  print "[ RUN_JOB CMD ]\n";
+  # Remove junk arguments
+  $opts{'cmd'} =~ s/-batch_name\s*\S+\s*//;
+  $opts{'cmd'} =~ s/-rtp_datafile\s*\S+\s*//;
+  $opts{'cmd'} =~ s/-p\s+crdb\s*//g;
+  $opts{'cmd'} =~ s/-(?:no)?crdb\s*//g;
+  $opts{'cmd'} =~ s/-o ""\s*//;
+  $opts{'cmd'} =~ s/-(?:no)?delete//;
+  $opts{'cmd'} =~ s/-gzip\s*//;
+  $opts{'cmd'} =~ s/-test_id\s*\S+\s*//;
+  $opts{'cmd'} =~ s/-p\s+rg_dsp_ch\s*//;
+  $opts{'cmd'} =~ s/-p\s+disk_space\s*//;
+
+  if ($opts{'cmd'} =~ /-vcs_opts\s*\+DUMP/) {
+    $opts{'cmd'} =~ s/$&//;
+  }
+
+  # Add/Delete options to/from the CMD
+  $opts{'cmd'} .= " -lsf" if $opts{'lsf'};
+  if ( $opts{'delete'} ne "" ){
+    print "    Removing option: '$opts{'delete'}'\n";
+    # We use \Q and \E to escape any special characters such as in '+DUMP'
+    $opts{'cmd'} =~ s/\Q$opts{'delete'}\E//;
+  }
+  if ($opts{'add'} ne ""){
+    print "    Adding option: '$opts{'add'}'\n";
+    $opts{'fsdb'} |= ( 0 | ( $opts{'add'} =~ s/-p\s*fsdb// ));
+    $opts{'cmd'}  .= " " . $opts{'add'};
+  }
+
+  # Run the jobspec in its own directory
+  if (  $opts{'ljd'}
+     && ($opts{'cmd'} !~ /-d\s*/)
+     ) {
+    my $cid = `grep -Po "(?<=@)\\d+\$" \$REPO_PATH/configuration_id`;
+    my $ljd_dir = "ljd_${cid}";
+    my $i=0;
+    while (-e $ljd_dir) {
+      $i++;
+      $ljd_dir = "ljd_${cid}_$i";
+      print $ljd_dir;
+    }
+    $opts{'cmd'} .= " -d ${ljd_dir}";
+  }
+
+  # Grab seed from sim.out if not present in the CMD
+  if ( !$opts{'ljd'} ) {
+    if ( $opts{'seed_f'} == -1 ) {
+      # NoSeed was forced. Remove seed
+      $opts{'cmd'} =~ s/-seed\s+\w+//;
+    }
+    else {
+      if ( $opts{'seed_f'} == 0 ) {
+        # Seed wasn't forced. Search sim.out for seed if not found in the run command. Else revert to $opts{'seed'}
+        if ( $opts{'cmd'} !~ /-seed\s+\w+/ ) {
+          ( my $file = $opts{'file'} ) =~ s|[^/]*/?$|sim.out|;
+          if ( -f $file ) {
+            $opts{'seed'} = $1 if ( `grep -s -m 1 seed $file` =~ /seed[= ]*(\w+)/ );
+          }
+        } else {
+          $opts{'seed'} = $1 if ( $opts{'cmd'} =~ /seed[= ]*(\w+)/ );
+        }
+      } elsif ( $opts{'seed_f'} == 1 ) {
+        # Seed was forced. Use the seed provided
+      }
+      print "    Using seed $opts{'seed'}\n" if $opts{'verbose'};
+      $opts{'cmd'} .= " -seed $opts{'seed'}" unless ( $opts{'cmd'} =~ s/-seed\s+\w+/-seed $opts{'seed'}/ );
+    }
+  }
+
+  # Include/Exclude displayer log
+  if ( $opts{'dsp'} ) {
+    $opts{'cmd'} .= ' -avf "-txn_dump txn_dump.mpac.sz"' if ( $opts{'cmd'} !~ /-txn_dump\s+txn_dump.mpac.sz|-p\s+dsp_ch/ );
+    #$opts{'cmd'} =~ s/-txn_dump\s+txn_dump.mpac.sz|-p\s+dsp_ch//;
+    #$opts{'cmd'} =~ s/(-p\s+\S+\s+)+/$& -p dsp_ch /;
+  } else {
+    $opts{'cmd'} =~ s/-txn_dump\s+txn_dump.mpac.sz//;
+    $opts{'cmd'} =~ s/-p\s+dsp_ch//;
+  }
+
+  # Include/Exclude waves
+  if ( $opts{'fsdb'} == 0 ) {
+    $opts{'cmd'} =~ s/-p fsdb//;
+  } elsif ( $opts{'fsdb'} == 1 ) {
+    $opts{'cmd'} =~ s/(-p\s+\S+\s+)+/$& -p fsdb / if ( $opts{'cmd'} !~ /-p\s+fsdb/ );
+  }
+
+  # Use local build if --buildloc is specified
+  $opts{'cmd'} =~ s/-buildloc\s*\S+\s*//;
+  if ($opts{'buildloc'} > 1) {
+    $opts{'cmd'} .= " -buildloc $opts{'builddir'}";
+  }
+
+  # Beautify :P
+  $opts{'cmd'} =~ s/-avf\s*(["'])\s*\1//g;
+  $opts{'cmd'} =~ s/^\s*|\s*$//g;
+  $opts{'cmd'} =~ s/\s+/ /g;
+
+  # Run the job remotely
+  if ($opts{'ljd'}){
+    $opts{'remote'} = 0;
+  }
+  if (!$opts{'remote'}) {
+    $opts{'cmd'} =~ s/run_remote//;
+  } elsif ($opts{'cmd'} !~ /^run_remote/) {
+    (my $jobname = getppid() . ": " . $opts{'cmd'}) =~ s/"/\\"/g;
+    $opts{'jobcmd'} = 'run_remote ' . $opts{'cmd'};
+    $opts{'cmd'} = 'run_remote -J "' . $jobname . '" ' . $opts{'cmd'};
+  }
+
+  if ($opts{'remote'}) {
+    print "    $opts{'jobcmd'}\n";
+  } else {
+    print "    $opts{'cmd'}\n";
+  }
+}
+
+# Execute ______________________________________________________________________________________________________________
+unless ( $opts{'test'} ) {
+  print "\n";
+
+  if ($opts{'build'}) {
+    if (system qq($cmd_build)) {
+      system "WhyTheFail" if $opts{'wtf'};
+      exit 1;
+    } else {
+      # Generate tags and cscope.out
+      system "~/bin/make_tags &" if $opts{'tags'};
+    }
+  }
+
+  if ($opts{'run'}) {
+    system 'command rm FAILED PASSED sim.out summary.rj 2> /dev/null';
+    exec qq($opts{'cmd'});
+  }
+}
+
+
+#=======================================================================================================================
+# Subroutines                                                                                                       {{{1
+#=======================================================================================================================
+sub print_opts {                                                                                                  # {{{2
+  print "add        : $opts{'add'}\n";
+  print "build      : $opts{'build'}\n";
+  print "buildloc   : $opts{'buildloc'}\n";
+  print "builddir   : $opts{'builddir'}\n";
+  print "clean      : $opts{'clean'}\n";
+  print "clean_all  : $opts{'clean_all'}\n";
+  print "cmd        : $opts{'cmd'}\n";
+  print "delete     : $opts{'delete'}\n";
+  print "dsp        : $opts{'dsp'}\n";
+  print "file       : $opts{'file'}\n";
+  print "fsdb       : $opts{'fsdb'}\n";
+  print "lsf        : $opts{'lsf'}\n";
+  print "model      : $opts{'model'}\n";
+  print "run        : $opts{'run'}\n";
+  print "remote     : $opts{'remote'}\n";
+  print "seed       : $opts{'seed'}\n";
+  print "seed_f     : $opts{'seed_f'}\n";
+  print "test       : $opts{'test'}\n";
+  print "yaml       : $opts{'yaml'}\n";
+  print "yaml_f     : $opts{'yaml_f'}\n";
+}
+
+
+sub get_build {
+  return (  (  $opts{'clean'}
+            || $opts{'clean_all'}
+            )
+         && $opts{'run'}
+         );
+}

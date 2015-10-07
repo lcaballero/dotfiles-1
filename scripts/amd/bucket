@@ -1,0 +1,158 @@
+#!/tool/pandora64/bin/perl
+
+#=======================================================================================================================
+# Documentation                                                                                                     {{{1
+#=======================================================================================================================
+=head1 NAME
+
+ bucket
+
+=head1 AUTHOR
+
+ Kartik Shenoy
+
+=head1 SYNOPSIS
+
+ $ARGV[0] [OPTIONS]
+
+=head1 DESCRIPTION
+
+ Shows a summary of the results of an ljd run by categorizing by signature and sorting by fail cycle
+
+=head1 OPTIONS
+
+    -h               Print this help
+    -s, --summarize  Summarize results. Just show the number of failures of each signature, don't print the failing directories
+    -n, --num-fails  Only print the specified number of fastest failing directories per signature. (Overrides -s)
+
+=cut
+# }}}1
+
+#=======================================================================================================================
+# Modules                                                                                                           {{{1
+#=======================================================================================================================
+use strict;
+use diagnostics;
+use Getopt::Long;
+use Pod::Usage;
+use Cwd;
+use Cwd 'abs_path';
+use File::Basename;
+use Data::Dumper;
+
+Getopt::Long::Configure("bundling");
+#Getopt::Long::Configure("pass_through");
+
+
+#=======================================================================================================================
+# Option handling                                                                                                   {{{1
+#=======================================================================================================================
+my %opts = (                                                                                                       # {{{
+  'summarize' => 0,
+  'num-fails' => -1,
+);
+# }}}
+
+GetOptions(                                                                                                        # {{{
+  \%opts,
+  'summarize|s!',
+  'num-fails|n=i'   =>  sub { $opts{$_[0]} = $_[1]; $opts{'summarize'} = 0; },
+) or (pod2usage(-verbose => 1) && exit 1);
+push (@ARGV, ".") if ($#ARGV == -1);
+
+#print Dumper \%opts;
+# }}}
+
+
+#=======================================================================================================================
+# Main                                                                                                              {{{1
+#=======================================================================================================================
+foreach my $dir (@ARGV) {
+  #print "$dir\n";
+  foreach my $run_dir (`command find "$dir" -name gather.xml`) {
+    chomp($run_dir);
+    $run_dir =~ s/^\./getcwd()/e;
+    $run_dir =~ s,/comms/gather.xml$,,;
+
+    print "\n************************************************************************************************************************\n";
+    print "* Directory: ${run_dir}\n";
+
+    my $total=0;
+    my $passed=0;
+    my $failed=0;
+    my $unknown=0;
+    my $completed=0;
+
+    if (-e "${run_dir}/summary.ljd") {
+      #print "[DEBUG] Run complete\n";
+      $total     = `command grep -Po '(?<=Total Number of Jobs : )\\d+' "${run_dir}/summary.ljd"`;
+      $passed    = `command grep -Po '(?<=Number of Passing Jobs : )\\d+' "${run_dir}/summary.ljd"`;
+      $failed    = `command grep -Po '(?<=Number of Failing Jobs : )\\d+' "${run_dir}/summary.ljd"`;
+      $unknown   = $total - $passed - $failed;
+      $completed = $total;
+    }
+    else {
+      #print "[DEBUG] Jobspec is still running\n";
+      $total     = `command grep -c '/exec_dir' "${run_dir}/comms/gather.xml"`;
+      $passed    = `command find "${run_dir}" -name PASSED | wc -l`;
+      $failed    = `command find "${run_dir}" -name FAILED | wc -l`;
+      $completed = $passed + $failed;
+      $unknown   = $total - $completed;
+    }
+    chomp $total;
+    chomp $passed;
+    chomp $failed;
+    my $pass_rate = ($completed > 0 ? $passed * 100 / $completed : 0);
+
+    my %scoreboard;
+    if ($failed > 0) {
+      foreach my $fail_dir (`command find "${run_dir}" -name FAILED`) {
+        chomp($fail_dir);
+        $fail_dir = dirname($fail_dir);
+        my $signature = `grep -Poi '(?<=Signature: ).*' "$fail_dir/summary.rj"`;
+        chomp $signature;
+        my $cycles = `grep -Poi '(?<=Cycles:: )\\d+' "$fail_dir/sim.out"` || 0; # || is for when grep is an empty string
+        chomp $cycles;
+
+        unless (exists($scoreboard{$signature})) {
+          $scoreboard{$signature} = [];
+        }
+        push(@{$scoreboard{$signature}}, [$cycles, $fail_dir]);
+      }
+    }
+    #print Dumper \%scoreboard;
+
+    print "* Total=${total}, Pass=${passed}, Fail=${failed}, Unknown=${unknown}\n";
+    if ($failed > 0) {
+      printf "* %d Error Bucket(s)\n", scalar(keys %scoreboard);
+      my $sig_num_width = int(log($failed)/log(10)) + 3;
+      foreach my $signature (sort keys %scoreboard) {
+        printf "* (%${sig_num_width}d)  %s\n", scalar @{$scoreboard{$signature}}, $signature;
+        @{$scoreboard{$signature}} = sort { $a->[0] <=> $b->[0] } @{$scoreboard{$signature}};
+      }
+    }
+    #printf "* (%${sig_num_width}d)  Unknown\n", $unknown;
+    print "************************************************************************************************************************\n\n";
+
+    if (  !$opts{summarize}
+       && ($failed > 0)
+       ) {
+      foreach my $signature (sort keys %scoreboard) {
+        print "------------------------------------------------------------------------------------------------------------------------\n";
+        print "* $signature\n";
+        print "------------------------------------------------------------------------------------------------------------------------\n";
+        my $cycle_width=1;
+        if ($scoreboard{$signature}[-1][0] > 0) {
+          $cycle_width = int(log($scoreboard{$signature}[-1][0])/log(10)) + 1;
+        }
+        my $count=0;
+        foreach my $fail (@{$scoreboard{$signature}}) {
+          printf "<%${cycle_width}d>  %s\n", $fail->[0], $fail->[1];
+          $count++;
+          last if ($count == $opts{'num-fails'});
+        }
+        print "\n";
+      }
+    }
+  }
+}

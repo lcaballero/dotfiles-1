@@ -11,7 +11,7 @@
   ui = auto
 
 [push]
-  default = simple
+  default = matching
 
 [diff]
   tool = meld

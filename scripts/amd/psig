@@ -1,0 +1,18 @@
+#!/tool/pandora64/hdk-4.2.2/15/bin/perl -ln
+
+## Pragmas
+use warnings;
+use diagnostics;
+
+if (/^\s+-+$/../^\s*$/) {
+  if (/^\s+-+$/) {
+    $c=0;
+  } elsif (/^\s*$/) {
+    print "  ($c) $s";
+  } else {
+    $c++;
+  }
+} else {
+  s/^\s+|\s+$//g;
+  $s=$_;
+}

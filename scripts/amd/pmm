@@ -1,0 +1,32 @@
+#!/tool/pandora64/hdk-4.2.2/15/bin/perl -l
+
+use strict;
+use warnings;
+use diagnostics;
+
+use Data::Dumper;
+$Data::Dumper::Indent   = 1;
+$Data::Dumper::Sortkeys = 1;
+
+my $ifile = $ARGV[0];
+die( "ERROR : $ifile not found\n" ) unless( -e $ifile );
+
+my $exp_str = `grep -s -m1 Expected $ifile`;
+$exp_str =~ s/^[^[]*\[\w+::\w+://;
+$exp_str =~ s/]$//;
+my %exp = ($exp_str =~ /([^=]+)=([^,]+),\s*/g);
+#print Dumper \%exp;
+
+my $obs_str = `grep -s -m1 Observed $ifile`;
+$obs_str =~ s/^[^[]*\[\w+::\w+://;
+$obs_str =~ s/]$//;
+my %obs = ($obs_str =~ /([^=]+)=([^,]+),\s*/g);
+#print Dumper(\%obs);
+
+foreach my $key (keys %obs) {
+  if (  ($exp{$key} !~ /\?/)
+     && ($exp{$key} ne $obs{$key})
+     ) {
+    print "$key: Expected=$exp{$key}, Observed=$obs{$key}";
+  }
+}

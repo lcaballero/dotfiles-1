@@ -2,21 +2,12 @@
 #=========
 # Aliases
 #=========
-# type is like 'alias' on steroids. Shows function contents too
-alias al=type
 # Identify the current shell
 MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' | sed 's/-//g' ))
 
 
-#========================
-# Local machine aliases
-#
-if [ -f ~/.myaliases ]; then
-  . ~/.myaliases
-fi
-
 #=================================
-# Global aliases ( Zsh specific )
+# Global aliases (Zsh specific)
 #
 if [[ $MYSHELL =~ "zsh" ]]; then
   #alias -g ...='../..'
@@ -125,7 +116,6 @@ alias mv='mv -vi'
 alias cp='cp -vi'
 alias rm='rm -vi'
 alias rd='rm -rvf'
-alias rdj='\rm -rf'
 alias ln='ln -svi'
 alias df='df -h'
 alias du1='duh 1'
@@ -141,9 +131,8 @@ alias f=find
 alias fn='f -name'
 alias f.='f -maxdepth 1'
 alias f.n='f -maxdepth 1 -name'
-alias fgrep='fgrep --color=auto'
-alias egrep='egrep --color=auto'
-alias grepi='grep -i'
+alias fgrep='fgrep --color=always'
+alias egrep='egrep --color=always'
 alias pgrep='/bin/ps -a | grep -i -e PID -e'
 
 alias g='grep -sP --color=always'
@@ -194,54 +183,42 @@ alias k9='kill -9'
 #=================
 # Editor aliases
 #
-unset -f v
-function v { gvim $* 2> /dev/null; }
-#alias v='gvim'
-alias vco='v command*'
-alias vd='v -d'
-alias vr='v run*'
+unset -f vim_func;
+vim_func() { gvim "$@" 2> /dev/null; }
+alias v="vim_func"
+# Using -f keeps the window in the foreground and prevents a whole bunch of diffs opening at the same time
+alias vd='v -df'
+alias vi='v -u NONE -U NONE -N'
+alias vn='v -c "RecentNotes"'
 alias govv='v ~/.vim/vimrc'
 alias govb='v ~/.vim/bundle.vim'
 alias govg='v ~/.vim/gvimrc'
 alias govm='v ~/.vim/mappings.vim'
 alias govf='v ~/.vim/autoload/myFunctions.vim'
-alias gor='v ~/Dropbox/Softwares/Linux/readmes/README.toc'
-alias vd='v -d'
-alias vn='v -c "RecentNotes"'
-alias vu='v -u NONE -U NONE --noplugin -N'
+alias govn='v ~/readmes'
 alias rvv='\rm -rf ~/.vim/junk/views/*'
 
-
-#===============
-# File Aliases
-#
-alias readme='v ~/Dropbox/Softwares/Linux/readmes/README.toc'
-#alias ref_tispice='acroread ~/documents/manuals/spice_ref.pdf &'
-#alias ref_hspice='acroread /apps/synopsys/hspice/2010.03/hspice/docs_help/home.pdf &'
-#alias ref_hsp=ref_hspice
-#alias ref_codac='acroread ~/documents/manuals/codac_users_manual.pdf &'
-#alias ref_codacfd='acroread ~/documents/manuals/codac_function_dict.pdf &'
-#alias ref_perl='acroread ~/documents/ebooks/Learning\ Perl.pdf &'
-
+emacs_func() { emacsclient -a "" -c -q -n "$@"; }
+alias e="emacs"
 
 #===============
 # Shell config
 #
 if [[ $MYSHELL =~ "bash" ]]; then
   alias gosr='v ~/.bashrc'
-  alias gosf='v ~/Dropbox/Softwares/Linux/bash/bash_func'
+  alias gosf='v ~/.linux/bash/bash_func'
+  alias gost='v ~/.linux/tmux/tmux_scripts'
   alias src='. ~/.bashrc && echo Sourced ~/.bashrc'
-  alias srp='. ~/Dropbox/Softwares/Linux/bash/bash_prompt'
-fi
-if [[ $MYSHELL =~ "zsh" ]]; then
+  alias srp='. ~/.linux/bash/bash_prompt && echo Sourced bash_prompt'
+  alias srf='. ~/.linux/bash/bash_func && echo Sourced bash_func'
+elif [[ $MYSHELL =~ "zsh" ]]; then
   alias gosr='v ~/.zshrc'
-  alias gosf='v ~/Dropbox/Softwares/Linux/zsh/zsh_func'
+  alias gosf='v ~/.linux/zsh/zsh_func'
   alias src='. ~/.zshrc && echo Sourced ~/.zshrc'
 fi
-alias gosa='v ~/Dropbox/Softwares/Linux/aliases'
-alias gosw='v ~/Dropbox/Softwares/Linux/aliases_work'
-alias s=src
-alias sra='. ~/Dropbox/Softwares/Linux/aliases'
+alias gosa='v ~/.linux/aliases'
+alias gosw='v ~/.linux/aliases_work'
+alias sra='. ~/.linux/aliases && echo Sourced aliases'
 
 
 #=======
@@ -251,6 +228,12 @@ alias j='jobs'
 alias archdate='date +%Y-%m-%d'
 alias so=source
 alias sco='. command'
+
+
+#==================
+# Perl one-liners
+#
+alias p='perl -ln'
 alias psmall="perl -lne 'BEGIN{"'$s=<>};$s=$_ if $_<$s;END{print "$s"}'"'"
 alias pbig="perl -lne 'BEGIN{"'chomp($s=<>)};$s=$_ if $_>$s;END{print "$s"}'"'"
 alias par1="perl -pe 'exit if /^\s*$/'"
@@ -268,13 +251,13 @@ alias get_bits='perl -e '"'"'$a=hex($ARGV[0]);$m=$ARGV[1];$l=(defined $ARGV[2]?$
 #============
 # Locations
 #
-zsh="$HOME/Dropbox/Softwares/Linux/zsh"
-bash="$HOME/Dropbox/Softwares/Linux/bash"
+zsh="$HOME/.linux/zsh"
+bash="$HOME/.linux/bash"
 # Locations as named directories
 if [[ $MYSHELL =~ "zsh" ]]; then
   hash -d dev="$HOME/Documents/dev/scratchy"
-  hash -d zsh="$HOME/Dropbox/Softwares/Linux/zsh"
-  hash -d bash="$HOME/Dropbox/Softwares/Linux/bash"
+  hash -d zsh="$HOME/.linux/zsh"
+  hash -d bash="$HOME/.linux/bash"
 fi
 alias path='readlink -f'
 
@@ -297,14 +280,10 @@ alias pfd='pf diff'
 alias pfe='pf edit'
 alias pfh='pf help'
 alias pfo='pf opened'
-alias pfop="pfo | perl -pe 's/^.*?\/(?=ch\/)|#.*$/\$REPO_PATH/g'"
-#alias pfrem='pf remove'
 alias pfres='pf resolve'
 alias pfrev='pf revert'
 alias pflog='pf filelog -stl'
 alias pfs='pf submit'
-function pfu { pf update_env $* && ~/bin/make_tags; }
-#function pfu { pf update_env $* }
 alias pful='pfu @latest'
 
 
@@ -336,6 +315,8 @@ alias gl='git lg'
 alias tags='ctags --c-kinds=+p --c++-kinds=+p --fields=+Sail --extra=+q *'
 alias vs='vncserver'
 alias vk='vncserver -kill'
+alias tmux='tmux_pp'
+alias tm='tmux'
 
 
 #============
@@ -353,4 +334,12 @@ else
   alias mcm='make clean; make'
   alias ma='make all'
   alias mi='make install'
+fi
+
+
+#========================
+# Local machine aliases
+#
+if [[ -f ~/.myaliases ]]; then
+  . ~/.myaliases
 fi

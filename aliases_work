@@ -1,13 +1,14 @@
 #!/tool/pandora/bin/bash -a
 
+# Identify the current shell
+MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' | sed 's/-//g' ))
+if [[ $MYSHELL != "bash" ]]; then
+  return;
+fi
+
 #=======================================================================================================================
 # AMD Specific aliases
 #=======================
-# echo "Setting up user aliases"
-#if (!$?TERM) then
-#  setenv TERM xterm
-#endif
-
 # Define common ls versions
 #alias ltree='find \!* -type d'
 
@@ -20,39 +21,55 @@
 #  alias precmd 'set prompt = "<%c> "'
 #endif
 
+# Editor Aliases
+unset -f vim_func_work
+vim_func_work() {
+  if [[ -z $REPO_PATH ]]; then
+    gvim "$@" 2> /dev/null;
+  else
+    gvim --servername $REPO_PATH "$@" 2> /dev/null;
+  fi
+}
+alias v="vim_func_work"
+
+unset -f emacs_func_work
+emacs_func_work() {
+  local _server=$(echo ${REPO_PATH} | tr '/' '_')
+  ~/bin/emacsclient -a "" -c -q -n "${_server:+--socket-name=$_server}" "$@"
+}
+alias e="emacs_func_work"
+alias ed="~/bin/emacs_daemon"
+
+
 # Project Aliases
 alias as_bsub="lsf_bsub -Is -R 'rusage[mem=2000]' -q high -P aspen-ver"
-alias amdfind='find $REPO_PATH -path "$REPO_PATH/simenv/build" -prune -or -path "$REPO_PATH/.ccache" -prune -or -path "$REPO_PATH/.autoio_cache" -prune -or -path "$REPO_PATH/release_gate_run" -prune -or -print | grep'
+#alias amdfind='find $REPO_PATH -path "$REPO_PATH/simenv/build" -prune -or -path "$REPO_PATH/.ccache" -prune -or -path "$REPO_PATH/.autoio_cache" -prune -or -path "$REPO_PATH/release_gate_run" -prune -or -print'
+alias amdfind="find $REPO_PATH -type d \( -name _env -o -name dfx -o -name emu -o -name fp -o -name powerPro -o -name build -o -name sim -o -name release_gate_tmp -o -wholename '*/ch/tc' -o -wholename '*/ch/tb' -o -wholename '*/ch/verif/dft' -o -wholename '*/txn/gen' -o -wholename '*/generated' \) -prune -o -type f ! \( -name '.*' -o -iname '*.log' -o -iname '*.out' -o -iname '*.so' -o -iname '*.cc.o' -o -iname '*tags*' \) -print 2> /dev/null"
 alias amdgrep='find $REPO_PATH -path "$REPO_PATH/simenv/build" -prune -or -path "$REPO_PATH/.ccache" -prune -or -path "$REPO_PATH/.autoio_cache" -prune -or -path "$REPO_PATH/release_gate_run" -prune -or -print | xargs grep'
 alias regr_dispatch='/proj/verif_release_ro/regr_control_tools/current/bin/regr_main.rb'
 alias regr_control='/proj/verif_release_ro/regr_control_tools/current/bin/regr_control.rb'
 
+
 # Building and Compiling
-alias cbi='. /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8'
-alias benv='bootenv'
-alias cbenv='cbi && benv && sra'
-alias mkv='mkverdi -nolsf `grep -Po "\-model\s*\S+" sim.out` -sswr $REPO_PATH/ch/verif/debug/l3s_req_q.rc'
+alias sbi='. /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash'
+alias mkv='mkverdi -nolsf $(grep -Po "\-model\s*\S+" sim.out) -rc ~/novas.rc -guiConf ~/novas.conf -tkName "verdi_$(tmux display-message -p "#S#I")"'
 alias cid='cat $REPO_PATH/configuration_id'
+alias cidn='cid | grep -Po "(?<=@)\d+$"'
 alias bj='lsf_bjobs -w'
+alias bjj='lsf_bjobs -w | command grep "JOBID\|$$"'
 alias bk='lsf_bkill'
 alias bq='lsf_bqueues'
 alias wtf='WhyTheFail'
 alias lmn='ljd -nomail -l'
+alias rgf='regenerate_fail.bash -log mine -r \"-avf \'"'-/ChkL3.Debug/ 1\'"'\"'
 alias trapbug='s_trapbug -bug'
-function trapbug_rm() {
-ssh atlvsub01 xargs /home/ainfra/bin/rm_defunct_bug_data --bug_data_path /proj/aspen_bug_data/ASPEN --bug_dirs << BUGS
-$*
-BUGS
-}
+
 
 # Misc
-#alias gvim='export LANG=en_US.UTF-8 && /tool/pandora64/.package/vim-7.4/bin/gvim --cmd "set lines=61 columns=316"'
-#alias vim='export LANG=en_US.UTF-8 && /tool/pandora64/.package/vim-7.4/bin/vim'
-alias gvim='/tool/pandora64/.package/vim-7.4-a/bin/gvim --cmd "set lines=62 columns=316"'
-alias vim='/tool/pandora64/.package/vim-7.4-a/bin/vim'
 alias mutt='/tool/pandora/.package/mutt-1.5.16-d/bin/mutt'
 alias ff='firefox'
 alias kv='kview'
+
 alias rr='~/bin/rerun'
 alias b='~/bin/rerun -b --norun -m'
 alias bc='~/bin/rerun -c --norun -m'
@@ -60,59 +77,34 @@ alias bcb='~/bin/rerun -bc --norun -m'
 alias bca='build -clean_all'
 alias brr='~/bin/rerun -b'
 alias bcrr='~/bin/rerun -c'
-alias rgrr='~/bin/rerun -a "-p dsp_ch" -f'
+alias rrdbg='~/bin/rerun -y $REPO_PATH/ch/verif/debug/l3/amdmsg_config.yaml -a "-avf '"'-/ChkL3.Debug/ 1'"'" --fsdb'
+
 alias rg='release_gate'
-alias rgd='release_gate -donate -no_donate_clean'
+alias rgd='release_gate -donate'
 alias rgg='release_gate_gui'
 alias ctags='/tool/pandora64/latest/bin/ctags'
 alias perr="perl -ne 'print if /error:/../:error/;exit if /:error/'"
-alias b.='bucket .'
-#alias psig="perl -lne 'BEGIN{\$p="'""'"}if(/^  -+$/){print \$p};\$p=\$_'"
-unset -f psig
-function psig() {
-  perl -lne 'if(/^\s+-+$/../^\s*$/){if(/^\s+-+$/){$c=0;}elsif(/^\s*$/){print "  ($c) $s";}else{$c++;}}else{s/^\s+|\s+$//g;$s=$_}' $1
-}
-unset -f rgsig
-function rgsig() {
-  for i in `g FAIL release_gate_tmp/release_gate.log | colm -1`; do echo -e "\n$i"; psig $i; done
-}
-unset -f rgww
-function rgww() {
-  for i in `g FAIL release_gate_tmp/release_gate.log | colm -1`; do echo -e "\n$i"; pww $i; done
-}
-unset -f plastlock
-function plastlock() {
-  for i in $*; do
-    echo
-    echo $i:
-    perl -ne 'if(/BUS_LOCK|SYS_MGMT/){$p="";}$p.=$_;END{print $p;}' $i
-  done
-}
-unset -f vsig
-function vsig() {
-  file=`grep -Po -m1 '(?<=source\=)[^:]+' summary.rj`
-  file=`find $REPO_PATH -name $file -print -quit`
-  lnum=`grep -Po -m1 '(?<=source\=)[^:]+:\d+' summary.rj | cut -d: -f2`
-  v +$lnum $file
-}
-unset -f xt
-function xt() {
-  /usr/bin/xterm $* &
-}
-alias xt1='xt -geometry 139x77'
-alias xt2='xt -geometry 138x95'
-alias xt3='xt -geometry 142x106'
-alias res1='resize -s  77 139'
-alias res2='resize -s  98 138'
-alias res3='resize -s 106 142'
+alias bu='bucket'
+alias bus='bucket -s'
+alias bus1='bucket -n 1'
+alias bus3='bucket -n 3'
+alias wbus='watch -n15 "bucket -s"'
 
+alias xterm='~/bin/uxterm'
+alias restd='resize -s 88 319'
+alias xttl='xterm -geometry 265x55'
+alias restl='resize -s 55 265'
+alias xttv='xterm -geometry 416x85'
+alias restv='resize -s 90 416'
+
+
+# Perforce
+alias pfop="pfo | sed -e 's,^//depot/[^/]*/trunk,$REPO_PATH,' -e 's/#.*$//'"
+function pfu { pf update_env "$@" && ~/bin/make_tags && sra; }
 
 
 # Locations
 # Declaring these as environment variables instead of regular ones allows access from within vim
-# If $REPO_PATH is set, expand ${...} to $REPO_PATH/ ( append trailing slash )
-# This allows us to use $rtl etc as an absolute path when $REPO_PATH is set but when
-# bootenv is not done, we can use it as a relative path
 export as0='/proj/aspen_func_dev0/ASPEN'
 export as0ks='/proj/aspen_func_dev0/ASPEN/kshenoy'
 export as01='/proj/aspen_func_dev0/ASPEN/kshenoy/as1'
@@ -129,12 +121,14 @@ export as13='/proj/aspen_func_dev1/ASPEN/kshenoy/as3'
 export as14='/proj/aspen_func_dev1/ASPEN/kshenoy/as4'
 export as15='/proj/aspen_func_dev1/ASPEN/kshenoy/as5'
 
-export ass0='/proj/aspen_func_gen_scratch0/ASPEN/kshenoy'
-export ass1='/proj/aspen_func_gen_scratch1/ASPEN/kshenoy'
-export ass2='/proj/aspen_func_gen_scratch2/ASPEN/kshenoy'
+export ass0='/proj/aspen_func_gen_scratch0/ASPEN'
+export ass1='/proj/aspen_func_gen_scratch1/ASPEN'
+export ass2='/proj/aspen_func_gen_scratch2/ASPEN'
 
-# Dynamic variables ( Recomputed everytime path changes via preprompt or equivalent )
-function dyn_vars(){
+# Dynamic variables (Recomputed everytime path changes via preprompt or equivalent)
+# If $REPO_PATH is set, expand ${...} to $REPO_PATH/ (append trailing slash)
+# This allows us to use $rtl etc as an absolute path when $REPO_PATH is set and when bootenv isn't done, as a relative path
+dyn_vars() {
   export RP=${REPO_PATH+$REPO_PATH}
   export sim=${REPO_PATH+$REPO_PATH/}'sim'
   export r=${REPO_PATH+$REPO_PATH/}'ch/rtl'
@@ -144,6 +138,7 @@ function dyn_vars(){
   export vl3=${REPO_PATH+$REPO_PATH/}'ch/verif/chk_l3'
   export vl23=${REPO_PATH+$REPO_PATH/}'ch/verif/chk_l2l3'
   export vlk=${REPO_PATH+$REPO_PATH/}'ch/verif/chk_lock'
+  export vcov=${REPO_PATH+$REPO_PATH/}'ch/verif/coverage'
   export test=${REPO_PATH+$REPO_PATH/}'ch/tc/tb_ch'
 }
 dyn_vars
@@ -152,78 +147,158 @@ dyn_vars
 # ${!dir_alias[@]} gives a list of keys
 # ${dir_alias[@]}  gives a list of values
 # if [[ ${dir_alias[$as]} ]]; then echo "Found"; else echo "Not Found"; fi
-if [[ $MYSHELL == "bash" ]]; then
-  declare -A dir_alias=(
-    ['$HOME']='~'
-    ['$as0']='~aspen0'
-    ['$as1']='~aspen1'
-  )
-fi
-
-#=======================================================================================================================
-# Environment Variables
-#========================
-export LSB_DEFAULTPROJECT=aspen-ver
-export PATH=~/bin:~/local/bin:$PATH
-
+declare -A dir_alias=(
+  ['$HOME']='~'
+  ['$as0ks/as']='~AS0'
+  ['$as0']='~AS0'
+  ['$as1ks/as']='~AS1'
+  ['$as1']='~AS1'
+  ['$ass0']='~ASS0'
+  ['$ass1']='~ASS1'
+  ['$ass2']='~ASS2'
+)
 
 #=======================================================================================================================
 # Functions
 #============
-unset -f tel
-function tel(){ perl -aF/,/ -lne 'print "\nName: $F[1], $F[2]\nCube: $F[0]\nExt : $F[3]" if /'$1'/i' ~/tel.csv; }
 
-unset -f build_model
-function build_model(){
-  \cp $asks/amdmsg_config.yaml .
-  build -model $1
+unset -f benv
+benv() {
+  (( $# > 0 )) && command cd "$1"
+  sbi && bootenv && sra && srf
 }
 
-unset -f build_clean_build
-function build_clean_build(){
-  build -clean -model $1 && build_model $1
+unset -f trapbug_rm
+trapbug_rm() {
+ssh atlvsub01 xargs /home/ainfra/bin/rm_defunct_bug_data --bug_data_path /proj/aspen_bug_data/ASPEN --bug_dirs << BUGS
+"$@"
+BUGS
+}
+
+unset -f psig
+psig() {
+  perl -lne 'if(/^\s+-+$/../^\s*$/){if(/^\s+-+$/){$c=0;}elsif(/^\s*$/){print "  ($c) $s";}else{$c++;}}else{s/^\s+|\s+$//g;$s=$_}' $1
+}
+
+unset -f rgsig
+rgsig() {
+  for i in $(grep -P FAIL release_gate_tmp/release_gate.log | colm -1); do
+    echo -e "\n$i";
+    psig $i;
+  done
+}
+
+unset -f rgww
+rgww() {
+  if [[ -z $REPO_PATH ]]; then return; fi
+  for i in `g FAIL $REPO_PATH/release_gate_tmp/release_gate.log | colm -1`; do
+    echo -e "\n$i"; pww $i;
+  done
+}
+
+unset -f plastlock
+plastlock() {
+  for i in $*; do
+    echo
+    echo $i:
+    perl -ne 'if(/BUS_LOCK|SYS_MGMT/){$p="";}$p.=$_;END{print $p;}' $i
+  done
+}
+
+unset -f vsig
+vsig() {
+  file=`grep -Po -m1 '(?<=source\=)[^:]+' summary.rj`
+  file=`find $REPO_PATH -name $file -print -quit`
+  lnum=`grep -Po -m1 '(?<=source\=)[^:]+:\d+' summary.rj | cut -d: -f2`
+  v +$lnum $file -c "norm! zv"
+}
+
+unset -f tel
+tel() {
+  perl -aF/,/ -lne 'print "\nName: $F[1], $F[2]\nCube: $F[0]\nExt : $F[3]" if /'$1'/i' ~/tel.csv;
+}
+
+unset -f mkwa_proj
+mkwa_proj() {
+  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8
+
+  local _project="$1"; shift
+
+  if (( $# == 0 )); then
+    echo p4_mkwa -codeline $_project
+    p4_mkwa -codeline $_project
+  else
+    [[ "$1" == "-configuration_id" ]] && shift;
+
+    # Delete aspen/aspen_trunk@ from the front of $1
+    config_id=${1#${_project}/${_project}_trunk}
+    # Delete @ from the front of $1 (Same as above)
+    config_id=${config_id/#@/}
+
+    echo p4_mkwa -configuration_id ${_project}/${_project}_trunk@${config_id}
+    p4_mkwa -configuration_id ${_project}/${_project}_trunk@${config_id}
+  fi
+
+  # Source aliases
+  echo "$(tput setaf 2)[Sourcing aliases...]$(tput sgr0)"
+  [[ -f ~/.linux/aliases ]] && . ~/.linux/aliases
 }
 
 unset -f mkwa_as
-function mkwa_as(){
-  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8
-  if (( $#==0 )); then
-    echo p4_mkwa -codeline aspen
-    p4_mkwa -codeline aspen
-  else
-    [[ $1 == "-configuration_id" ]] && shift;
-    # Delete aspen/aspen_trunk from the front of $1
-    config_id=${1#aspen/aspen_trunk}
-    # Delete @ from the front of $1 (Same as above)
-    config_id=${config_id/#@/}
-    echo p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
-    p4_mkwa -configuration_id aspen/aspen_trunk@$config_id
-  fi
+mkwa_as() {
+  mkwa_proj aspen "$@"
+
   # Create tags
-  #~/bin/gentags --create
+  echo "$(tput setaf 2)[Generating Tags...]$(tput sgr0)"
   ~/bin/make_tags
 
-  [ -f ~/Dropbox/Softwares/Linux/aliases ] && . ~/Dropbox/Softwares/Linux/aliases
+  # Start emacs daemon
+  ~kshenoy/bin/emacs_daemon -s $(echo $REPO_PATH | tr '/' '_')
 }
+alias mkwa_zn="mkwa_proj zen"
+
+#unset -f mkwa_as
+#mkwa_as() {
+#  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8
+#  if (( $#==0 )); then
+#    echo p4_mkwa -codeline aspen
+#    p4_mkwa -codeline aspen
+#  else
+#    [[ $1 == "-configuration_id" ]] && shift;
+#    # Delete aspen/aspen_trunk from the front of $1
+#    config_id=${1#aspen/aspen_trunk}
+#    # Delete @ from the front of $1 (Same as above)
+#    config_id=${config_id/#@/}
+#    echo p4_mkwa -configuration_id aspen/aspen_trunk@${config_id}
+#    p4_mkwa -configuration_id aspen/aspen_trunk@${config_id}
+#  fi
+#  # Create tags
+#  #~/bin/gentags --create
+#  ~/bin/make_tags
+
+#  [ -f ~/Dropbox/Softwares/Linux/aliases ] && . ~/Dropbox/Softwares/Linux/aliases
+#}
 
 unset -f dotty
-function dotty(){
+dotty() {
   for i in $*; do
     dot -Tgif -o `basename $i .gv`.gif $i
   done
 }
 unset -f dotkv
-function dotkv(){
+dotkv() {
   for i in $*; do
     dotty $i && kview `basename $i .gv`.gif &
   done
 }
 
 unset -f but
-function but(){
+but() {
   model=${1%_unittest}_unittest
+
+  \cp $asks/amdmsg_config.yaml .
   echo build -model $model
-  build_model $model
+  build -model $model
   if (( $? != 0 )); then WhyTheFail; return 1; fi
 
   echo $REPO_PATH/build/${model}/${model}
@@ -232,48 +307,56 @@ function but(){
 }
 
 unset -f pfrem
-function pfrem() {
-  scratch_dir=`command ls -l $1 | command grep build | colm -1 | command sed -e 's/build$//'`
+pfrem() {
+  local _workarea=""
+  if (( $# = 0 )); then
+    if [[ -z $REPO_PATH ]]; then
+      echo "ERROR: \$REPO_PATH not set"
+      exit 1
+    fi
+    if [[ "$PWD" != "$REPO_PATH" ]]; then
+      read -p "Remove workarea '${REPO_PATH}'? (y/n) " choice;
+      case "$choice" in
+        n|N ) exit 0;;
+        y|Y ) _workarea="$PWD";;
+      esac
+    fi
+  else
+    _workarea="$1"
+  fi
+
+  # Kill emacs daemon
+  ~kshenoy/bin/emacs_daemon -k $(echo $_workarea | tr '/' '_')
+  local _scratch_dir=$(readlink ${_workarea}/build | command sed 's/build$//')
 
   #echo "p4w remove $1"
-  p4w remove $1
+  p4w remove $_workarea
   if (( $? != 0 )); then return 1; fi
 
   echo
   echo "Deleting workarea from scratch disk..."
-  echo "  command rm -rf $scratch_dir"
-  command rm -rf $scratch_dir
+  echo "  command rm -rf $_scratch_dir"
+  rm_rf_silent $_scratch_dir
 }
 
 unset -f wtff
-function wtff() {
+wtff() {
   model=`basename ${1%_rg.build.log}`
   wtf -m $model
 }
 
-unset -f ljd_summary
-function ljd_summary() {
-  args=('.')
-  if (( $# > 0 )); then
-    args=$*
-  fi
-  command rm $$ &> /dev/null
-  for dir in ${args[@]}; do
-    total_runs=`command grep -c '/exec_dir' ${dir}/comms/gather.xml`
-    passed_runs=`command find ${dir} -name PASSED -printf '.' | wc -c`
-    failed_runs=`command find ${dir} -name FAILED -printf '.' | wc -c`
-    complete_runs=$(( passed_runs + failed_runs ))
-    pending_runs=$(( total_runs - complete_runs ))
-    pass_rate=0
-    if (( $complete_runs > 0 )); then
-      pass_rate=`echo "scale=1; $passed_runs*100/($complete_runs)" | command bc`
-    fi
 
-    echo "$dir  Total:$total_runs  Pass:$passed_runs  Fail:$failed_runs  Running:$pending_runs  Pass-rate:$pass_rate%" >> $$
-    #echo "Passed: $passed_runs/$total_runs ($pass_rate%), $pending_runs Running"
-    #echo "Passed: $passed_runs ($failed_runs) / $complete_runs ($pending_runs)  ($pass_rate%)"
-  done
-  /usr/bin/column -t $$
-  command rm $$ &> /dev/null
+unset -f get_reg_name
+get_reg_name() {
+  reg_addr=$1
+  if (( $#==0 )); then
+    echo "ERROR: Enter a register address."
+    return 1
+  fi
+  gen_rc_file="build_dir/generated/ccx_regs.rc"
+  if [ ! -f $gen_rc_file ]; then
+    echo "ERROR: Unable to find ${gen_rc_file}. This command must be run from the directory in which the simulation was run"
+    return 1
+  fi
+  command grep $reg_addr $gen_rc_file | sed -e 's/nalias/Register:/' -e "s/\s*'h${reg_addr}.*$//"
 }
-alias ljds=ljd_summary

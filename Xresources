@@ -1,325 +1,159 @@
-!Xft.dpi:                      96
-Xft.rgba:                      rgb
-Xft.antialias:                 true
-Xft.hinting:                   true
-Xft.hintstyle:                 hintfull
+!These are the default settings.
+!Simply trying to load the UXTerm defaults results in an error as it can not parse the #include
+! Reset to default values
+!xrdb -load /usr/share/X11/app-defaults/XTerm && xrdb -nocpp -merge load /usr/share/X11/app-defaults/XTerm-color && xrdb -nocpp -merge load /usr/share/X11/app-defaults/UXTerm
+!xrdb -load /usr/share/X11/app-defaults/XTerm && xrdb -nocpp -merge load /usr/share/X11/app-defaults/XTerm-color && xrdb -nocpp -merge load /usr/share/X11/app-defaults/UXTerm && xrdb -merge ~/.Xresources
 
-xcalendar*firstDay:            1
-xcalendar*markHoliday:         false
-!Xcursor.theme:                whitelarge
-!Xcursor.size:                 32
 
-!-------------------------------------------------------------------------------
-!
-!	U R X V T - Setting
-!
-!real transparency with active compositor
-!URxvt*depth:                          32
-!URxvt*background:                     rgba:0000/0000/0000/dddd
-!
-URxvt*scrollBar:                       false
-!URxvt*scrollColor:                    grey13
-!URxvt*troughColor:                    black
-!URxvt*scrollBar_floating:             true
-!URxvt*scrollBar_right:                true
-URxvt*cursorColor:                     darkorange1
-URxvt*foreground:                      grey75
-URxvt*background:                      grey15
-URxvt*saveLines:                       7777
-URxvt*cursorBlink:                     false
-URxvt*termName:                        rxvt-256color
-URxvt*font:                            xft:Dejavu Sans Mono:pixelsize=10.5
-URxvt*boldFont:                        xft:Dejavu Sans Mono:pixelsize=10.5
-URxvt*colorBD:                         #FFB700
-!URxvt*transparent:                    true
-!URxvt*shading:                        33
-!URxvt*tintColor:                      turquoise
-URxvt.cutchars:                        ()*,<>[]{}|`""''
-!URxvt.tabbed.tabbar-fg:               6
-!URxvt.tabbed.tabbar-bg:               0
-!URxvt.tabbed.tab-fg:                  0
-!URxvt.tabbed.tab-bg:                  3
-URxvt*iso14755_52:			false
-URxvt.perl-ext-common:                 matcher
-URxvt.urlLauncher:                     urlLauncher $0
-URxvt.keysym.C-Delete:                 perl:matcher:last
-URxvt.keysym.M-Delete:                 perl:matcher:list
-URxvt*matcher.pattern.1:               \\bhttps?:\/\/(www.youtube.com|youtube.com|youtu.be)/\\S*
-URxvt*matcher.launcher.1:		urlLauncher -flash $0
-URxvt*matcher.pattern.2:               \\bhttps?:\/\/vimeo.com\/([\\w-]*)
-URxvt*matcher.launcher.2:              urlLauncher -flash $0
-URxvt*matcher.pattern.3:               \\bhttps?:\/\/[\\w-.]*\/[\\w./?&@#-]*.(?i)(mp4|flv|wmv)
-URxvt*matcher.launcher.3:              urlLauncher -video $0
-URxvt*matcher.pattern.4:               \\bhttps?:\/\/[\\w-.]*\/[\\w./?&@#-]*.(?i)(mp3|ogg|wav|wma)
-URxvt*matcher.launcher.4:              urlLauncher -audio $0
-URxvt*matcher.pattern.5:               \\bhttps?:\/\/[\\w-.]*\/[\\w./?&@#-]*.(?i)(jpg|jpeg|png)
-URxvt*matcher.launcher.5:              urlLauncher -image $0
-URxvt*matcher.pattern.6:               \\bhttps?:\/\/[\\w-.]*\/[\\w./?&@#-]*.(?i)(gif)
-URxvt*matcher.launcher.6:              mplayer -really-quiet < /dev/null $0
+!=======================================================================================================================
+! XTerm settings                                                                                                    {{{1
+!=======================================================================================================================
+XTerm*cursorBlink:     true
+XTerm*faceName:        Ubuntu Mono derivative Powerline:pixelsize=12:antialias=true
+XTerm*metaSendsEscape: true
+XTerm*on3Clicks:       regex ([[:alpha:]]+://)?([[:alnum:]!#+,./=?@_~-]|(%[[:xdigit:]][[:xdigit:]]))+
+XTerm*saveLines:       10000
+XTerm*scaleHeight:     1.15
+!XTerm*rightScrollBar:  false
+XTerm*scrollBar:       false
 
-!colors
-!black
-URxvt*color0:				#171717
-URxvt*color8:				#737373
-!red
-URxvt*color1:				#FF5E5E
-URxvt*color9:				#FF7878
-!green
-URxvt*color2:				#9CE82B
-URxvt*color10:				#9ACD32
-!yellow
-URxvt*color3:				#F0E68C
-URxvt*color11:				#EEE8AA
-!blue
-URxvt*color4:				#008AFF
-URxvt*color12:				#4F98FF
-!magenta
-URxvt*color5:				#E88CFF
-URxvt*color13:				#EDA6FF
-!cyan
-URxvt*color6:				#87CEFA
-URxvt*color14:				#B0E2FF
-!white
-URxvt*color7:				#DCDCCC
-URxvt*color15:				#FFFFFF
+!=======================================================================================================================
+! UXTerm settings                                                                                                   {{{1
+!=======================================================================================================================
+UXTerm*cursorBlink:     true
+UXTerm*faceName:        Ubuntu Mono derivative Powerline:pixelsize=12:antialias=true
+!UXTerm*faceName:        Source Code Pro for Powerline,Sauce Code Powerline:pixelsize=12:antialias=true
+UXTerm*metaSendsEscape: true
+UXTerm*on3Clicks:       regex ([[:alpha:]]+://)?([[:alnum:]!#+,./=?@_~-]|(%[[:xdigit:]][[:xdigit:]]))+
+UXTerm*saveLines:       10000
+UXTerm*scaleHeight:     1.15
+!UXTerm*rightScrollBar:  false
+UXTerm*scrollBar:       false
+!UXTerm*printerCommand: xterm -T History -e sh -c 'less -r <&3' 3<&0
+!UXTerm*translations:   #override Ctrl <Key>slash: print-everything()
 
-!-------------------------------------------------------------------------------
-!
-!  X T E R M - Setting
-!
-!
-xterm*background:                       grey5
-xterm*foreground:                       grey95
-!xterm*cursorColor:                     darkorange1
-xterm*cursorBlink:                      true
-xterm*scrollBar:                        false
-!xterm*rightScrollBar:                  true
-xterm*borderWidth:                      0
-xterm*toolBar:                          true
-xterm*utf8:                             0
-xterm*termName:                         xterm-256color
-xterm*boldMode:                         false
-!xterm*faceName:                        xft:Dejavu Sans Mono:pixelsize=11.5
-xterm*faceName:                         Ubuntu Mono derivative Powerline
-xterm*faceSize:                         9
-!xterm*font:                            -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
-!xterm*boldFont:                        -*-*-medium-r-*-*-*-130-*-*-c-*-iso10646-*
-!http://invisible-island.net/xterm/xterm.faq.html#tiny_menus
-xterm.VT100.geometry:                   139x77
-xterm*saveLines:                        10000
-xterm*metaSendsEscape:                  true
-xterm*highlightSelection:               true
-xterm*trimSelection:                    true
-!xterm*rightbar:                         true
-xterm*cutNewline:                       false
-xterm*colorBDMode:                      true
-xterm*colorBD:                          khaki
-xterm*charClass: 3:48,35:48,37:48,43:48,45-47:48,64:48,95:48,126:48,35:48,58:48,63:48,61:48,44:48,38:48,59:48
-!xterm*charClass: 33:48,36-47:48,58-59:48,61:48,63-64:48,95:48,126:48
 
-!colors
-!black
-!xterm*color0:                           #171717
-!xterm*color8:                           #737373
-!red
-!xterm*color1:                           #FF5E5E
-!xterm*color9:                           #FF7878
-!green
-!xterm*color2:                           #9CE82B
-!xterm*color10:                          #9ACD32
-!yellow
-!xterm*color3:                           #F0E68C
-!xterm*color11:                          #EEE8AA
-!blue
-xterm*color4:                           #008AFF
-xterm*color12:                          #4F98FF
-!magenta
-!xterm*color5:                           #E88CFF
-!xterm*color13:                          #EDA6FF
-!cyan
-!xterm*color6:                           #87CEFA
-!xterm*color14:                          #B0E2FF
-!white
-!xterm*color7:                           #DCDCCC
-!xterm*color15:                          #FFFFFF
+!=======================================================================================================================
+! Colors                                                                                                            {{{1
+!=======================================================================================================================
+!! Color 0/8:   Black
+!! Color 1/9:   Red
+!! Color 2/10:  Green
+!! Color 3/11:  Yellow
+!! Color 4/12:  Blue
+!! Color 5/13:  Magenta
+!! Color 6/14:  Cyan
+!! Color 7/15:  White
 
-!-------------------------------------------------------------------------------
-!
-!
-!      A T E R M - Setting
-!
-!
-Aterm*background:		#000000
-Aterm*foreground:		#ffffff
-Aterm*transparent:		true
-Aterm*shading:			80
-Aterm*cursorColor:		#d8d8d8
-Aterm*scrollbars:		false
-Aterm*saveLines:		2000
-Aterm*tinting:			gray
-Aterm*scrollBar:		false
-!Aterm*scrollBar_right:	true
-Aterm*transpscrollbar:		true
-Aterm*borderwidth:		0
-Aterm*font:                    -lfp-gamow-medium-r-normal-*-*-90-*-*-c-*-iso8859-5
-Aterm*geometry:                80x25
-Aterm*fading:			70  
-
-!colors
-!black
-Aterm*color0:		#333333
-Aterm*color8:		#686868
-!red
-Aterm*color1:		#CA5E5E
-Aterm*color9:		#FF595D
-!green
-Aterm*color2:		#ABCB8D
-Aterm*color10:		#AFD78A
-!yellow
-Aterm*color3:		#C48D62
-Aterm*color11:		#E0A765
-!blue
-Aterm*color4:		#8CA0B0
-Aterm*color12:		#3D6A82
-!magenta
-Aterm*color5:		#CC98E0
-Aterm*color13:		#E1A2DC
-!cyan
-Aterm*color6:		#44CACF
-Aterm*color14:		#6CBFC4
-!white
-Aterm*color7:		#E7E6DD
-Aterm*color15:		#F0EFE7 
-
-!-------------------------------------------------------------------------------
-!
-!	X C A L C - Setting
-!
-!
-xcalc*geometry: 200x275
-xcalc.ti.bevel.background: #111111
-xcalc.ti.bevel.screen.background: #000000
-xcalc.ti.bevel.screen.DEG.background: #000000
-xcalc.ti.bevel.screen.DEG.foreground: LightSeaGreen
-xcalc.ti.bevel.screen.GRAD.background: #000000
-xcalc.ti.bevel.screen.GRAD.foreground: LightSeaGreen
-xcalc.ti.bevel.screen.RAD.background: #000000
-xcalc.ti.bevel.screen.RAD.foreground: LightSeaGreen
-xcalc.ti.bevel.screen.INV.background: #000000
-xcalc.ti.bevel.screen.INV.foreground: Red
-xcalc.ti.bevel.screen.LCD.background: #000000
-xcalc.ti.bevel.screen.LCD.foreground: LightSeaGreen
-xcalc.ti.bevel.screen.LCD.shadowWidth: 0
-xcalc.ti.bevel.screen.M.background: #000000
-xcalc.ti.bevel.screen.M.foreground: LightSeaGreen
-xcalc.ti.bevel.screen.P.background: #000000
-xcalc.ti.bevel.screen.P.foreground: Yellow
-xcalc.ti.Command.foreground: White
-xcalc.ti.Command.background: #777777
-xcalc.ti.button5.background: Orange3
-xcalc.ti.button19.background: #611161
-xcalc.ti.button18.background: #611161
-xcalc.ti.button20.background: #611111
-xcalc.ti.button25.background: #722222
-xcalc.ti.button30.background: #833333
-xcalc.ti.button35.background: #944444
-xcalc.ti.button40.background: #a55555
-xcalc.ti.button22.background: #222262
-xcalc.ti.button23.background: #222262
-xcalc.ti.button24.background: #222272
-xcalc.ti.button27.background: #333373
-xcalc.ti.button28.background: #333373
-xcalc.ti.button29.background: #333373
-xcalc.ti.button32.background: #444484
-xcalc.ti.button33.background: #444484
-xcalc.ti.button34.background: #444484
-xcalc.ti.button37.background: #555595
-xcalc.ti.button38.background: #555595
-xcalc.ti.button39.background: #555595
-XCalc*Cursor:                 hand2
-XCalc*ShapeStyle:             rectangle
-
-!-------------------------------------------------------------------------------
-!
-!	X M E S S A G E - Setting
-!
-!
-Xmessage.form.okay.shapeStyle:         rectangle
-Xmessage.form.okay.background:         #777777
-Xmessage.form.okay.foreground:         snow
-!Xmessage*message*background:          snow
-Xmessage*buttons:                       OK
-Xmessage*defaultButton:                 OK
-!Xmessage*Background:                  black
-!Xmessage*Foreground:                  grey85
-!Xmessage.Scrollbar:                   WhenNeeded
-Xmessage.form.message.Scroll:          WhenNeeded
-Xmessage*Font:                         -*-terminus-medium-*-*-*-12-*-*-*-*-*-*-*
-Xmessage*borderWidth:                  0
-Xmessage*Text.borderWidth:             0
-Xmessage*Command.shapeStyle:           rectangle
-Xmessage*Text.?.cursorColor:           white
-
-!-------------------------------------------------------------------------------
-!
-!	X F O N T S E L - Setting
-!
-!
-!XFontSel*sampleText.background: TEXTBG
-XFontSel*menu*showUnselectable: false
-XFontSel*MenuButton.shadowWidth: 0
-XFontsel*Toggle*ToggleStyle: check
-XFontsel*MenuButton*Justify:    left
-XFontsel*MenuButton*MenuButtonStyle: select
-.xfontsel.pane.commandBox.quitButton.background: #777777
-.xfontsel.pane.commandBox.quitButton.foreground: snow
-.xfontsel.pane.commandBox.ownButton.background: orange3
-.xfontsel.pane.commandBox.ownButton.foreground: snow
-.xfontsel.pane.commandBox.countLabel.background: snow
-.xfontsel.pane.viewPort.sampleText.background: #777777
-.xfontsel.pane.viewPort.sampleText.foreground: snow
-.xfontsel.pane.fieldBox.field0.background: #777777
-.xfontsel.pane.fieldBox.field0.foreground: snow
-.xfontsel.pane.fieldBox.field1.background: #777777
-.xfontsel.pane.fieldBox.field1.foreground: snow
-.xfontsel.pane.fieldBox.field2.background: #777777
-.xfontsel.pane.fieldBox.field2.foreground: snow
-.xfontsel.pane.fieldBox.field3.background: #777777
-.xfontsel.pane.fieldBox.field3.foreground: snow
-.xfontsel.pane.fieldBox.field4.background: #777777
-.xfontsel.pane.fieldBox.field4.foreground: snow
-.xfontsel.pane.fieldBox.field5.background: #777777
-.xfontsel.pane.fieldBox.field5.foreground: snow
-.xfontsel.pane.fieldBox.field6.background: #777777
-.xfontsel.pane.fieldBox.field6.foreground: snow
-.xfontsel.pane.fieldBox.field7.background: #777777
-.xfontsel.pane.fieldBox.field7.foreground: snow
-.xfontsel.pane.fieldBox.field8.background: #777777
-.xfontsel.pane.fieldBox.field8.foreground: snow
-.xfontsel.pane.fieldBox.field9.background: #777777
-.xfontsel.pane.fieldBox.field9.foreground: snow
-.xfontsel.pane.fieldBox.field10.background: #777777
-.xfontsel.pane.fieldBox.field10.foreground: snow
-.xfontsel.pane.fieldBox.field11.background: #777777
-.xfontsel.pane.fieldBox.field11.foreground: snow
-.xfontsel.pane.fieldBox.field12.background: #777777
-.xfontsel.pane.fieldBox.field12.foreground: snow
-.xfontsel.pane.fieldBox.field13.background: #777777
-.xfontsel.pane.fieldBox.field13.foreground: snow
-.xfontsel.pane.fieldBox*foreground: #000000
-.xfontsel.pane.fieldBox.MenuButton.borderWidth: 1
-.xfontsel.pane.fieldBox.MenuButton.internalHeight: 1
-.xfontsel.pane.fieldBox.MenuButton.internalWidth: 2
-.xfontsel.pane.fieldBox.MenuButton.shapeStyle: rectangle
-
-!-------------------------------------------------------------------------------
-!
-!	X C O L O R S E L - Setting
-!
-!
-xcolorsel*Background:                   black
-xcolorsel*Foreground:                   grey85
-xcolorsel*Font:                         -*-terminus-medium-*-*-*-12-*-*-*-*-*-*-*
-xcolorsel.geometry:                     399x595
-xcolorsel*displayFormat:                #rrggbb
-xcolorsel*maxRows:                      99
+!!----------------------------------------------------------------------------------------------------------------------
+!! Defaults                                                                                                         {{{2
+!!-----------
+!#define __background grey10
+!#define __foreground grey95
+!#define __color0    #151515
+!#define __color1    #FF8EAF
+!#define __color2    #A6E25F
+!#define __color3    #F8E578
+!#define __color4    #A6E2F0
+!#define __color5    #9c3885
+!#define __color6    #5F868F
+!#define __color7    #D5F1F2
+!#define __color8    #696969
+!#define __color9    #ED4C7A
+!#define __color10   #A6E179
+!#define __color11   #FFDF6B
+!#define __color12   #79D2FF
+!#define __color13   #e628ba
+!#define __color14   #87A8AF
+!#define __color15   #E2F1F6
+!!
+!!----------------------------------------------------------------------------------------------------------------------
+!! Pastels                                                                                                          {{{2
+!!----------
+!#define __foreground  #E3FFE3
+!#define __background  #000000
+!#define __cursorColor #AFFFAF
+!#define __color0      #1A1A1A
+!#define __color1      #BA8B8B
+!#define __color2      #86AF80
+!#define __color3      #C6D01E
+!#define __color4      #3C8EC4
+!#define __color5      #9A70B2
+!#define __color6      #9FC1CC
+!#define __color7      #C6C6C6
+!#define __color8      #71A3B7
+!#define __color9      #E5505F
+!#define __color10     #8CBA87
+!#define __color11     #E0D95C
+!#define __color12     #5899C4
+!#define __color13     #AD73BA
+!#define __color14     #338EAA
+!#define __color15     #F7F7F2
+!!
+!!----------------------------------------------------------------------------------------------------------------------
+!! Molokai                                                                                                          {{{2
+!!----------
+#define __background  #1D1D19
+#define __foreground  #F6F5EE
+#define __highlight   #61B8D0
+#define __cursorColor #F6F5EE
+#define __color0      #1C1D19
+#define __color1      #D01B24
+#define __color2      #A7D32C
+#define __color3      #D8CF67
+#define __color4      #61B8D0
+#define __color5      #695ABB
+#define __color6      #D53864
+#define __color7      #FEFFFE
+#define __color8      #1C1D19
+#define __color9      #D12A24
+#define __color10     #A7D32C
+#define __color11     #D8CF67
+#define __color12     #61B8D0
+#define __color13     #695ABB
+#define __color14     #D53864
+#define __color15     #FEFFFE
+!!
+!!----------------------------------------------------------------------------------------------------------------------
+!! Apply Colors                                                                                                     {{{2
+!!---------------
+XTerm*background:   __background
+XTerm*foreground:   __foreground
+XTerm*highlight:    __highlight
+XTerm*cursorColor:  __cursorColor
+XTerm*color0:       __color0
+XTerm*color1:       __color1
+XTerm*color2:       __color2
+XTerm*color3:       __color3
+XTerm*color4:       __color4
+XTerm*color5:       __color5
+XTerm*color6:       __color6
+XTerm*color7:       __color7
+XTerm*color8:       __color8
+XTerm*color9:       __color9
+XTerm*color10:      __color10
+XTerm*color11:      __color11
+XTerm*color12:      __color12
+XTerm*color13:      __color13
+XTerm*color14:      __color14
+XTerm*color15:      __color15
+UXTerm*background:  __background
+UXTerm*foreground:  __foreground
+UXTerm*highlight:   __highlight
+UXTerm*cursorColor: __cursorColor
+UXTerm*color0:      __color0
+UXTerm*color1:      __color1
+UXTerm*color2:      __color2
+UXTerm*color3:      __color3
+UXTerm*color4:      __color4
+UXTerm*color5:      __color5
+UXTerm*color6:      __color6
+UXTerm*color7:      __color7
+UXTerm*color8:      __color8
+UXTerm*color9:      __color9
+UXTerm*color10:     __color10
+UXTerm*color11:     __color11
+UXTerm*color12:     __color12
+UXTerm*color13:     __color13
+UXTerm*color14:     __color14
+UXTerm*color15:     __color15
