@@ -1,0 +1,91 @@
+#!/bin/bash -f
+#
+# Query: which on steroids
+#
+# NOTE: Since this function deals with aliases, it cannot be made into a stand-alone script since aliases are not
+#       accessible inside subshells. Thus, this must be sourced to work
+
+unset -f query
+query() {
+  if (( $# == 0 )); then return; fi
+
+  local _type=$(command type -t "$1")
+  local _input="$1"
+  local _lvl=${2:-0}
+
+  local _pp_type="$(tput setaf 4)${_type}$(tput sgr0)"
+  local _pp_input="$(tput bold)$(tput setaf 2)${_input}$(tput sgr0)"
+  #local _pp_v='|'
+  #local _pp_h='-'
+  #local _pp_x='+'
+  #local _pp_xl='\'
+  local _pp_v='│'
+  local _pp_h='─'
+  local _pp_x='├'
+  local _pp_xl='└'
+  _pp_xl=${_pp_xl:-$_pp_x}
+
+  local _lvl_spc=""
+  local _lvl_sep=""
+  if (( $_lvl == 0 )); then
+    _query_tree=()
+    echo
+  else
+    for (( _i=1; _i <= $_lvl; _i++ )); do
+      #echo ${_query_tree[$_i]}
+      if (( ${_query_tree[$_i]} > 0 )); then
+        _lvl_spc="${_lvl_spc}${_pp_v}   "
+      else
+        _lvl_spc="${_lvl_spc}    "
+      fi
+    done
+    if (( ${_query_tree[$_lvl]} == 0 )); then
+      _pp_x=$_pp_xl
+    fi
+    _lvl_sep="${_lvl_spc%????}${_pp_x}${_pp_h}${_pp_h} "
+    echo "${_lvl_spc%????}${_pp_v}"
+  fi
+
+  case $_type in
+    "file")
+      echo "${_lvl_sep}${_pp_input} (${_pp_type})"
+      while read; do
+        echo "${_lvl_spc}${REPLY}";
+      done < <(command type -a "$1" | command head -n1)
+      ;;
+
+    "function")
+      echo "${_lvl_sep}${_pp_input} (${_pp_type})"
+      shopt -s extdebug
+      IFS=" " read -a _arr <<< $(command declare -F "$1")
+      shopt -u extdebug
+      echo -e "${_lvl_spc}Defined in ${_arr[2]} at line ${_arr[1]}"
+      while read; do
+        echo "${_lvl_spc}${REPLY}";
+      done < <(command type -a "$1" | command tail -n+2)
+      ;;
+
+    "alias")
+      echo "${_lvl_sep}${_pp_input} (${_pp_type})"
+      while read; do
+        echo "${_lvl_spc}${REPLY}";
+      done < <(command type -a "$1" | command head -n2)
+      read -a _out_arr <<< $(command type -a $1 | command grep -Po "(?<=aliased to .).*(?='$)")
+      local _query_next=()
+      local _lvl_next=$(($_lvl + 1))
+      _query_tree[$_lvl_next]=0
+      for i in ${_out_arr[@]}; do
+        if [[ "$i" != "$1" ]]; then
+          if [[ $(command type -t -- "$i") =~ file|function|alias ]]; then
+            _query_tree[$_lvl_next]=$(( ${_query_tree[$_lvl_next]} + 1 ))
+            _query_next+=("$i")
+          fi
+        fi
+      done
+      for i in ${_query_next[@]}; do
+        _query_tree[$_lvl_next]=$(( ${_query_tree[$_lvl_next]} - 1 ))
+        query $i $_lvl_next
+      done
+      ;;
+  esac
+}

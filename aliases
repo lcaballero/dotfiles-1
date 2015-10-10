@@ -2,6 +2,7 @@
 #=========
 # Aliases
 #=========
+alias que=query
 # Identify the current shell
 MYSHELL=$(basename $( ps h p $$ | awk '{ print $NF }' | sed 's/-//g' ))
 
@@ -184,8 +185,27 @@ alias k9='kill -9'
 # Editor aliases
 #
 unset -f vim_func;
-vim_func() { gvim "$@" 2> /dev/null; }
+vim_func() {
+  gvim "$@" 2> /dev/null
+}
 alias v="vim_func"
+
+unset -f vr;
+vr() {
+  # Use the --remote switch only if the last argument is a filename
+  # This is a hack to weed out the arguments. The last argument is more likely to be a file than any of the other ones
+  local _file=$(eval echo $(echo '$'"$#"))
+  # FIXME: Create server if one doesn't exist
+
+  # We need to eval the call as we need 'v' to be expanded at runtime. If we don't use eval then 'v' will be expanded to
+  # 'vim_func' all the time instead of 'vim_func_work' when the function is available
+  if [[ -f $_file ]]; then
+    eval v --remote "$@"
+  else
+    eval v "$@"
+  fi
+}
+
 # Using -f keeps the window in the foreground and prevents a whole bunch of diffs opening at the same time
 alias vd='v -df'
 alias vi='v -u NONE -U NONE -N'

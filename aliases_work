@@ -24,18 +24,31 @@ fi
 # Editor Aliases
 unset -f vim_func_work
 vim_func_work() {
-  if [[ -z $REPO_PATH ]]; then
-    gvim "$@" 2> /dev/null;
-  else
-    gvim --servername $REPO_PATH "$@" 2> /dev/null;
+  # This is a hack to weed out the arguments. The last argument is more likely to be a file than any of the other ones
+  local _file=$(eval echo $(echo '$'"$#"))
+  if [[ ( -f $_file ) && ( -n $REPO_PATH ) ]]; then
+    local _server=$(echo ${REPO_PATH} | tr '/' '_')
+    if [[ ! $(readlink -f $_file 2> /dev/null) =~ ^$REPO_PATH ]]; then
+      _server="${_server}_SCRATCH"
+    fi
+    #echo "[$(tput setaf 2)Server: $(tput sgr0)'$(tput setaf 4)${_server}$(tput sgr0)']"
   fi
+
+  vim_func ${_server:+--servername $_server} "$@"
 }
 alias v="vim_func_work"
 
 unset -f emacs_func_work
 emacs_func_work() {
+  # This is a hack to weed out the arguments. The last argument is more likely to be a file than any of the other ones
+  local _file=$(eval echo $(echo '$'"$#"))
   local _server=$(echo ${REPO_PATH} | tr '/' '_')
-  ~/bin/emacsclient -a "" -c -q -n "${_server:+--socket-name=$_server}" "$@"
+  if [[ ! $(readlink -f $_file) =~ ^$REPO_PATH ]]; then
+    _server="${_server}_scratch"
+  fi
+
+  #echo "[$(tput setaf 2)Server: $(tput sgr0)'$(tput setaf 4)${_server}$(tput sgr0)']"
+  emacs_func "${_server:+--socket-name=$_server}" "$@"
 }
 alias e="emacs_func_work"
 alias ed="~/bin/emacs_daemon"

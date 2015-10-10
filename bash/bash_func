@@ -40,25 +40,26 @@ pushd() { command pushd $@ > /dev/null ; }
 popd()  { command popd  $@ > /dev/null ; }
 
 
-# Path Jumper - Jump to a directory in the path that starts with targ. Case-insensitive and supports fuzzy matching
-path_jump() {
-  if (($# == 0)); then
-    echo "ERROR: Insufficient number of arguments"
-    echo "SYNTAX: path_jump <dir>"
-  fi
+# Misc utils                                                                                                        {{{1
 
-  #echo "Jumping to a parent dir in the path"
-  local _targ=${1/%\//}
-  # Remove spaces, escape any bare dots and add fuzzy magic
-  local _rx=$(ruby -e "print '${_targ}'.gsub(/\s+/,'').split('').join('.*?').gsub(/\.(?!\*\?)/,'\.')")
-  #echo Matched: $_rx
-  echo $PWD | ruby -e "print STDIN.read.sub(/(.*\/${_rx}[^\/]*\/).*/i,'\1')"
+# jumper
+if [[ -f ~/.linux/bash/utils/jumper ]]; then
+  . ~/.linux/bash/utils/jumper
+fi
+alias ,=jumper
 
-  # Plain-old jumping, no fuzziness
-  #_dir=$(echo $PWD | sed "s,\(^.*$2[^/]*\)/.*$,\1,")
-  #echo ${_dir}
-}
-alias ,=path_jump
+# query: which on steroids
+if [[ -f ~/.linux/bash/utils/query ]]; then
+  . ~/.linux/bash/utils/query
+fi
+
+# colm : print column no. n of space-separated input
+if [[ -f ~/.linux/bash/utils/colm ]]; then
+  . ~/.linux/bash/utils/colm
+fi
+
+
+
 
 
 # DirStack - Emulate Zsh's behavior of pushd lifting the directory to tos instead of cycling the stack              {{{1
@@ -138,19 +139,6 @@ alias cd=super_cd
   for (( i=0; i < $levels; i++ )); do
     cd ..;
   done;
-}
-
-
-# Function to print column no. n of space-separated input                                                           {{{1
-# SYNTAX:
-#   echo " 1  2  3" | col 1
-#     should print 2
-#   echo " 1  2  3" | col -1
-#     should print 3
-colm() {
-  while read stdin; do
-    echo $stdin | perl -alne 'print $F['$1']';
-  done
 }
 
 
@@ -263,94 +251,6 @@ unix2dos() {
 }
 
 
-# Query: which on steroids                                                                                          {{{1
-unset -f query
-query() {
-  if (( $# == 0 )); then return; fi
-
-  local _type=$(command type -t "$1")
-  local _input="$1"
-  local _lvl=${2:-0}
-
-  local _pp_type="$(tput setaf 4)${_type}$(tput sgr0)"
-  local _pp_input="$(tput bold)$(tput setaf 2)${_input}$(tput sgr0)"
-  #local _pp_v='|'
-  #local _pp_h='-'
-  #local _pp_x='+'
-  #local _pp_xl='\'
-  local _pp_v='│'
-  local _pp_h='─'
-  local _pp_x='├'
-  local _pp_xl='└'
-  _pp_xl=${_pp_xl:-$_pp_x}
-
-  local _lvl_spc=""
-  local _lvl_sep=""
-  if (( $_lvl == 0 )); then
-    _query_lvl=()
-    echo
-  else
-    for (( _i=1; _i <= $_lvl; _i++ )); do
-      #echo ${_query_lvl[$_i]}
-      if (( ${_query_lvl[$_i]} > 0 )); then
-        _lvl_spc="${_lvl_spc}${_pp_v}   "
-      else
-        _lvl_spc="${_lvl_spc}    "
-      fi
-    done
-    if (( ${_query_lvl[$_lvl]} == 0 )); then
-      _pp_x=$_pp_xl
-    fi
-    _lvl_sep="${_lvl_spc%????}${_pp_x}${_pp_h}${_pp_h} "
-    echo "${_lvl_spc%????}${_pp_v}"
-  fi
-
-  case $_type in
-    "file")
-      echo "${_lvl_sep}${_pp_input} (${_pp_type})"
-      while read; do
-        echo "${_lvl_spc}${REPLY}";
-      done < <(command type -a "$1" | command head -n1)
-      ;;
-
-    "function")
-      echo "${_lvl_sep}${_pp_input} (${_pp_type})"
-      shopt -s extdebug
-      IFS=" " read -a _arr <<< $(command declare -F "$1")
-      shopt -u extdebug
-      echo -e "${_lvl_spc}Defined in ${_arr[2]} at line ${_arr[1]}"
-      while read; do
-        echo "${_lvl_spc}${REPLY}";
-      done < <(command type -a "$1" | command tail -n+2)
-      ;;
-
-    "alias")
-      echo "${_lvl_sep}${_pp_input} (${_pp_type})"
-      while read; do
-        echo "${_lvl_spc}${REPLY}";
-      done < <(command type -a "$1" | command head -n2)
-      read -a _out_arr <<< $(command type -a $1 | command grep -Po "(?<=aliased to .).*(?='$)")
-      local _query_next=()
-      local _lvl_next=$(($_lvl + 1))
-      _query_lvl[$_lvl_next]=0
-      for i in ${_out_arr[@]}; do
-        if [[ "$i" =~ ^[[:alnum:]_][[:alnum:]_-]*$ ]]; then
-          if [[ "$i" != "$1" ]]; then
-            _query_lvl[$_lvl_next]=$(( ${_query_lvl[$_lvl_next]} + 1 ))
-            _query_next+=("$i")
-          fi
-        fi
-      done
-      for i in ${_query_next[@]}; do
-        _query_lvl[$_lvl_next]=$(( ${_query_lvl[$_lvl_next]} - 1 ))
-        query $i $_lvl_next
-      done
-      ;;
-  esac
-}
-alias que=query
-
-
 # Automatically add completion for all aliases to commands having completion functions                              {{{1
 # Call this at the end
 alias_completion() {
@@ -403,5 +303,3 @@ alias_completion() {
   done < <(alias -p | sed -ne "s/$alias_regex/\1 '\2' '\3'/p")
   source "$tmp_file" && rm -f "$tmp_file"
 };
-
-

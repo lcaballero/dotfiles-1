@@ -28,6 +28,7 @@ upd_cl=0
 summary=0
 verbose=1
 noexec=0
+tmp_file="${TMPDIR:-/tmp}/mkwa_clone_$$"
 
 # Colors for echo!
 fg_green=$(tput bold; tput setaf 2)
@@ -90,21 +91,16 @@ fi
 
 if (( ${upd_cl} < ${src_cl}  )); then upd_cl=${src_cl};  fi
 if (( ${upd_cl} < ${targ_cl} )); then upd_cl=${targ_cl}; fi
-
-if (( ${upd_cl} > ${src_cl}  )); then
-  src_upd=1
-fi
-if (( ${upd_cl} > ${targ_cl} )); then
-  targ_upd=1
-fi
+if (( ${upd_cl} > ${src_cl}  )); then src_upd=1;         fi
+if (( ${upd_cl} > ${targ_cl} )); then targ_upd=1;        fi
 
 # Print the input options ______________________________________________________________________________________________
+echo "Common CL ID  :  $upd_cl"
 echo "Source        :  $src"
 echo "Update Source :  $src_upd"
 echo "Target        :  $targ"
 echo "Create Target :  $targ_create"
 echo "Update Target :  $targ_upd"
-echo "Update CL ID  :  $upd_cl"
 
 # Source ===============================================================================================================
 echo -e "\n${fg_green}[Bootenv into Source work-area...]${reset}"
@@ -114,7 +110,7 @@ if (( $noexec == 0 )); then
 fi
 
 if (( $src_upd > 0 )); then
-  echo "\n${fg_green}[Updating Source work-area to CL=${upd_cl}...]${reset}"
+  echo -e "\n${fg_green}[Updating Source work-area to CL=${upd_cl}...]${reset}"
   if (( $noexec == 0 )); then
     p4w update_env @$upd_cl
   fi
@@ -123,7 +119,7 @@ fi
 # Copy files opened in Source
 echo -e "\n${fg_green}[Create list of files opened/edited in Source work-area...]${reset}"
 if (( $noexec == 0 )); then
-  p4w opened | perl -pe 's/^.*?\/trunk\/|#.*$//g' >| /tmp/mkwa_clone_$$
+  p4w opened >| ${tmp_file}
 fi
 
 # Target ===============================================================================================================
@@ -137,7 +133,7 @@ if (( $targ_create > 0 )); then
     p4_mkwa -configuration_id aspen/aspen_trunk@$upd_cl
   fi
 elif (( $targ_upd > 0 )); then
-  echo "\n${fg_green}[Updating Target work-area to CL=${upd_cl}]${reset}"
+  echo -e "\n${fg_green}[Updating Target work-area to CL=${upd_cl}]${reset}"
   if (( $noexec == 0 )); then
     cd $targ
     . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
@@ -154,13 +150,20 @@ fi
 echo -e "\n${fg_green}[Copying all modified files from Source...]${reset}"
 if (( $noexec == 0 )); then
   while read; do
-    p4w edit $REPLY
-    command cp ${src}/$REPLY ${targ}/$REPLY
-  done < /tmp/mkwa_clone_$$
+    if [[ "$REPLY" =~ "edit default change" ]]; then
+      file=$(echo $REPLY | perl -pe 's,^.*?/trunk/|#.*$,,g')
+      p4w edit $file
+      command cp ${src}/$file ${targ}/$file
+    elif [[ "$REPLY" =~ "add default change" ]]; then
+      file=$(echo $REPLY | perl -pe 's,^.*?/trunk/|#.*$,,g')
+      command cp ${src}/$file ${targ}/$file
+      p4w add ${targ}/$file
+    fi
+  done < ${tmp_file}
 fi
 
 # Clean-up =============================================================================================================
 echo -e "\n${fg_green}[Cleaning up...]${reset}"
 if (( $noexec == 0 )); then
-  command rm /tmp/mkwa_clone_$$ &> /dev/null
+  #command rm ${tmp_file} &> /dev/null
 fi

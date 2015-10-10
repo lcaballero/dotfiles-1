@@ -32,9 +32,8 @@ while (( $# > 0 )); do
         shift
       fi
       _server=${_server:-${REPO_PATH:+$(echo $REPO_PATH | tr '/' '_')}}
-      #echo $_server
 
-      echo "${_fg_green}[Creating emacs daemon: ${_server}]${_reset}"
+      echo "${_fg_green}[Creating emacs daemon: '${_server}']${_reset}"
       ${_emacs_path}/bin/emacs --daemon${_server:+=$_server}
       ;;
 
@@ -55,7 +54,7 @@ while (( $# > 0 )); do
       #echo $_server
 
       echo "${_fg_green}[Killing emacs daemon: $_server]${_reset}"
-      ${_emacs_path}/bin/emacsclient ${_server:+-s $_server} --eval '(kill-emacs)'
+      ${_emacs_path}/bin/emacsclient ${_server:+--socket-name=$_server} --eval '(kill-emacs)'
       ;;
 
     --list|-l)

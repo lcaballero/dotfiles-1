@@ -50,33 +50,13 @@
 # normal=$terminfo[sgr0]
 
 # This should always point to whatever prompt is desired.
-PROMPT_COMMAND=_preprompt_sjlmod_
+PROMPT_COMMAND=_setprompt_sjlmod_
 
 
 #=======================================================================================================================
 # Mod of Phil's ZSH Prompt                                                                                          {{{1
 #=======================================================================================================================
-precmd() {
-  local TERMWIDTH
-  (( TERMWIDTH = ${COLUMNS} - 1 ))
-
-  ###
-  # Truncate the path if it's too long.
-  PR_FILLBAR=""
-  PR_PWDLEN=""
-  modPWD="${PWD/#$HOME/~}"
-
-  local promptsize=${#${(%):-()--(%h)-}}
-  local pwdsize=${#${(%):-${modPWD} } }
-
-  if [[ "$promptsize + $pwdsize" -gt $TERMWIDTH ]]; then
-    ((PR_PWDLEN=$TERMWIDTH - $promptsize))
-  else
-    PR_FILLBAR="\${(l.(($TERMWIDTH - ($promptsize + $pwdsize)))..${PR_HBAR}.)}"
-  fi
-}
-
-setprompt_philmod () {
+_setprompt_philmod_() {
   ###
   # Need this so the prompt will work.
   #setopt PROMPT_SUBST
@@ -143,7 +123,7 @@ $PR_SHIFT_IN$PR_LLCORNER$PR_HBAR$PR_SHIFT_OUT\
 #=======================================================================================================================
 # Misc Prompts                                                                                                      {{{1
 #=======================================================================================================================
-setprompt_misc() {
+_setprompt_misc_() {
   setopt PROMPT_SUBST
   autoload colors zsh/terminfo
   if [[ "$terminfo[colors]" -ge 8 ]]; then
@@ -188,7 +168,7 @@ shopt -s checkwinsize
 
 ## This function is run at every prompt update, keeping our variables updated.
 ## Bash's PROMPT_COMMAND option handles this (see end of this function).
-_preprompt_sjlmod_() {
+_setprompt_sjlmod_() {
 
   # This has to be placed first
   local cmd_exit="$?"
@@ -197,6 +177,7 @@ _preprompt_sjlmod_() {
   local columns=$(tput cols)
 
   # Colors
+  # NOTE: Non-printable sequences should be enclosed in \[ and \] else it'll cause long commands to not wrap correctly
   local prc_norm='\[\e[0m\]'            # clear all colors
   local prc_bg='\[\e[38;5;250m\]'
   local prc_white=${prc_norm}
@@ -256,10 +237,8 @@ _preprompt_sjlmod_() {
   local pr_host="$(hostname) "
 
   # VCS specific
-  local pr_vcs=""
-  _get_vcs_type_ pr_vcs_type
-  local pr_vcs_branch=""
-  _get_vcs_branch_ pr_vcs_branch
+  local pr_vcs_type=$(_get_vcs_type_)
+  local pr_vcs_branch=$(_get_vcs_branch_)
   local pr_vcs_sep=" on "
   local prc_vcs_branch=${prc_norm}
 
@@ -283,61 +262,51 @@ _preprompt_sjlmod_() {
     local pr_vcs_sep=""
   fi
 
-  # Set length of our important info
+  # Set length of info
   local pr_info="${pr_ulcorner} ${pr_user}${pr_user_host_sep}${pr_host}${pr_pwd_sep}${pr_pwd}${pr_vcs_sep}${pr_vcs_branch} ${pr_time}"
-  let pr_fillsize=${columns}-${#pr_info}
 
   # If info is wider than the screen, drop the time display
-  if [ "$pr_fillsize" -lt "0" ]; then
+  if (( $columns < ${#pr_info} )); then
     pr_time=""
     pr_info="${pr_ulcorner} ${pr_user}${pr_user_host_sep}${pr_host}${pr_pwd_sep}${pr_pwd}${pr_vcs_sep}${pr_vcs_branch} "
-    let pr_fillsize=${columns}-${#pr_info}
   fi
 
   # If the info still can't fit, drop user and domain info
-  if [ "$pr_fillsize" -lt "0" ]; then
+  if (( $columns < ${#pr_info} )); then
     pr_user=""
     pr_user_host_sep=""
     pr_host=""
     pr_info="${pr_ulcorner} ${pr_pwd_sep}${pr_pwd}${pr_vcs_sep}${pr_vcs_branch} "
-    let pr_fillsize=${columns}-${#pr_info}
   fi
   pr_pwd_sep="${prc_white}${pr_pwd_sep}"
 
   # If the info still can't fit, drop vcs branch
-  if [ "$pr_fillsize" -lt "0" ]; then
+  if (( $columns < ${#pr_info} )); then
     pr_vcs_sep=""
     pr_vcs_branch=""
     pr_info="${pr_ulcorner} ${pr_pwd_sep}${pr_pwd} "
-    let pr_fillsize=${columns}-${#pr_info}
   fi
   pr_pwd_sep="${prc_white}${pr_pwd_sep}"
 
   # If the info still can't fit, truncate PWD
-  if [ "$pr_fillsize" -lt "0" ]; then
+  if (( $columns < ${#pr_info} )); then
     pr_pwd_sep="..."
-    while [ "$pr_fillsize" -lt 0 ]; do
+    while (( $columns < ${#pr_info} )); do
       pr_pwd=`echo $pr_pwd | sed 's|^/\?[^/]*/||'`
       pr_info="${pr_ulcorner} ${pr_pwd_sep}${pr_pwd} "
-      let pr_fillsize=${columns}-${#pr_info}
     done
     pr_pwd_sep="${prc_lime}${pr_pwd_sep}"
   fi
   pr_pwd="${prc_lime}${pr_pwd}${pr_norm}"
 
-  local pr_fill=""
-  let pr_fillsize=$pr_fillsize-1
-  while [ "$pr_fillsize" -gt "0" ]; do
-    pr_fill="${pr_fill}${pr_dash}"
-    let pr_fillsize=${pr_fillsize}-1
-  done
-  pr_fill="${pr_fill} "
+  local pr_fillsize=$(( $columns - ${#pr_info} - 1 ))
+  local pr_fill=$(printf "${pr_dash}%.0s" $(seq 1 $pr_fillsize))" "
 
   # Color pr_pwd based upon exit status of last command
   if [ "$cmd_exit" = "0" ]; then
-    pr_cmd_exit="${prc_lime} (^_^)${prc_norm}"
+    local pr_cmd_exit="${prc_lime} (^_^)${prc_norm}"
   else
-    pr_cmd_exit="${prc_red} (@_@)${prc_norm}"
+    local pr_cmd_exit="${prc_red} (@_@)${prc_norm}"
   fi
 
   PS1="\n${prc_norm}${prc_bg}${pr_ulcorner} ${prc_cherry}${pr_user}${prc_white}${pr_user_host_sep}${prc_orange}${pr_host}"
@@ -355,51 +324,51 @@ _preprompt_sjlmod_() {
 }
 
 
-_get_vcs_type_() {                                                                                                # {{{1
+#=======================================================================================================================
+# Helper functions                                                                                                  {{{1
+#=======================================================================================================================
+_get_vcs_type_() {                                                                                                # {{{2
   # Description: Check if specified directory is under a Version-controlled system
   # Arguments: 1 - Variable to return VCS type
   #            2 - Directory to check. If skipped, defaults to PWD
 
-  local cwd=$PWD
-  if (( $#>1 )); then
-    command cd $2
+  local _cwd=$PWD
+  if (( $# > 0 )); then
+    command cd $1
   fi
 
   if git rev-parse --git-dir > /dev/null 2>&1; then
     # Check if PWD is under Git
-    eval "$1='git'"
-
+    echo "git"
   elif hg status > /dev/null 2>&1; then
     # Check if PWD is under Mercurial
-    eval "$1='hg'"
-
+    echo "hg"
   else
     # No VCS. Return empty string
-    eval "$1=''"
+    echo ""
   fi
 
-  command cd $cwd
+  if (( $# > 0 )); then
+    command cd $_cwd
+  fi
 }
 
 
-_get_vcs_branch_() {                                                                                              # {{{1
+_get_vcs_branch_() {                                                                                              # {{{2
   # Description: If PWD is under a VCS, return the branch. If not, return an empty string
   # Arguments: 1 - The variable into which the branch name must be written
 
   # Get VCS type
-  vcs_type=""
-  _get_vcs_type_ vcs_type
+  vcs_type=$(_get_vcs_type_)
 
   if [[ $vcs_type == "git" ]]; then
     #echo "Detected git versioning scheme"
     local ref=$(git symbolic-ref HEAD 2> /dev/null) || return
-    eval "$1=${ref#refs/heads/}"
-
+    echo "${ref#refs/heads/}"
   elif [[ $vcs_type == "hg" ]]; then
     #echo "Detected mercurial versioning scheme"
-    eval "$1=$(hg branch 2> /dev/null)"
-
+    echo "$(hg branch 2> /dev/null)"
   else
-    eval "$1=''"
+    echo ""
   fi
 }
