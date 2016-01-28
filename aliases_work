@@ -340,7 +340,7 @@ pfrem() {
   rm_rf_silent $_scratch_dir
 
   # Kill emacs daemon
-  ~kshenoy/bin/emacs_daemon -k $(echo $_workarea | tr '/' '_')
+  #~kshenoy/bin/emacs_daemon -k $(echo $_workarea | tr '/' '_')
 }
 
 unset -f wtff
