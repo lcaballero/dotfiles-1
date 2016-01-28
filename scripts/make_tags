@@ -1,0 +1,32 @@
+#!/tool/pandora64/bin/bash -e
+if [[ -z $REPO_PATH ]]; then
+  echo "REPO_PATH is unset!"
+  exit 1
+fi
+
+# Directories to search
+tag_dirs=($REPO_PATH/libs/verif $REPO_PATH/ch)
+tags_db=$REPO_PATH/.tags
+export CSCOPE_DB=$REPO_PATH/.cscope.out
+
+# Clean up temp files
+rm -f $tags_db $CSCOPE_DB
+
+# Generate tags for C/C++
+find ${tag_dirs[@]} -type f -wholename '*unittest*' -prune -o -type f \( -iname "*.h" -or -iname "*.cc" -or -iname "*.c" -or -iname "*.cpp" -or -iname "*.C" \) >| $REPO_PATH/tags.filelist
+# Follow symlinks for generate files
+find ${tag_dirs[@]} -type l \( -iname "*.h" -or -iname "*.cc" -or -iname "*.c" -or -iname "*.cpp" -or -iname "*.C" \) -exec readlink '{}' \; >> $REPO_PATH/tags.filelist
+
+/tool/pandora64/latest/bin/ctags --languages=c++ --fields=+afimsSt --extra=+q -L $REPO_PATH/tags.filelist -f $tags_db 2> /dev/null &
+
+# Clean-up the tags file by deleting fold markers etc.
+sed -i 's,\s*\\/\\/\s*{{{[0-9]*\$,,' $tags_db
+
+cscope -bqk -i $REPO_PATH/tags.filelist -f $CSCOPE_DB 2> /dev/null &
+
+wait
+rm -f $REPO_PATH/tags.filelist ${CSCOPE_DB}{.in, .po}
+
+
+# Reset Cscope DB in vim
+command vim --serverlist | command grep -i $REPO_PATH | command xargs -n1 -I{} vim --servername {} --remote-send ':cscope reset<CR>'

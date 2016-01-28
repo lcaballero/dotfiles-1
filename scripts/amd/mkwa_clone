@@ -13,36 +13,41 @@ function print_help() {
   echo "  -c    Update both Source and Target work-areas to the specified changelist before running"
   echo "  -s    Use the specified dir as the Source work-area"
   echo "  -t    Use the specified dir as the Target work-area instead of using \$REPO_PATH"
-  echo "  -n    Do not make any changes. Simply list the commands that will be run"
 }
 
 # Defaults
 src=""
 src_upd=0
 src_cl=0
-if [[ -z ${REPO_PATH} ]]; then targ=${PWD}; else targ=${REPO_PATH}; fi
+targ=${REPO_PATH:-$PWD}
 targ_create=0
 targ_upd=0
 targ_cl=0
 upd_cl=0
 summary=0
 verbose=1
-noexec=0
-tmp_file="${TMPDIR:-/tmp}/mkwa_clone_$$"
+
+pipe="${TMPDIR:-/tmp}/mkwa_clone_$$"
+if [[ -p ${pipe} ]]; then
+  # Flush pipe if it exists
+  dd if=${pipe} of=/dev/null iflag=nonblock
+else
+  mkfifo ${pipe}
+fi
 
 # Colors for echo!
 fg_green=$(tput bold; tput setaf 2)
 reset=$(tput sgr0)
 
 echo
-while getopts ":c:s:t:nhv" opt; do
+while getopts ":c:s:t:hv" opt; do
   case $opt in
     c)
       upd_cl=${OPTARG}
       ;;
 
     s)
-      src=$(cd ${OPTARG}; pwd)
+      src=$(readlink -f ${OPTARG})
       if [ ! -f ${src}/configuration_id ]; then
         echo "ERROR: Source ($src) work-area is not a valid Perforce repository";
         exit 1;
@@ -50,11 +55,7 @@ while getopts ":c:s:t:nhv" opt; do
       ;;
 
     t)
-      targ=$(cd ${OPTARG}; pwd)
-      ;;
-
-    n)
-      noexec=1
+      targ=$(readlink -f ${OPTARG})
       ;;
 
     v)
@@ -67,23 +68,25 @@ while getopts ":c:s:t:nhv" opt; do
       ;;
 
     :)
-      echo "ERROR: Option -${OPTARG} requires an argument" >&2; echo
+      echo -e "ERROR: Option -${OPTARG} requires an argument\n" >&2
       print_help
       exit 1
       ;;
 
     \?)
-      echo "ERROR: Invalid option: -${OPTARG}" >&2; echo
+      echo -e "ERROR: Invalid option: -${OPTARG}\n" >&2
       print_help
       exit 1
       ;;
   esac
-  shift $((OPTIND-1))
 done
+
+# Remove all option arguments and leave "$@" with just the non-option arguments
+shift $((OPTIND-1))
 
 # Determine which CL to update to ______________________________________________________________________________________
 src_cl=$(grep -Po "(?<=aspen_trunk@)\d+" ${src}/configuration_id)
-if [ -f ${targ}/configuration_id ]; then
+if [[ -f ${targ}/configuration_id ]]; then
   targ_cl=$(grep -Po "(?<=aspen_trunk@)\d+" ${targ}/configuration_id)
 else
   targ_create=1;
@@ -95,75 +98,67 @@ if (( ${upd_cl} > ${src_cl}  )); then src_upd=1;         fi
 if (( ${upd_cl} > ${targ_cl} )); then targ_upd=1;        fi
 
 # Print the input options ______________________________________________________________________________________________
-echo "Common CL ID  :  $upd_cl"
-echo "Source        :  $src"
-echo "Update Source :  $src_upd"
-echo "Target        :  $targ"
-echo "Create Target :  $targ_create"
-echo "Update Target :  $targ_upd"
+echo "Common CL : $upd_cl"
+echo "Source    : $src"
+echo "  Update  : $src_upd"
+echo "Target    : $targ"
+echo "  Create  : $targ_create"
+echo "  Update  : $targ_upd"
+
 
 # Source ===============================================================================================================
-echo -e "\n${fg_green}[Bootenv into Source work-area...]${reset}"
-if (( $noexec == 0 )); then
-  cd $src
-  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
-fi
+(
+cd $src
+echo -e "\n${fg_green}[Bootenv into Source work-area: $PWD]${reset}"
+. /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
 
 if (( $src_upd > 0 )); then
   echo -e "\n${fg_green}[Updating Source work-area to CL=${upd_cl}...]${reset}"
-  if (( $noexec == 0 )); then
-    p4w update_env @$upd_cl
-  fi
+  p4w update_env @$upd_cl
 fi
 
-# Copy files opened in Source
+## Copy files opened in Source
 echo -e "\n${fg_green}[Create list of files opened/edited in Source work-area...]${reset}"
-if (( $noexec == 0 )); then
-  p4w opened >| ${tmp_file}
-fi
+p4w opened > ${pipe}
+) &
+
 
 # Target ===============================================================================================================
 
 # Create/Update Target
 if (( $targ_create > 0 )); then
   echo -e "\n${fg_green}[Target work-area is not a valid Perforce repository. Creating it...]${reset}"
-  if (( $noexec == 0 )); then
-    command mkdir -p $targ && command cd $targ
-    . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash
-    p4_mkwa -configuration_id aspen/aspen_trunk@$upd_cl
+  if [[ ! -d $targ ]]; then
+    command mkdir -p $targ
   fi
-elif (( $targ_upd > 0 )); then
-  echo -e "\n${fg_green}[Updating Target work-area to CL=${upd_cl}]${reset}"
-  if (( $noexec == 0 )); then
-    cd $targ
-    . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
-    p4w update_env @$upd_cl
-  fi
+  command cd $targ
+  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash
+  p4_mkwa -configuration_id aspen/aspen_trunk@$upd_cl
 else
-  echo -e "\n${fg_green}[Bootenv into Target work-area...]${reset}"
-  if (( $noexec == 0 )); then
-    cd $targ
-    . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
+  command cd $targ
+  echo -e "\n${fg_green}[Bootenv into Target work-area: $PWD]${reset}"
+  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && bootenv
+
+  if (( $targ_upd > 0 )); then
+    echo -e "\n${fg_green}[Updating Target work-area to CL=${upd_cl}]${reset}"
+    p4w update_env @$upd_cl
   fi
 fi
 
 echo -e "\n${fg_green}[Copying all modified files from Source...]${reset}"
-if (( $noexec == 0 )); then
-  while read; do
-    if [[ "$REPLY" =~ "edit default change" ]]; then
-      file=$(echo $REPLY | perl -pe 's,^.*?/trunk/|#.*$,,g')
-      p4w edit $file
-      command cp ${src}/$file ${targ}/$file
-    elif [[ "$REPLY" =~ "add default change" ]]; then
-      file=$(echo $REPLY | perl -pe 's,^.*?/trunk/|#.*$,,g')
-      command cp ${src}/$file ${targ}/$file
-      p4w add ${targ}/$file
-    fi
-  done < ${tmp_file}
-fi
+while read; do
+  echo $REPLY
+  file=$(echo $REPLY | perl -pe 's,^.*?/trunk/|#.*$,,g')
+  if [[ "$REPLY" =~ "edit default change" ]]; then
+    p4w edit $file
+  fi
+  command cp ${src}/$file ${targ}/$file
+  if [[ "$REPLY" =~ "add default change" ]]; then
+    p4w add ${targ}/$file
+  fi
+done < ${pipe}
 
 # Clean-up =============================================================================================================
 echo -e "\n${fg_green}[Cleaning up...]${reset}"
-if (( $noexec == 0 )); then
-  #command rm ${tmp_file} &> /dev/null
-fi
+command rm ${pipe} &> /dev/null
+exit 0

@@ -27,9 +27,12 @@ vim_func_work() {
   # This is a hack to weed out the arguments. The last argument is more likely to be a file than any of the other ones
   local _file=$(eval echo $(echo '$'"$#"))
   if [[ ( -f $_file ) && ( -n $REPO_PATH ) ]]; then
-    local _server=$(echo ${REPO_PATH} | tr '/' '_')
-    if [[ ! $(readlink -f $_file 2> /dev/null) =~ ^$REPO_PATH ]]; then
+    local _server=${REPO_PATH}
+    local _scratch_dir=$(dirname $(readlink -f $REPO_PATH/sim))
+    if [[ $(readlink -f $_file 2> /dev/null) =~ ^$_scratch_dir ]]; then
       _server="${_server}_SCRATCH"
+    elif [[ ! $(readlink -f $_file 2> /dev/null) =~ ^$REPO_PATH ]]; then
+      _server=""
     fi
     #echo "[$(tput setaf 2)Server: $(tput sgr0)'$(tput setaf 4)${_server}$(tput sgr0)']"
   fi
@@ -42,16 +45,23 @@ unset -f emacs_func_work
 emacs_func_work() {
   # This is a hack to weed out the arguments. The last argument is more likely to be a file than any of the other ones
   local _file=$(eval echo $(echo '$'"$#"))
-  local _server=$(echo ${REPO_PATH} | tr '/' '_')
-  if [[ ! $(readlink -f $_file) =~ ^$REPO_PATH ]]; then
-    _server="${_server}_scratch"
+  if [[ ( -f $_file ) && ( -n $REPO_PATH ) ]]; then
+    local _server=$(echo ${REPO_PATH} | tr '/' '_')
+    local _scratch_dir=$(dirname $(readlink -f $REPO_PATH/sim))
+    if [[ $(readlink -f $_file 2> /dev/null) =~ ^$_scratch_dir ]]; then
+      _server="${_server}_SCRATCH"
+    elif [[ ! $(readlink -f $_file) =~ ^$REPO_PATH ]]; then
+      _server=""
+    fi
   fi
 
   #echo "[$(tput setaf 2)Server: $(tput sgr0)'$(tput setaf 4)${_server}$(tput sgr0)']"
+  #echo "emacs_func ${_server:+--socket-name=$_server} $@"
   emacs_func "${_server:+--socket-name=$_server}" "$@"
 }
 alias e="emacs_func_work"
 alias ed="~/bin/emacs_daemon"
+alias vlog="tm ue &> /dev/null; v -p *ChkL3.log *Seq.log"
 
 
 # Project Aliases
@@ -84,13 +94,29 @@ alias ff='firefox'
 alias kv='kview'
 
 alias rr='~/bin/rerun'
-alias b='~/bin/rerun -b --norun -m'
-alias bc='~/bin/rerun -c --norun -m'
-alias bcb='~/bin/rerun -bc --norun -m'
+unset -f rr_build
+rr_build() {
+  local _cmd="${HOME}/bin/rerun --norun"
+  while (( $# > 0 )); do
+    if [[ $1 =~ ^-m ]]; then
+      shift
+      _cmd="$_cmd -m $1"
+    elif [[ $1 =~ ^- ]]; then
+      _cmd="$_cmd $1"
+    else
+      _cmd="$_cmd -m $1"
+    fi
+    shift
+  done
+  $_cmd
+}
+alias b='rr_build -b'
+alias bc='rr_build -c'
+alias bcb='rr_build -bc'
 alias bca='build -clean_all'
 alias brr='~/bin/rerun -b'
 alias bcrr='~/bin/rerun -c'
-alias rrdbg='~/bin/rerun -y $REPO_PATH/ch/verif/debug/l3/amdmsg_config.yaml -a "-avf '"'-/ChkL3.Debug/ 1'"'" --fsdb'
+alias rrdbg='~/bin/rerun -y $as0ks/amdmsg_config.yaml -a "-avf '"'-/ChkL3.Debug/ 1'"'" --fsdb'
 
 alias rg='release_gate'
 alias rgd='release_gate -donate'
@@ -105,15 +131,16 @@ alias wbus='watch -n15 "bucket -s"'
 
 alias xterm='~/bin/uxterm'
 alias restd='resize -s 88 319'
-alias xttl='xterm -geometry 265x55'
 alias restl='resize -s 55 265'
-alias xttv='xterm -geometry 416x85'
-alias restv='resize -s 90 416'
+alias restvd='resize -s 91 416'
+alias restvl='resize -s 67 309'
 
 
 # Perforce
-alias pfop="pfo | sed -e 's,^//depot/[^/]*/trunk,$REPO_PATH,' -e 's/#.*$//'"
-function pfu { pf update_env "$@" && ~/bin/make_tags && sra; }
+unset -f pfo_pp
+pfo_pp() { sed -e 's,^//depot/[^/]*/trunk/,,' -e 's/#.*$//' < /dev/stdin; }
+alias pfop="pfo | pfo_pp"
+pfu() { pf update_env "$@" && ~/bin/gentags --create && sra; }
 
 
 # Locations
@@ -205,15 +232,15 @@ unset -f rgww
 rgww() {
   if [[ -z $REPO_PATH ]]; then return; fi
   for i in `g FAIL $REPO_PATH/release_gate_tmp/release_gate.log | colm -1`; do
-    echo -e "\n$i"; pww $i;
+    echo -e "\n$i";
+    pww $i;
   done
 }
 
 unset -f plastlock
 plastlock() {
   for i in $*; do
-    echo
-    echo $i:
+    echo -e "\n$i:"
     perl -ne 'if(/BUS_LOCK|SYS_MGMT/){$p="";}$p.=$_;END{print $p;}' $i
   done
 }
@@ -255,42 +282,17 @@ mkwa_proj() {
   # Source aliases
   echo "$(tput setaf 2)[Sourcing aliases...]$(tput sgr0)"
   [[ -f ~/.linux/aliases ]] && . ~/.linux/aliases
-}
-
-unset -f mkwa_as
-mkwa_as() {
-  mkwa_proj aspen "$@"
 
   # Create tags
   echo "$(tput setaf 2)[Generating Tags...]$(tput sgr0)"
-  ~/bin/make_tags
+  ~/bin/gentags --create
 
   # Start emacs daemon
-  ~kshenoy/bin/emacs_daemon -s $(echo $REPO_PATH | tr '/' '_')
+  #~kshenoy/bin/emacs_daemon -s $(echo $REPO_PATH | tr '/' '_')
 }
+alias mkwa_as="mkwa_proj aspen"
+alias mkwa_ah="mkwa_proj aspen_highlands"
 alias mkwa_zn="mkwa_proj zen"
-
-#unset -f mkwa_as
-#mkwa_as() {
-#  . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash && export LANG=en_US.UTF-8
-#  if (( $#==0 )); then
-#    echo p4_mkwa -codeline aspen
-#    p4_mkwa -codeline aspen
-#  else
-#    [[ $1 == "-configuration_id" ]] && shift;
-#    # Delete aspen/aspen_trunk from the front of $1
-#    config_id=${1#aspen/aspen_trunk}
-#    # Delete @ from the front of $1 (Same as above)
-#    config_id=${config_id/#@/}
-#    echo p4_mkwa -configuration_id aspen/aspen_trunk@${config_id}
-#    p4_mkwa -configuration_id aspen/aspen_trunk@${config_id}
-#  fi
-#  # Create tags
-#  #~/bin/gentags --create
-#  ~/bin/make_tags
-
-#  [ -f ~/Dropbox/Softwares/Linux/aliases ] && . ~/Dropbox/Softwares/Linux/aliases
-#}
 
 unset -f dotty
 dotty() {
@@ -321,35 +323,24 @@ but() {
 
 unset -f pfrem
 pfrem() {
-  local _workarea=""
-  if (( $# = 0 )); then
-    if [[ -z $REPO_PATH ]]; then
-      echo "ERROR: \$REPO_PATH not set"
-      exit 1
-    fi
-    if [[ "$PWD" != "$REPO_PATH" ]]; then
-      read -p "Remove workarea '${REPO_PATH}'? (y/n) " choice;
-      case "$choice" in
-        n|N ) exit 0;;
-        y|Y ) _workarea="$PWD";;
-      esac
-    fi
-  else
-    _workarea="$1"
+  local _workarea="${REPO_PATH:-${1:-$PWD}}"
+
+  local _scratch_dir=$(readlink ${_workarea}/build | command sed 's/build$//')
+  echo -e "\nDeleting workarea: '$_workarea'"
+  cd $_workarea/..
+
+  p4w remove $_workarea
+  local _exit_code=$?
+  if (( $_exit_code != 0 )); then
+    return $_exit_code;
   fi
+
+  echo -e "\nDeleting workarea from scratch disk..."
+  echo "  command rm -rf $_scratch_dir"
+  rm_rf_silent $_scratch_dir
 
   # Kill emacs daemon
   ~kshenoy/bin/emacs_daemon -k $(echo $_workarea | tr '/' '_')
-  local _scratch_dir=$(readlink ${_workarea}/build | command sed 's/build$//')
-
-  #echo "p4w remove $1"
-  p4w remove $_workarea
-  if (( $? != 0 )); then return 1; fi
-
-  echo
-  echo "Deleting workarea from scratch disk..."
-  echo "  command rm -rf $_scratch_dir"
-  rm_rf_silent $_scratch_dir
 }
 
 unset -f wtff

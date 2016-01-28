@@ -1,0 +1,20 @@
+#1442523421
+echo $HISTFILE
+#1442523428
+cd ~/.history/
+#1442523431
+cd 2015/09/
+#1442523449
+ltr
+#1442523454
+ltr -1
+#1442523463
+ltr | colm -1
+#1442523495
+rd *1806_*
+#1442523503
+cd ~/Dropbox/
+#1442523509
+cd Softwares/linux/bash/
+#1442523514
+mcd history

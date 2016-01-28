@@ -3,7 +3,7 @@ compiz/
 fonts/
 unity/
 wallpapers/
-bash/bash_history
-bash/bash_logout
-zsh/zsh_history
+bash/history
+bash/logout
+zsh/history
 zsh/oh-my-zsh/

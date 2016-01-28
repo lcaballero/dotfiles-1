@@ -1,6 +1,0 @@
-#!/bin/tcsh
-
-while (1)
-	echo Hello >> Hello.list
-	sleep 2
-end

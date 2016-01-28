@@ -1,3 +1,0 @@
-#!/bin/bash
-
-~kshenoy/bin/gvim -u ~kshenoy/.vim/vimrc -U ~kshenoy/.vim/gvimrc "$@"

@@ -22,7 +22,8 @@
 =head1 OPTIONS
 
     -h               Print this help
-    -s, --summarize  Summarize results. Just show the number of failures of each signature, don't print the failing directories
+    -s, --summarize  Summarize results. Just show the number of failures of each signature.
+                     Don't print the failing directories
     -n, --num-fails  Only print the specified number of fastest failing directories per signature. (Overrides -s)
 
 =cut
@@ -69,12 +70,15 @@ push (@ARGV, ".") if ($#ARGV == -1);
 #=======================================================================================================================
 foreach my $dir (@ARGV) {
   #print "$dir\n";
-  foreach my $run_dir (`command find "$dir" -name gather.xml`) {
+  my @run_dirs = `command find "$dir" -name gather.xml`;
+  push (@run_dirs, '.') unless ($#run_dirs >= 0);
+
+  foreach my $run_dir (@run_dirs) {
     chomp($run_dir);
     $run_dir =~ s/^\./getcwd()/e;
     $run_dir =~ s,/comms/gather.xml$,,;
 
-    print "\n************************************************************************************************************************\n";
+    print "\n" . '*'x120 . "\n";
     print "* Directory: ${run_dir}\n";
 
     my $total=0;
@@ -90,12 +94,18 @@ foreach my $dir (@ARGV) {
       $failed    = `command grep -Po '(?<=Number of Failing Jobs : )\\d+' "${run_dir}/summary.ljd"`;
       $unknown   = $total - $passed - $failed;
       $completed = $total;
-    }
-    else {
+    } else {
       #print "[DEBUG] Jobspec is still running\n";
-      $total     = `command grep -c '/exec_dir' "${run_dir}/comms/gather.xml"`;
-      $passed    = `command find "${run_dir}" -name PASSED | wc -l`;
-      $failed    = `command find "${run_dir}" -name FAILED | wc -l`;
+      if (-e "${run_dir}/comms/gather.xml") {
+        $total = `command grep -c '/exec_dir' "${run_dir}/comms/gather.xml"`;
+      } else {
+        $total = `command find "${run_dir}" -name sim.out | wc -l`;
+      }
+      $passed = `command find "${run_dir}" -name PASSED | wc -l`;
+      $failed = `command find "${run_dir}" -name FAILED | wc -l`;
+      $total  =~ s/\s*//g;
+      $passed =~ s/\s*//g;
+      $failed =~ s/\s*//g;
       $completed = $passed + $failed;
       $unknown   = $total - $completed;
     }
@@ -109,6 +119,7 @@ foreach my $dir (@ARGV) {
       foreach my $fail_dir (`command find "${run_dir}" -name FAILED`) {
         chomp($fail_dir);
         $fail_dir = dirname($fail_dir);
+
         my $signature = `grep -Poi '(?<=Signature: ).*' "$fail_dir/summary.rj"`;
         chomp $signature;
         my $cycles = `grep -Poi '(?<=Cycles:: )\\d+' "$fail_dir/sim.out"` || 0; # || is for when grep is an empty string
@@ -117,6 +128,7 @@ foreach my $dir (@ARGV) {
         unless (exists($scoreboard{$signature})) {
           $scoreboard{$signature} = [];
         }
+        #$fail_dir =~ s/getcwd()/./e;
         push(@{$scoreboard{$signature}}, [$cycles, $fail_dir]);
       }
     }

@@ -10,14 +10,15 @@
 # NOTE:
 # The rsync happens every 10 minutes repeating infinitely, till it is killed upon which the script will prompt if the VPN is to be disconnected
 
-if ! `ps -aef | grep -Piq '^root.*openconnect'`; then
+if ! $(ps -aef | grep -Piq '^root.*openconnect'); then
   if (( $#==0 )); then
     echo "ERROR: Enter the password for the VPN connection"
     exit
   fi
   echo "Connecting to VPN..."
-  echo -n $1 | sudo openconnect -u kshenoy --passwd-on-stdin https://svl-vpn.amd.com &
-  sleep 15
+  #echo -n $1 | sudo openconnect -u kshenoy --passwd-on-stdin https://svl-vpn.amd.com &
+  echo -n $1 | sudo openconnect -u kshenoy --passwd-on-stdin --no-cert-check https://atl-vpn.amd.com &
+  sleep 30
 else
   echo "...connection already exists"
 fi

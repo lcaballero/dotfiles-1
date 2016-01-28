@@ -1,6 +1,6 @@
 #!/tool/pandora64/bin/bash
 
-function print_help() {
+function _print_help_() {
   echo "Usage:"
   echo "  `basename $0` [OPTIONS]"
   echo
@@ -22,6 +22,13 @@ _server=""
 _bold=$(tput bold)
 _fg_green=$(tput setaf 2)
 _reset=$(tput sgr0)
+
+for _i in "$@"; do
+  if [[ $1 =~ ^-h$ ]] || [[ $1 =~ ^--help$ ]]; then
+    _print_help_
+    return 0
+  fi
+done
 
 while (( $# > 0 )); do
   case "$1" in
@@ -54,7 +61,8 @@ while (( $# > 0 )); do
       #echo $_server
 
       echo "${_fg_green}[Killing emacs daemon: $_server]${_reset}"
-      ${_emacs_path}/bin/emacsclient ${_server:+--socket-name=$_server} --eval '(kill-emacs)'
+      #echo "${_emacs_path}/bin/emacsclient -a '' -t -q -n ${_server:+--socket-name=$_server} --eval '(kill-emacs)'"
+      ${_emacs_path}/bin/emacsclient -a '' -t -q -n ${_server:+--socket-name=$_server} --eval '(kill-emacs)'
       ;;
 
     --list|-l)
@@ -62,10 +70,6 @@ while (( $# > 0 )); do
       #echo "${_fg_green}[Currently running daemons]${_reset}"
       #lsof -c emacs | command grep STREAM | tr -s " " | cut -d " " -f9 | sed 's,.*/,  ,'
       command ls -1 ${TMPDIR:-/tmp}/emacs$(id -u)
-      ;;
-
-    --help|-h)
-      print_help
       ;;
 
     #--verbose|-v)

@@ -8,6 +8,17 @@
 [[ -f ~/.linux/tmux/tmux_scripts ]] && . ~/.linux/tmux/tmux_scripts
 
 
+# "alert" for long running commands                                                                                 {{{1
+# Use like so:  sleep 10; alert
+unset -f alert
+alert() {
+  local _icon=$( (($? == 0)) && echo terminal || echo error)
+  local _msg=$(fc -nl -1 | sed -e 's/^\s*[0-9]\+\s*//' -e 's/[;&|]\s*alert$//')
+  _msg="$([[ -n "$TMUX" ]] && tmux display-message -p "[tmux #S:#I.#P] ")$_msg"
+  notify-send --urgency=low -i ${_icon} ${_msg}
+}
+
+
 # Human-readable du sorted by size                                                                                  {{{1
 unset -f duh
 duh() {
@@ -53,12 +64,10 @@ if [[ -f ~/.linux/bash/utils/query ]]; then
   . ~/.linux/bash/utils/query
 fi
 
-# colm : print column no. n of space-separated input
+# colm: print column no. n of space-separated input
 if [[ -f ~/.linux/bash/utils/colm ]]; then
   . ~/.linux/bash/utils/colm
 fi
-
-
 
 
 
@@ -105,7 +114,7 @@ super_cd() {
     ,*)
       #echo "Jumping to a parent dir in the path"
       local _targ=${_dir/#,}
-      _dir=$(path_jump ${_targ/#,})
+      _dir=$(jumper ${_targ/#,})
       #echo $_dir
       ;&
 

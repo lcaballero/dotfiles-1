@@ -178,15 +178,15 @@ _setprompt_sjlmod_() {
 
   # Colors
   # NOTE: Non-printable sequences should be enclosed in \[ and \] else it'll cause long commands to not wrap correctly
-  local prc_norm='\[\e[0m\]'            # clear all colors
-  local prc_bg='\[\e[38;5;250m\]'
-  local prc_white=${prc_norm}
-  local prc_red='\[\e[38;5;160m\]'
-  local prc_lime='\[\e[38;5;154m\]'
-  local prc_cherry='\[\e[38;5;161m\]'
-  local prc_yellow='\[\e[38;5;221m\]'
-  local prc_orange='\[\e[38;5;214m\]'
-  local prc_rose='\[\e[38;5;211m\]'
+  local prc_norm='\[$(tput sgr0)\]'
+  local prc_grey='\[$(tput setaf 250)\]'
+  local prc_white='\[$(tput setaf 7)\]'
+  local prc_red='\[$(tput setaf 160)\]'
+  local prc_lime='\[$(tput setaf 154)\]'
+  local prc_cherry='\[$(tput setaf 161)\]'
+  local prc_yellow='\[$(tput setaf 221)\]'
+  local prc_orange='\[$(tput setaf 214)\]'
+  local prc_rose='\[$(tput setaf 211)\]'
 
   # Set line graphics
   local pr_dash="─"
@@ -309,10 +309,10 @@ _setprompt_sjlmod_() {
     local pr_cmd_exit="${prc_red} (@_@)${prc_norm}"
   fi
 
-  PS1="\n${prc_norm}${prc_bg}${pr_ulcorner} ${prc_cherry}${pr_user}${prc_white}${pr_user_host_sep}${prc_orange}${pr_host}"
+  PS1="\n${prc_norm}${prc_grey}${pr_ulcorner} ${prc_cherry}${pr_user}${prc_white}${pr_user_host_sep}${prc_orange}${pr_host}"
   PS1+="${pr_pwd_sep}${pr_pwd}${prc_white}${pr_vcs_sep}${prc_vcs_branch}${pr_vcs_branch} "
-  PS1+="${prc_bg}${pr_fill}${prc_orange}${pr_time}"
-  PS1+="\n${prc_bg}${pr_llcorner}${pr_cmd_exit}${prc_user_symbol}${pr_user_symbol}${prc_norm} "
+  PS1+="${prc_grey}${pr_fill}${prc_orange}${pr_time}"
+  PS1+="\n${prc_grey}${pr_llcorner}${pr_cmd_exit}${prc_user_symbol}${pr_user_symbol}${prc_norm} "
 
   PS2="${prc_user_symbol}${pr_user_symbol}${prc_norm} "
 
