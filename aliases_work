@@ -169,7 +169,6 @@ export ass2='/proj/aspen_func_gen_scratch2/ASPEN'
 # If $REPO_PATH is set, expand ${...} to $REPO_PATH/ (append trailing slash)
 # This allows us to use $rtl etc as an absolute path when $REPO_PATH is set and when bootenv isn't done, as a relative path
 dyn_vars() {
-  export RP=${REPO_PATH+$REPO_PATH}
   export sim=${REPO_PATH+$REPO_PATH/}'sim'
   export r=${REPO_PATH+$REPO_PATH/}'ch/rtl'
   export v=${REPO_PATH+$REPO_PATH/}'ch/verif'
@@ -324,6 +323,9 @@ but() {
 unset -f pfrem
 pfrem() {
   local _workarea="${REPO_PATH:-${1:-$PWD}}"
+  if [[ $_workarea != $REPO_PATH ]]; then
+    cd $_workarea && benv
+  fi
 
   local _scratch_dir=$(readlink ${_workarea}/build | command sed 's/build$//')
   echo -e "\nDeleting workarea: '$_workarea'"
