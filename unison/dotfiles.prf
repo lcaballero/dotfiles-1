@@ -38,6 +38,7 @@ ignore = Path vim/bundle
 ignore = Path vim/tmp
 ignore = Path emacs/elpa
 ignore = Path emacs/auto-save-list
+ignore = Path emacs/tmp
 ignore = Path linux/scripts/ti
 
 #          When set to true, this flag causes the user interface to skip

@@ -61,7 +61,7 @@ emacs_func_work() {
 }
 alias e="emacs_func_work"
 alias ed="~/bin/emacs_daemon"
-alias vlog="tm ue &> /dev/null; v -p *ChkL3.log *Seq.log"
+alias vlog="v -p *ChkL3.log *Seq.log"
 
 
 # Project Aliases
@@ -205,6 +205,7 @@ unset -f benv
 benv() {
   (( $# > 0 )) && command cd "$1"
   sbi && bootenv && sra && srf
+  (( $# > 0 )) && command cd ~-
 }
 
 unset -f trapbug_rm
@@ -322,12 +323,14 @@ but() {
 
 unset -f pfrem
 pfrem() {
-  local _workarea="${REPO_PATH:-${1:-$PWD}}"
+  local _workarea=$(readlink -f ${1:-${REPO_PATH:-$PWD}})
   if [[ $_workarea != $REPO_PATH ]]; then
-    cd $_workarea && benv
+    command cd $_workarea
+    . /proj/verif_release_ro/cbwa_initscript/nodisk_current/cbwa_init.bash
+    bootenv
   fi
 
-  local _scratch_dir=$(readlink ${_workarea}/build | command sed 's/build$//')
+  local _scratch_dir=$(readlink -f ${_workarea}/build | command sed 's/build$//')
   echo -e "\nDeleting workarea: '$_workarea'"
   cd $_workarea/..
 

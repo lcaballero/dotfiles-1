@@ -108,7 +108,7 @@ HISTCONTROL=ignoreboth #same as export HISTCONTROL=ignoredups:ignorespace
 HISTIGNORE='?:??:history*'
 HOSTNAME="$(hostname)"
 # Keeps history forever. Requires PROMPT_COMMAND='history -a; history -r'
-HISTFILE="${HOME}/.history/$(date +%Y/%m/%d)_${HOSTNAME%%.*}"
+HISTFILE="${HOME}/.bash_history/$(date +%Y/%m/%d)_${HOSTNAME%%.*}_$$"
 mkdir -p $(dirname ${HISTFILE})
 
 ## TERMINAL

@@ -187,8 +187,8 @@ alias k9='kill -9'
 unset -f vim_func;
 vim_func() {
   # If tmux is being used, check that DISPLAY is set correctly
-  if [[ (-n "$TMUX") && ($DISPLAY != "$(tmux show-env | grep DISPLAY | cut -d '=' -f2)") ]]; then
-    tmux_pp update-env
+  if [[ $DISPLAY != "$(tmux show-env | grep DISPLAY | cut -d '=' -f2)" ]]; then
+    tmux_pp update-env >& /dev/null
   fi
   gvim -geometry +0+0 "$@" 2> /dev/null
 }
@@ -219,7 +219,7 @@ alias govb='v ~/.vim/bundle.vim'
 alias govg='v ~/.vim/gvimrc'
 alias govm='v ~/.vim/mappings.vim'
 alias govf='v ~/.vim/autoload/myFunctions.vim'
-alias govn='v ~/readmes'
+alias gor='e ~/readmes'
 alias rvv='\rm -rf ~/.vim/junk/views/*'
 
 emacs_func() {

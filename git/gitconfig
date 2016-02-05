@@ -14,9 +14,11 @@
   default = matching
 
 [diff]
-  tool = meld
+  tool = gvim
 [difftool]
   prompt = false
+[difftool "gvim"]
+  cmd = gvim -df $LOCAL $BASE 2> /dev/null
 [difftool "meld"]
   cmd = meld --diff $LOCAL $BASE
 
